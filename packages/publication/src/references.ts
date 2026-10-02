@@ -297,16 +297,16 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     if (same.length === 1) { names.set(same[0]!.key, same[0]!.name); continue; }
     const rows = same.map((group) => group.members[0]!).sort((left, right) => left.nativeId - right.nativeId);
     const kind = same[0]!.kind;
-    // Distinct effects can share an authored name. Their native number, not a shifting ordinal, identifies each.
+    // Effect pages keep their authored names. Their distinct URLs, links, and outcomes give context without record ids.
     if (kind === "effects") {
-      for (const group of same) names.set(group.key, `${group.name} (#${group.members[0]!.nativeId})`);
+      for (const group of same) names.set(group.key, group.name);
       continue;
     }
     const suffixes = recordLabels(rows, candidatesOf(kind), (position) => String(position), kind === "places" ? entrances : undefined);
     for (const group of same) names.set(group.key, `${group.name} (${suffixes.get(group.key)!.text})`);
   }
   const pageEntries = groups.map((group) => ({ entity: group.members[0]!, kind: group.kind }));
-  ensureUniqueNames(pageEntries, names);
+  ensureUniqueNames(pageEntries.filter((entry) => entry.kind !== "effects"), names);
 
   const usedSlugs = new Map<string, Set<string>>();
   const refs: Array<readonly [string, EntityRef]> = [];

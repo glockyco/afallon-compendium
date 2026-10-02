@@ -40,6 +40,15 @@ function worldChecksByCondition(checks: readonly EffectWorldCheck[]): Map<string
   return byCondition;
 }
 const abilitiesCache = new WeakMap<CatalogFacts, Map<string, CatalogProgressionFact>>();
+const rosterCache = new WeakMap<CatalogFacts, ReadonlySet<string>>();
+function rosterMembers(facts: CatalogFacts): ReadonlySet<string> {
+  let members = rosterCache.get(facts);
+  if (!members) {
+    members = new Set((facts.adventurerWorld?.arrivals ?? []).flatMap((arrival) => arrival.adventurer.entityKey ? [arrival.adventurer.entityKey] : []));
+    rosterCache.set(facts, members);
+  }
+  return members;
+}
 
 function abilityFacts(facts: CatalogFacts): Map<string, CatalogProgressionFact> {
   const cached = abilitiesCache.get(facts);
@@ -92,11 +101,11 @@ export function appliedEffectsByAbility(facts: CatalogFacts, abilityKey: string 
   return rankIndex === undefined ? rows : rows.filter((row) => row.rank === undefined || row.rank === rankIndex);
 }
 
-/** Unnamed catalog records retain their authored type and native identity, never an invented proper name. */
+/** The game leaves some effects unnamed; their effect type is the only player-readable identity. */
 export function effectFallbackName(entity: CatalogEntityRow, facts: CatalogFacts): string {
   const fact = facts.progression.facts.find((row) => row.entityKey === entity.entityKey);
   if (fact?.kind !== "effects") throw new Error(`Missing effect type for ${entity.entityKey}.`);
-  return `${readable(fact.details.effectType.name)} Effect #${entity.nativeId}`;
+  return `Unnamed ${readable(fact.details.effectType.name)} Effect`;
 }
 
 function keyOf(endpoint: { entityKey: string | null } | null | undefined): string | null {
@@ -201,6 +210,7 @@ function applicationSources(key: string, input: EffectInput): EffectSource[] {
   const facts = input.facts;
   const rows: EffectSource[] = [];
   const abilities = abilityFacts(facts);
+  const roster = rosterMembers(facts);
   for (const applier of facts.progression.appliers) {
     if (applier.effect !== key) continue;
     const fact = applier.source.entityKey ? abilities.get(applier.source.entityKey) ?? facts.progression.facts.find((candidate) => candidate.entityKey === applier.source.entityKey) : undefined;
@@ -217,12 +227,16 @@ function applicationSources(key: string, input: EffectInput): EffectSource[] {
       || item.gameActions.some((row) => row.type === "Ability" && abilityApplies(row.target?.entityKey ?? null, undefined, key, abilities)))
       rows.push({ source: ref({ entityKey: item.entityKey, label: item.entityKey }, input), via: "Item Ability" });
   }
-  for (const npc of facts.npcs) if (npc.abilityPhases.some((phase) => phase.abilities.some((row) => abilityApplies(row.ability.entityKey, row.rankIndex, key, abilities))))
+  for (const npc of facts.npcs) if (!roster.has(npc.entityKey) && npc.abilityPhases.some((phase) => phase.abilities.some((row) => abilityApplies(row.ability.entityKey, row.rankIndex, key, abilities))))
     rows.push({ source: ref({ entityKey: npc.entityKey, label: npc.entityKey }, input), via: "NPC Ability" });
   for (const invite of facts.adventurerInviteEffects) if (keyOf(invite.effect) === key) rows.push({ source: ref(invite.adventurer, input), via: "Invitation" });
   for (const source of input.effectWorldSources ?? []) if (source.effectKey === key && source.family === "npcInvitation" && source.place) rows.push({ source: ref(source.place, input), via: "Invitation" });
   const unique = new Map<string, EffectSource>();
-  for (const row of rows) unique.set(JSON.stringify(row), row);
+  for (const row of rows) {
+    const identity = row.source.key ?? row.source.label;
+    const id = JSON.stringify([identity, row.via, row.rank, row.chance, row.target]);
+    if (!unique.has(id)) unique.set(id, row);
+  }
   return [...unique.values()];
 }
 

@@ -1,88 +1,123 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PublicEffect, PublicKindEntry } from '@afallon/contracts/public';
-  import EffectTooltip from '../../EffectTooltip.svelte';
+  import type { PublicEffect, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber, signedAmount } from '../../format';
+  import { formatNumber } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import DetailsDisclosure from '../DetailsDisclosure.svelte';
+  import { actionWords, durationWords, effectImpact, rankOutcome } from '../effect-outcome';
+  import FactsCard from '../FactsCard.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import { mergeRows, planColumns, omitWhenShared, type RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: PublicEffect;
   export let registry: PublicKindEntry[];
-
-  const guide = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
-  $: overTime = document.type === 'Damage Over Time' || document.type === 'Heal Over Time';
+  const combat = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
+  type Source = PublicEffect['appliedBy'][number];
+  type World = PublicEffect['worldSources'][number];
+  type Check = PublicEffect['checkedBy'][number];
+  const sourceColumns: RelationColumn<Source>[] = [
+    { id: 'source', label: 'Source', value: (row) => 'name' in row.source ? row.source.name : row.source.label, sort: (row) => 'name' in row.source ? row.source.name : row.source.label },
+    { id: 'via', label: 'How', value: (row) => row.via, sort: (row) => row.via, whenShared: omitWhenShared('Ability') },
+    { id: 'rank', label: 'Rank', numeric: true, value: (row) => row.rank === undefined ? undefined : row.rank + 1, sort: (row) => row.rank ?? -1, whenShared: omitWhenShared(1) },
+    { id: 'chance', label: 'Chance', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'target', label: 'Target', value: (row) => row.target, sort: (row) => row.target, whenShared: omitWhenShared('Target') },
+  ];
+  const worldColumns: RelationColumn<World>[] = [
+    { id: 'place', label: 'Place', value: (row) => row.place ? ('name' in row.place ? row.place.name : row.place.label) : 'Place not mapped' },
+    { id: 'family', label: 'Interaction', value: (row) => row.family },
+    { id: 'count', label: 'Sources', numeric: true, value: (row) => row.sourceCount, sort: (row) => row.sourceCount },
+  ];
+  const checkColumns: RelationColumn<Check>[] = [
+    { id: 'owner', label: 'Used by', value: (row) => row.owner ? ('name' in row.owner ? row.owner.name : row.owner.label) : row.label },
+    { id: 'condition', label: 'Condition', value: (row) => `${row.state.toLowerCase()} on ${row.target.toLowerCase()}` },
+    { id: 'count', label: 'Checks', numeric: true, value: (row) => row.count, sort: (row) => row.count },
+  ];
   $: icon = document.art.icon ?? document.ref.icon;
-  $: stateStats = document.isState ? [
-    { label: 'Duration', value: document.endless ? 'Endless' : document.durationSeconds > 0 ? `${formatNumber(document.durationSeconds)} Seconds` : 'No Timed Duration' },
-    { label: 'Stack Limit', value: formatNumber(document.stackLimit) },
-    { label: 'Saved For Return', value: document.persistent ? 'Yes' : 'No' },
-    { label: 'Manual Removal Setting', value: document.canBeManuallyRemoved ? 'Allowed' : 'Not Allowed' },
-    ...(overTime ? [{ label: 'Configured Pulses', value: formatNumber(document.pulses) }] : []),
-  ] : [];
-  $: firstRank = document.ranks[0];
-  $: firstActions = firstRank?.actions ?? [];
-  $: appliedCount = document.appliedBy.length + document.worldSources.reduce((total, row) => total + row.sourceCount, 0);
+  $: first = document.ranks[0];
+  $: actions = first?.actions ?? [];
+  $: impact = effectImpact(document);
+  $: leadImpact = ['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type) || !actions.length ? impact : '';
+  $: summon = document.type === 'Pet' ? actions.find((entry) => entry.label === 'Summons') : undefined;
+  $: summonCount = actions.find((entry) => entry.label === 'Summon Count')?.amount;
+  $: summonDuration = actions.find((entry) => entry.label === 'Pet Duration')?.amount;
+  $: detailActions = actions.filter((entry) => !['Authored Damage', 'Authored Healing', 'Damage Type', 'Damage Category', 'Life Steal Modifier', 'Summons', 'Summon Count', 'Pet Duration'].includes(entry.label)
+    && !(entry.label === 'Restores' && actions.some((action) => action.label === 'Authored Healing')));
+  $: hasRanks = document.ranks.length > 1 && document.ranks.some((rank) =>
+    rankOutcome(document, rank) !== (first ? rankOutcome(document, first) : '')
+    || rank.requiredEffect?.key !== first?.requiredEffect?.key
+    || rank.requiredEffectDamageModifier !== first?.requiredEffectDamageModifier);
+  $: sourceRows = mergeRows(document.appliedBy, (row) => JSON.stringify([row.source.key, row.via, row.rank, row.chance, row.target]), (group) => group[0]!);
+  $: sourcePlan = planColumns(sourceColumns, sourceRows);
+  $: worldPlan = planColumns(worldColumns, document.worldSources);
+  $: checkPlan = planColumns(checkColumns, document.checkedBy);
+  $: duration = document.isState && document.durationSeconds > 0 ? durationWords(document.durationSeconds) : document.isState && document.endless ? 'Until removed' : undefined;
+  $: facts = [
+    ...(duration ? [{ label: 'Duration', value: duration }] : []),
+    ...(document.stackLimit > 1 ? [{ label: 'Stack limit', value: formatNumber(document.stackLimit) }] : []),
+    ...(document.pulses > 1 ? [{ label: 'Pulses', value: formatNumber(document.pulses) }] : []),
+  ];
+  $: side = facts.length > 1;
+  $: condition = !impact ? document.checkedBy.find((row) => row.owner?.key && ['abilities', 'items'].includes(row.owner.kind)) : undefined;
 </script>
 
 <article class="detail-page">
-  <DetailFrame>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} Effect`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry}><StatStrip stats={stateStats} /></TitleBlock></div>
-    <div slot="answer"><AnswerCard title="What It Does" id="what-it-does">
-      {#if document.description}<p class="description">{document.description}</p>{/if}
-      {#if document.ranks.length > 1}<p>Showing rank {formatNumber((firstRank?.rank ?? 0) + 1)}. <a class="c-link" href="#ranks">Compare All Ranks</a></p>{/if}
-      {#if firstActions.length}<ul class="actions">
-        {#each firstActions.slice(0, 5) as entry}<li><strong>{entry.label}</strong>{#if entry.amount !== undefined} {entry.label === 'Changes' ? signedAmount(entry.amount, entry.unit === '%') : `${formatNumber(entry.amount)}${entry.unit === '%' ? '%' : ''}`}{/if}{#if entry.target} <EntityLink ref={entry.target} {registry} />{/if}{#if entry.unit && entry.unit !== '%'} {entry.unit}{/if}{#if entry.detail} {entry.detail}{/if}</li>{/each}
-      </ul>{/if}
-      {#if firstRank?.requiredEffect}<p class="condition">Damage depends on <EntityLink ref={firstRank.requiredEffect} {registry} />. The recorded conditional damage modifier is {formatNumber(firstRank.requiredEffectDamageModifier ?? 0)}.</p>{/if}
-      {#if firstActions.length > 5 && document.ranks.length === 1}<a class="c-link" href="#ranks">See All Recorded Actions</a>{/if}
-      {#if overTime && document.durationSeconds > 0 && document.pulses > 0}<p>Interval from configured values: {formatNumber(document.durationSeconds / document.pulses)} seconds between pulses. The game may adjust the effective pulse count, so actual timing can differ.</p>{/if}
-      {#if document.isState}<p class="note">These values are recorded settings. Damage and healing can change with combat modifiers. Persistence describes saving and restoring a state, not survival through death. The manual removal setting does not establish a particular button or action.</p>{:else if !document.description && !firstActions.length}<p class="note">This record identifies a {document.type} effect. No further outcome is established by the captured rank fields.</p>{/if}
-      <HowItWorks {guide} section="effects" label="How Effects Work" />
+  <DetailFrame {side}>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} effect`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
+    <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
+      {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
+      {:else if summon?.target}<p class="impact">Summons {summonCount && summonCount > 1 ? `${formatNumber(summonCount)} ` : ''}<EntityLink ref={summon.target} {registry} />{summonDuration ? ` for ${durationWords(summonDuration)}` : ''}.</p>
+      {:else if leadImpact}<p class="impact">{leadImpact}</p>{/if}
+      {#if document.description && document.description !== impact}<p>{document.description}</p>{/if}
+      {#if actions.length && !['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type)}
+        <ul class="actions">{#each actions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
+      {:else if detailActions.length}
+        <DetailsDisclosure title="More effect details">
+          <ul class="actions">{#each detailActions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
+        </DetailsDisclosure>
+      {/if}
+      {#if duration && !side}<p>Lasts {duration}.</p>{/if}
+      {#if first?.requiredEffect}<p>Damage depends on <EntityLink ref={first.requiredEffect} {registry} />.</p>{/if}
+      <HowItWorks guide={combat} section="effects" label="How combat effects work" />
     </AnswerCard></div>
-    <svelte:fragment slot="side"><div class="c-game-frame"><EffectTooltip {document} /></div></svelte:fragment>
+    <svelte:fragment slot="side"><FactsCard {facts} title="At a glance" /></svelte:fragment>
     <Sections>
-      {#if document.ranks.length > 1 || firstActions.length > 5}<Section id="ranks" title="Recorded Ranks" count={document.ranks.length} line="Damage and healing values are authored inputs, not guaranteed final amounts.">
-        {#each document.ranks as rank}<div class="rank"><h3>Rank {formatNumber(rank.rank + 1)}</h3><ul class="actions">{#each rank.actions as entry}<li><strong>{entry.label}</strong>{#if entry.amount !== undefined} {entry.label === 'Changes' ? signedAmount(entry.amount, entry.unit === '%') : `${formatNumber(entry.amount)}${entry.unit === '%' ? '%' : ''}`}{/if}{#if entry.target} <EntityLink ref={entry.target} {registry} />{/if}{#if entry.unit && entry.unit !== '%'} {entry.unit}{/if}{#if entry.detail} {entry.detail}{/if}</li>{/each}</ul>
-          {#if rank.requiredEffect}<p>Damage depends on <EntityLink ref={rank.requiredEffect} {registry} />. Recorded modifier: {formatNumber(rank.requiredEffectDamageModifier ?? 0)}.</p>{/if}
-        </div>{/each}
+      {#if sourceRows.length}<Section id="applied-by" title="Sources" count={sourceRows.length} line="Abilities, items, and other sources that apply this effect.">
+        <RelationTable columns={sourcePlan.columns} rows={sourceRows} label="Effect sources"><svelte:fragment slot="cell" let:row let:column>
+          {#if column === 'source'}<EntityLink ref={row.source} {registry} />
+          {:else if column === 'via'}{row.via === 'Stat On Hit' ? 'On hit' : row.via === 'Item Use' ? 'Using item' : row.via === 'Item Ability' ? 'Item ability' : row.via === 'NPC Ability' ? 'Creature ability' : row.via === 'Caster Ability' ? 'Caster ability' : row.via.toLowerCase()}
+          {:else if column === 'rank'}{row.rank === undefined ? '' : formatNumber(row.rank + 1)}
+          {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}%`}
+          {:else if column === 'target'}{row.target ?? ''}{/if}
+        </svelte:fragment></RelationTable>
       </Section>{/if}
-      {#if appliedCount}<Section id="applied-by" title="Applied By" count={appliedCount} line="These sources reference the effect. Chances and requirements can limit when it applies.">
-        {#if document.appliedBy.length}<ul class="sources">{#each document.appliedBy.slice(0, 8) as row}<li><EntityLink ref={row.source} {registry} /><span>{row.via}{#if row.rank !== undefined}{' '}· Rank {formatNumber(row.rank + 1)}{/if}{#if row.chance !== undefined}{' '}· {formatNumber(row.chance)}% Recorded Chance{/if}{#if row.target}{' '}· {row.target}{/if}</span></li>{/each}</ul>{/if}
-        {#if document.appliedBy.length > 8}<details><summary>Show {formatNumber(document.appliedBy.length - 8)} More Sources</summary><ul class="sources">{#each document.appliedBy.slice(8) as row}<li><EntityLink ref={row.source} {registry} /><span>{row.via}{#if row.rank !== undefined}{' '}· Rank {formatNumber(row.rank + 1)}{/if}{#if row.chance !== undefined}{' '}· {formatNumber(row.chance)}% Recorded Chance{/if}{#if row.target}{' '}· {row.target}{/if}</span></li>{/each}</ul></details>{/if}
-        {#if document.worldSources.length}<div class="world">
-          <h3>World Interactions By Place</h3>
-          <p>Counts summarize source objects, not a guarantee that every object is accessible.</p>
-          <ul class="sources">{#each document.worldSources.slice(0, 8) as source}<li>{#if source.place}<EntityLink ref={source.place} {registry} />{:else}Unmapped Place{/if}<span>{source.family} · {formatNumber(source.sourceCount)} {source.sourceCount === 1 ? 'Source' : 'Sources'}{#if source.labels.length}{' '}· {source.labels.join(', ')}{/if}</span></li>{/each}</ul>
-          {#if document.worldSources.length > 8}<details><summary>Show {formatNumber(document.worldSources.length - 8)} More Places</summary><ul class="sources">{#each document.worldSources.slice(8) as source}<li>{#if source.place}<EntityLink ref={source.place} {registry} />{:else}Unmapped Place{/if}<span>{source.family} · {formatNumber(source.sourceCount)} {source.sourceCount === 1 ? 'Source' : 'Sources'}{#if source.labels.length}{' '}· {source.labels.join(', ')}{/if}</span></li>{/each}</ul></details>{/if}
-        </div>{/if}
+      {#if document.worldSources.length}<Section id="world-sources" title="World interactions" count={document.worldSources.length}>
+        <RelationTable columns={worldPlan.columns} rows={document.worldSources} label="World effect sources"><svelte:fragment slot="cell" let:row let:column>
+          {#if column === 'place'}{#if row.place}<EntityLink ref={row.place} {registry} />{:else}Place not mapped{/if}
+          {:else if column === 'family'}{row.family}{:else if column === 'count'}{formatNumber(row.sourceCount)}{/if}
+        </svelte:fragment></RelationTable>
       </Section>{/if}
-      {#if document.checkedBy.length}<Section id="checked-by" title="Checked By Requirements" count={document.checkedBy.length} line="A requirement may check for an active or inactive effect without applying it.">
-        <ul class="sources">{#each document.checkedBy.slice(0, 8) as row}<li>{#if row.owner}<EntityLink ref={row.owner} {registry} />{:else}Recorded Requirement{/if}<span>{row.label} · Checks {row.state} On {row.target}{#if row.group}{' '}· {row.group}{/if}{#if row.count !== undefined}{' '}· {formatNumber(row.count)} {row.count === 1 ? 'Source' : 'Sources'}{/if}</span></li>{/each}</ul>
-        {#if document.checkedBy.length > 8}<details><summary>Show {formatNumber(document.checkedBy.length - 8)} More Requirements</summary><ul class="sources">{#each document.checkedBy.slice(8) as row}<li>{#if row.owner}<EntityLink ref={row.owner} {registry} />{:else}Recorded Requirement{/if}<span>{row.label} · Checks {row.state} On {row.target}{#if row.group}{' '}· {row.group}{/if}{#if row.count !== undefined}{' '}· {formatNumber(row.count)} {row.count === 1 ? 'Source' : 'Sources'}{/if}</span></li>{/each}</ul></details>{/if}
+      {#if document.checkedBy.length > 1 || (!condition && document.checkedBy.length > 0)}<Section id="checked-by" title="Requirements" count={document.checkedBy.length} line="These abilities check whether the effect is active or inactive.">
+        <RelationTable columns={checkPlan.columns} rows={document.checkedBy} label="Effect requirements"><svelte:fragment slot="cell" let:row let:column>
+          {#if column === 'owner'}{#if row.owner}<EntityLink ref={row.owner} {registry} />{:else}{row.label}{/if}
+          {:else if column === 'condition'}{row.state.toLowerCase()} on {row.target.toLowerCase()}
+          {:else if column === 'count'}{row.count === undefined ? '' : formatNumber(row.count)}{/if}
+        </svelte:fragment></RelationTable>
+      </Section>{/if}
+      {#if hasRanks}<Section id="ranks" title="Ranks" count={document.ranks.length} line="How the outcome changes with rank.">
+        <table class="c-table c-table--compact" aria-label="Effect ranks"><thead><tr><th scope="col">Rank</th><th scope="col">Outcome</th></tr></thead><tbody>{#each document.ranks as rank}<tr><th scope="row">{formatNumber(rank.rank + 1)}</th><td>{rankOutcome(document, rank)}{#if rank.requiredEffect}{' '}· Damage changes with <EntityLink ref={rank.requiredEffect} {registry} />{/if}</td></tr>{/each}</tbody></table>
       </Section>{/if}
     </Sections>
   </DetailFrame>
 </article>
 
 <style>
-  .description { color: var(--c-text-strong); }
-  .note { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
-  .actions, .sources { display: grid; gap: .5rem; padding: 0; margin: 0; list-style: none; }
-  .actions li { line-height: 1.5; overflow-wrap: anywhere; }
-  .actions strong { color: var(--c-text-strong); margin-right: .35rem; }
-  .sources li { display: flex; min-width: 0; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .2rem .8rem; border-bottom: 1px solid var(--c-line-soft); padding: .35rem 0; overflow-wrap: anywhere; }
-  .sources li:last-child { border-bottom: 0; }
-  .sources span { min-width: 0; color: var(--c-text-dim); overflow-wrap: anywhere; }
-  .rank, .world { display: grid; gap: .6rem; }
-  .rank + .rank { border-top: 1px solid var(--c-line-soft); padding-top: 1rem; }
-  h3 { margin: 0; color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
-  details { margin-top: .65rem; }
-  summary { width: fit-content; color: var(--c-accent); cursor: pointer; }
-  .world { margin-top: 1rem; }
+  .impact { color: var(--c-text-strong); font-size: 1.06rem; line-height: 1.5; }
+  .actions { display: grid; gap: .4rem; list-style: none; padding: 0; margin: .7rem 0; }
+  .actions li { min-width: 0; }
 </style>

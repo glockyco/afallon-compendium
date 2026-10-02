@@ -47,6 +47,17 @@ test('stat bounds are inclusive, random ranges match by overlap, and units stay 
   expect(statMatches(percent, { key: 'Lifesteal%', min: '1', max: '' })).toBe(true);
 });
 
+test('a stat page finds both item bonus units without widening ordinary variant filters', () => {
+  const flat = row('Flat', 'HEAD', 'Rare', { stats: [{ name: 'Movement Speed', percent: false, min: 3, max: 3 }] });
+  const percent = row('Percent', 'HEAD', 'Rare', { stats: [{ name: 'Movement Speed', percent: true, min: 5, max: 5 }] });
+  const unrelated = row('Other', 'HEAD', 'Rare', { stats: [{ name: 'Attack Speed', percent: true, min: 5, max: 5 }] });
+  const statPage = { key: 'Movement Speed*', min: '', max: '' };
+  expect([flat, percent, unrelated].filter((candidate) => statMatches(candidate, statPage)).map((entry) => entry.ref.name))
+    .toEqual(['Flat', 'Percent']);
+  expect(statMatches(percent, { ...statPage, key: 'Movement Speed' })).toBe(false);
+  expect(statMatches(flat, { ...statPage, key: 'Movement Speed%' })).toBe(false);
+});
+
 test('filters survive a round trip through the URL', () => {
   expect(parseStatParam('Bonus: Fire Damage:5:')).toEqual({ key: 'Bonus: Fire Damage', min: '5', max: '' });
   expect(parseStatParam('Strength')).toEqual({ key: 'Strength', min: '', max: '' });

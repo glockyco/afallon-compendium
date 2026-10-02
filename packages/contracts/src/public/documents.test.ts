@@ -143,7 +143,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     relations: [{ faction: { key: "factions:0", kind: "factions", name: "Humans", slug: "humans" }, stance: "Hated", startingPoints: 0 }], members: 129, shownInReputation: false } satisfies PublicFaction,
   stats: { ...base, ref: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" },
     category: "Offense", unit: "flat", base: 0, min: 0, vitality: false, recovery: [],
-    bonuses: [{ type: "Physical Damage", amount: 1 }], onHit: [], procCooldown: 0,
+    bonuses: [{ type: "Physical Damage", amount: 1 }], onHit: [], procCooldown: 0, grants: [{ source: item, family: "fixedItems", amount: 3, percent: false }],
     sources: { fixedItems: [item], randomItems: [], gems: [], sets: [], talents: [], effects: [], classes: [], enchantments: [] } } satisfies PublicStat,
   effects: { ...base, ref: { key: "effects:64", kind: "effects", name: "Strength", slug: "strength" },
     type: "Stat", isState: true, durationSeconds: 600, endless: false, pulses: 1, stackLimit: 1,

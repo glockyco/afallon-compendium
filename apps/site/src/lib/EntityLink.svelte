@@ -19,6 +19,8 @@
   export let truncate = false;
   /** A link inside game text, such as a name in an item tooltip: no icon, the colour of the text around it. */
   export let plain = false;
+  /** Lists can show a stat's ordinary entity identity even though inline stat references read as plain game text. */
+  export let forceIcon = false;
 
   // A list page shows a thousand links, so a link mounts its preview only on focus, pointer intent, or tap.
   // A pointer leaving closes it even if the link retains focus; keyboard-only focus keeps it
@@ -102,7 +104,7 @@
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
-  $: bare = plain || plainKind(resolved?.kind);
+  $: bare = !forceIcon && (plain || plainKind(resolved?.kind));
   // A link to a part of the page that the reader is on is a fragment link, so it keeps the reader's tabs and views.
   $: pagePath = resolved && kind ? `${base}/${kind.route}/${resolved.slug}/` : '';
   $: href = !pagePath ? '' : resolved?.variant ? `${pagePath === $page.url.pathname ? '' : pagePath}#${resolved.variant}` : pagePath;

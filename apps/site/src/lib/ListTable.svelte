@@ -33,7 +33,7 @@
   const PANEL_MIN_ROWS = 20;
 
   let filters: ListFilterState = emptyFilters();
-  let sort: SortState = kind.kind === 'stats' ? { id: 'occurrences', dir: 'desc' } : { id: 'name', dir: 'asc' };
+  let sort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
   let sheet: HTMLDialogElement;
 
   // A column that has the same value in every row, or no value in any, says nothing about one row, so it leaves. A
@@ -141,7 +141,7 @@
 
   function readUrl(url: URL): void {
     filters = readFilters(url.searchParams, kind, rangeIds);
-    const defaultSort: SortState = kind.kind === 'stats' ? { id: 'occurrences', dir: 'desc' } : { id: 'name', dir: 'asc' };
+    const defaultSort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
     const requested = url.searchParams.get('sort') ?? defaultSort.id;
     const known = requested === 'name' || kind.columns.some((column) => column.id === requested)
       || (requested.startsWith(STAT_COLUMN) && filters.stats.some((filter) => filter.key === requested.slice(STAT_COLUMN.length)));
@@ -152,7 +152,7 @@
     const url = new URL(window.location.href);
     writeFilters(url.searchParams, filters, kind, rangeIds);
     // A sort by a stat column ends with its stat filter.
-    if (sort.id.startsWith(STAT_COLUMN) && !filters.stats.some((filter) => filter.key === sort.id.slice(STAT_COLUMN.length))) sort = { id: 'name', dir: 'asc' };
+    if (sort.id.startsWith(STAT_COLUMN) && !filters.stats.some((filter) => filter.key === sort.id.slice(STAT_COLUMN.length))) sort = kind.defaultSort ?? { id: 'name', dir: 'asc' };
     const write = (key: string, value: string) => value ? url.searchParams.set(key, value) : url.searchParams.delete(key);
     write('sort', sort.id === 'name' ? '' : sort.id);
     write('dir', sort.dir === 'asc' ? '' : sort.dir);
@@ -272,7 +272,7 @@
       <DataTable {columns} {widths} {sort} sticky flowWide={!overflowing} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
         {#each filteredRows as row (row.ref.key)}
           <tr>
-            <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} truncate /></td>
+            <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
             {#each visibleColumns as column, index}
               <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}><span class={`cell ${shapes[index + 1]}`} on:pointerenter={titleIfCut}>
                 {#if row.values[column.id] === null || row.values[column.id] === undefined}

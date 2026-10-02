@@ -187,12 +187,12 @@ function factionRow(document: PublicFaction): ListRow {
 
 function statRow(document: PublicStat): ListRow {
   const sources = document.sources;
-  const items = new Set([...sources.fixedItems, ...sources.randomItems, ...sources.gems].flatMap((ref) => ref.key ? [ref.key] : []));
+  const items = new Set([...sources.fixedItems, ...sources.randomItems].flatMap((ref) => ref.key ? [ref.key] : []));
   return { ref: document.ref, values: {
     category: document.category ?? "Uncategorized", unit: document.unit === "percent" ? "Percent" : "Flat",
     items: items.size || null,
     otherSources: sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
-    occurrences: items.size + sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
+    occurrences: items.size + sources.gems.length + sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
   }, facets: { category: [document.category ?? "Uncategorized"], proc: [document.onHit.length ? "On-hit trigger" : "Other stats"] } };
 }
 

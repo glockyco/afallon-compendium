@@ -35,7 +35,7 @@ export function statKey(stat: Pick<ListStat, 'name' | 'percent'>): string {
 }
 
 export function statLabel(key: string): string {
-  return key.endsWith('%') ? `${key.slice(0, -1)} (%)` : key;
+  return key.endsWith('%') ? `${key.slice(0, -1)} (%)` : key.endsWith('*') ? key.slice(0, -1) : key;
 }
 
 /** `Strength:20:` reads as at least 20 Strength. The last two colons hold the bounds, so a name may contain a colon. */
@@ -54,7 +54,8 @@ export function formatStatParam(filter: StatFilter): string {
 const bound = (value: string | undefined): number | undefined => value === undefined || value.trim() === '' || Number.isNaN(Number(value)) ? undefined : Number(value);
 
 function statEntries(row: ListRow, key: string): ListStat[] {
-  return (row.stats ?? []).filter((stat) => statKey(stat) === key);
+  // The stat page's "*" key covers both flat and percentage item variants; ordinary facet keys keep their meaning.
+  return (row.stats ?? []).filter((stat) => key.endsWith('*') ? stat.name === key.slice(0, -1) : statKey(stat) === key);
 }
 
 /** A fixed amount matches inside the bounds; a random range matches when it overlaps them. */

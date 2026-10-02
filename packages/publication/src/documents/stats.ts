@@ -19,6 +19,19 @@ const BONUS_NAMES: Record<string, string> = {
   PENETRATION: "Penetration", CRIT_CHANCE: "Critical Hit Chance",
   HEALING: "Healing", GLOBAL_HEALING: "Healing", EFFECT_TRIGGER: "On-Hit Effect",
 };
+const FAMILY_ORDER: Readonly<Record<PublicStat["grants"][number]["family"], number>> = {
+  fixedItems: 0, randomItems: 1, gems: 2, sets: 3, talents: 4, effects: 5, enchantments: 6,
+};
+
+// Electricity Resistance's authored description names Fire damage, contradicting its own name.
+// No verified damage rule resolves which damage it reduces.
+// Item Power comes from the stats:53 fixed item stat and is also published as the item's itemPower fact.
+const STAT_NOTES: Readonly<Record<string, { text: string; replaceDescription?: true }>> = {
+  "stats:98": { text: "Its in-game description refers to Fire damage, so it does not establish which damage this resistance reduces.", replaceDescription: true },
+  "stats:53": { text: "Each item's Item Power value appears on its item page." },
+};
+// The item list's itemPower column is projected from the same stats:53 item stat.
+const ITEM_LIST_COLUMNS: Readonly<Record<string, string>> = { "stats:53": "itemPower" };
 
 function distinctRefs(refs: Ref[]): Ref[] {
   const unique = new Map<string, Ref>();
@@ -38,6 +51,7 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const progressing = (kind: CatalogProgressionFact["kind"]) => progress.facts.filter((row) => row.kind === kind && present(row.entityKey));
   const refOf = (source: { entityKey: string; name?: string | null }) => input.resolve({ entityKey: source.entityKey, label: source.name ?? source.entityKey });
   const talents: PublicStat["sources"]["talents"] = [];
+  const talentGrants: PublicStat["grants"] = [];
   const seenTalents = new Set<string>();
   const bonuses = new Map(progress.facts.flatMap((bonus) => bonus.kind === "bonuses" && bonus.details.ranks.some((rank) => rank.statEffects.some((row) => resolves(row.stat))) ? [[bonus.entityKey, bonus] as const] : []));
   for (const node of progress.talentNodes) {
@@ -52,6 +66,9 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       seenTalents.add(id);
       const icon = input.artByEntity.get(bonus.entityKey)?.icon;
       talents.push({ class: character, talent: { ...character, name: displayName(bonus.name ?? node.target?.label ?? "Talent"), variant: talentAnchor(node.tree, node.nodeIndex), ...(icon ? { icon } : {}) } });
+      for (const rank of bonus.details.ranks) for (const stat of rank.statEffects.filter((entry) => resolves(entry.stat))) {
+        talentGrants.push({ source: talents[talents.length - 1]!.talent, family: "talents", class: character, amount: stat.amount, percent: stat.isPercent, tier: rank.rank + 1 });
+      }
     }
   }
   talents.sort((a, b) => (isEntityRef(a.class) ? a.class.name : a.class.label).localeCompare(isEntityRef(b.class) ? b.class.name : b.class.label)
@@ -66,9 +83,37 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     if (initial !== 0 || growth !== 0) classes.push({ class: refOf(source), starting: initial, growth });
   }
   classes.sort((a, b) => (isEntityRef(a.class) ? a.class.name : a.class.label).localeCompare(isEntityRef(b.class) ? b.class.name : b.class.label));
+  const grants: PublicStat["grants"] = [];
+  for (const item of sources) {
+    const source = refOf(item);
+    for (const row of item.stats.filter((row) => resolves(row.stat))) grants.push({ source, family: "fixedItems", amount: row.amount, percent: row.isPercent });
+    for (const row of item.randomStats.filter((row) => resolves(row.stat))) grants.push({ source, family: "randomItems", min: row.min, max: row.max, percent: row.isPercent });
+    for (const row of item.gem?.stats.filter((row) => resolves(row.stat)) ?? []) grants.push({ source, family: "gems", amount: row.amount, percent: row.isPercent });
+  }
+  for (const set of input.facts.gearSets.filter((row) => present(row.entityKey))) {
+    for (const tier of set.tiers) for (const row of tier.stats.filter((stat) => resolves(stat.stat))) {
+      grants.push({ source: refOf(set), family: "sets", amount: row.amount, percent: row.isPercent, tier: tier.equipped });
+    }
+  }
+  grants.push(...talentGrants);
+  for (const source of progressing("effects")) if (source.kind === "effects" && input.references.refs.get(source.entityKey)?.slug) {
+    for (const rank of source.details.ranks) for (const row of rank.statEffects.filter((stat) => resolves(stat.stat))) {
+      grants.push({ source: refOf(source), family: "effects", amount: row.amount, percent: row.isPercent, tier: rank.rank + 1 });
+    }
+  }
+  for (const source of progressing("enchantments")) if (source.kind === "enchantments" && present(source.entityKey)) {
+    for (const tier of source.details.tiers) for (const row of tier.stats.filter((stat) => resolves(stat.stat))) {
+      grants.push({ source: refOf(source), family: "enchantments", amount: row.amount, percent: row.isPercent, tier: tier.tier });
+    }
+  }
+  grants.sort((a, b) => FAMILY_ORDER[a.family] - FAMILY_ORDER[b.family]
+    || (isEntityRef(a.source) ? a.source.name : a.source.label).localeCompare(isEntityRef(b.source) ? b.source.name : b.source.label)
+    || (a.tier ?? 0) - (b.tier ?? 0));
   const details = fact.details;
   return {
     ...baseDocument(entity, ref, input),
+    ...(STAT_NOTES[key] ? { note: STAT_NOTES[key].text, ...(STAT_NOTES[key].replaceDescription ? { description: null } : {}) } : {}),
+    ...(ITEM_LIST_COLUMNS[key] ? { itemListColumn: ITEM_LIST_COLUMNS[key], itemListCount: sources.filter((item) => item.stats.some((row) => resolves(row.stat) && row.amount >= 0)).length } : {}),
     ...(details.uiCategory && details.uiCategory !== "None" ? { category: details.uiCategory } : {}),
     ...(details.statCategory && details.statCategory !== "None" ? { statCategory: details.statCategory } : {}),
     unit: details.isPercentStat ? "percent" : "flat", base: details.baseValue,
@@ -77,10 +122,12 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     vitality: details.isVitalityStat,
     ...(details.isVitalityStat ? { startPercentage: details.startPercentage } : {}),
     recovery: details.regeneration.filter((row) => row.amount !== 0 && row.interval > 0).map((row) => ({ when: row.when, amount: row.amount, interval: row.interval })),
+    grants,
     bonuses: details.statBonuses.flatMap((bonus) => {
       const type = BONUS_NAMES[bonus.statType.name];
       if (!type) return [];
-      const damageType = bonus.customDamageType || (bonus.damageType.name !== "None" ? bonus.damageType.name : null);
+      // A mismatched generic type can refer to another damage family. Only explicit custom types are safe to name.
+      const damageType = bonus.customDamageType?.trim();
       return [{ type, amount: bonus.modifyValue,
         ...(damageType ? { damageType: displayName(damageType) } : {}),
         ...(bonus.resistanceStat?.entityKey && present(bonus.resistanceStat.entityKey) ? { resistanceStat: input.resolve(bonus.resistanceStat) } : {}),

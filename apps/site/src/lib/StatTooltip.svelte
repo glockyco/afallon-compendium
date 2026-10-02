@@ -33,6 +33,7 @@
 
 <article class="stat-tooltip">
   <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} {facts} description={document.description} compact />
+  {#if document.note}<p class="line">{document.note}</p>{/if}
   {#if limits.length}<p class="line">{limits.join(', ').replace(/^./, (letter) => letter.toUpperCase())}.</p>{/if}
   {#if document.recovery.length}<p class="line">Recovers {listText(document.recovery.map((row) => `${formatNumber(row.amount)} every ${formatNumber(row.interval)} ${row.interval === 1 ? 'second' : 'seconds'} ${when(row.when)}`))}.</p>{/if}
   {#if document.onHit.length}

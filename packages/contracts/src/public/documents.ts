@@ -29,7 +29,7 @@ const PAGE_DOCUMENTS = {
   craftingStations: { schema: () => PublicCraftingStationSchema, schemaId: "compendium.static-crafting-station.v1" },
   races: { schema: () => PublicRaceSchema, schemaId: "compendium.static-race.v1" },
   factions: { schema: () => PublicFactionSchema, schemaId: "compendium.static-faction.v1" },
-  stats: { schema: () => PublicStatSchema, schemaId: "compendium.static-stat.v1" },
+  stats: { schema: () => PublicStatSchema, schemaId: "compendium.static-stat.v3" },
   effects: { schema: () => PublicEffectSchema, schemaId: "compendium.static-effect.v1" },
 } as const;
 export type PublicPageKind = keyof typeof PAGE_DOCUMENTS;
@@ -1033,13 +1033,18 @@ export type PublicFaction = Static<typeof PublicFactionSchema>;
 
 /** Captured stat definition and all published places that grant or change the stat. */
 export const PublicStatSchema = Type.Object({
-  ...documentBase, category: optional(text), statCategory: optional(text), unit: Type.Union([Type.Literal("flat"), Type.Literal("percent")]),
+  ...documentBase, category: optional(text), statCategory: optional(text), note: optional(text), itemListColumn: optional(text), itemListCount: optional(count), unit: Type.Union([Type.Literal("flat"), Type.Literal("percent")]),
   base: number, min: optional(number), max: optional(number), vitality: Type.Boolean(), startPercentage: optional(number),
   recovery: Type.Array(Type.Object({ when: Type.Union([Type.Literal("outside-combat"), Type.Literal("in-combat")]), amount: number, interval: number }, { additionalProperties: false })),
   bonuses: Type.Array(Type.Object({ type: text, amount: number, damageType: optional(text), resistanceStat: optional(RefSchema),
     penetrationStat: optional(RefSchema), stat: optional(RefSchema) }, { additionalProperties: false })),
   onHit: Type.Array(Type.Object({ effect: RefSchema, rank: count, chance: number }, { additionalProperties: false })),
   procCooldown: number,
+  grants: Type.Array(Type.Object({ source: RefSchema, family: Type.Union([
+    Type.Literal("fixedItems"), Type.Literal("randomItems"), Type.Literal("gems"), Type.Literal("sets"),
+    Type.Literal("talents"), Type.Literal("effects"), Type.Literal("enchantments"),
+  ]), amount: optional(number), min: optional(number), max: optional(number), percent: optional(Type.Boolean()),
+    tier: optional(number), class: optional(RefSchema) }, { additionalProperties: false })),
   sources: Type.Object({ fixedItems: refs, randomItems: refs, gems: refs, sets: refs,
     talents: Type.Array(Type.Object({ talent: RefSchema, class: RefSchema }, { additionalProperties: false })),
     effects: refs, classes: Type.Array(Type.Object({ class: RefSchema, starting: number, growth: number }, { additionalProperties: false })),
@@ -1163,6 +1168,7 @@ export const PublicKindEntrySchema = Type.Object({
   kind: referenceKind, label: text, plural: text, route: slug, icon: text,
   // `list` is true when the kind has a list page; a kind with pages always has one.
   pages: Type.Boolean(), list: Type.Boolean(), searchable: Type.Boolean(),
+  defaultSort: optional(Type.Object({ id: text, dir: Type.Union([Type.Literal("asc"), Type.Literal("desc")]) }, { additionalProperties: false })),
   columns: Type.Array(ListColumnSchema), facets: Type.Array(ListFacetSchema),
 }, { additionalProperties: false });
 export type PublicKindEntry = Static<typeof PublicKindEntrySchema>;
@@ -1322,7 +1328,7 @@ schemaRegistry.register("compendium.public-place-entrance.v1", PlaceEntranceSche
 schemaRegistry.register("compendium.public-place-to-enter.v1", PlaceToEnterSchema);
 schemaRegistry.register("compendium.public-place-starting-race.v1", PlaceStartingRaceSchema);
 schemaRegistry.register("compendium.public-timed-dungeon.v1", TimedDungeonSchema);
-schemaRegistry.register("compendium.public-kind-entry.v3", PublicKindEntrySchema);
+schemaRegistry.register("compendium.public-kind-entry.v4", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v2", PublicSearchEntrySchema);
 // Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated. A public document schema
 // shares the version of its static document schema.

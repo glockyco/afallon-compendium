@@ -203,6 +203,11 @@ body { font-size: 1rem; line-height: 1.5; }
 /* Computed column widths replace the content-driven automatic layout. The table may then be wider than its wrapper. */
 .c-table--fixed { table-layout: fixed; min-width: 0; }
 
+/* Short numeric reference tables can wrap their explanation instead of forcing a 30rem minimum. */
+.c-table--compact { min-width: 0; }
+.c-table--compact th:first-child,
+.c-table--compact td:first-child { width: 1%; white-space: nowrap; }
+
 .c-table thead th {
   border-bottom: 1px solid var(--c-line);
   color: var(--c-text-dim);

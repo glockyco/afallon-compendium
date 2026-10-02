@@ -1,112 +1,104 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PublicKindEntry, PublicStat, Ref } from '@afallon/contracts/public';
+  import type { PublicKindEntry, PublicStat } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber } from '../../format';
+  import { formatNumber, signedAmount } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import FactsCard from '../FactsCard.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import { planColumns, type RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import TabSet from '../TabSet.svelte';
 
   export let document: PublicStat;
   export let registry: PublicKindEntry[];
-
-  const guide = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
-  $: sourceGroups = [
-    { title: 'Fixed Item Stats', refs: document.sources.fixedItems, note: 'Items with this stat as a fixed bonus.' },
-    { title: 'Possible Random Item Stats', refs: document.sources.randomItems, note: 'Items that can roll this stat. A particular copy may not have it.' },
-    { title: 'Socketed Gems', refs: document.sources.gems, note: 'These gems grant the stat when socketed in eligible gear.' },
-    { title: 'Gear Sets', refs: document.sources.sets, note: 'Set bonuses grant the stat when enough different pieces are equipped.' },
-    { title: 'Effects', refs: document.sources.effects, note: 'Recorded effects that grant or alter the stat.' },
-    { title: 'Enchantments', refs: document.sources.enchantments, note: 'Recorded enchantment tiers that grant the stat.' },
+  const combat = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
+  type Grant = PublicStat['grants'][number];
+  type Class = PublicStat['sources']['classes'][number];
+  const sourceColumns: RelationColumn<Grant>[] = [
+    { id: 'source', label: 'Source', value: (row) => 'name' in row.source ? row.source.name : row.source.label, sort: (row) => 'name' in row.source ? row.source.name : row.source.label },
+    { id: 'amount', label: 'Bonus', numeric: true, value: (row) => row.amount ?? row.max, sort: (row) => row.amount ?? row.max },
+    { id: 'tier', label: 'Tier', numeric: true, value: (row) => row.tier, sort: (row) => row.tier },
+    { id: 'class', label: 'Class', value: (row) => row.class ? ('name' in row.class ? row.class.name : row.class.label) : undefined },
   ];
-  $: stats = [
-    { label: 'Unit', value: document.unit === 'percent' ? 'Percent' : 'Flat' },
-    { label: 'Base', value: `${formatNumber(document.base)}${document.unit === 'percent' ? '%' : ''}` },
-    ...(document.min !== undefined ? [{ label: 'Minimum', value: formatNumber(document.min) }] : []),
-    ...(document.max !== undefined ? [{ label: 'Maximum', value: formatNumber(document.max) }] : []),
+  const classColumns: RelationColumn<Class>[] = [
+    { id: 'class', label: 'Class', value: (row) => 'name' in row.class ? row.class.name : row.class.label },
+    { id: 'starting', label: 'Starting', numeric: true, value: (row) => row.starting || undefined, sort: (row) => row.starting },
+    { id: 'growth', label: 'Per level', numeric: true, value: (row) => row.growth || undefined, sort: (row) => row.growth },
   ];
-  $: guideSection = document.onHit.length ? 'on-hit-effects'
-    : document.ref.name === 'Critical Hit Chance' ? 'critical-hits'
-    : document.vitality || document.recovery.length ? 'recovery'
-    : ['Armor', 'Magic Armor', 'Armor Penetration'].includes(document.ref.name) || document.bonuses.some((row) => ['Resistance', 'Penetration', 'Damage'].includes(row.type)) ? 'damage-and-defense'
-    : 'building-stats';
-  $: itemsHref = `${base}/items/?stat=${encodeURIComponent(document.ref.name)}`;
+  const families = [
+    { key: 'items', label: 'Items', types: ['fixedItems', 'randomItems'], columns: ['source', 'amount'] },
+    { key: 'gems', label: 'Gems', types: ['gems'], columns: ['source', 'amount'] },
+    { key: 'sets', label: 'Gear sets', types: ['sets'], columns: ['source', 'amount', 'tier'] },
+    { key: 'talents', label: 'Talents', types: ['talents'], columns: ['source', 'amount', 'class', 'tier'] },
+    { key: 'effects', label: 'Effects', types: ['effects'], columns: ['source', 'amount', 'tier'] },
+    { key: 'enchantments', label: 'Enchantments', types: ['enchantments'], columns: ['source', 'amount', 'tier'] },
+  ] as const;
+  $: groups = families.map((family) => {
+    const rows = document.grants.filter((row) => (family.types as readonly string[]).includes(row.family));
+    const count = new Set(rows.map((row) => `${row.source.key}#${'variant' in row.source ? row.source.variant ?? '' : ''}`)).size;
+    const columns = sourceColumns.filter((column) => (family.columns as readonly string[]).includes(column.id))
+      .map((column) => column.id === 'tier' && family.key === 'talents' ? { ...column, label: 'Rank' } : column);
+    return { ...family, rows, count, columns: planColumns(columns, rows).columns };
+  }).filter((group) => group.rows.length > 0);
+  $: tabs = groups.map((group) => ({ key: group.key, label: `${group.label} ${formatNumber(group.count)}` }));
+  $: itemCount = document.itemListCount ?? groups.find((group) => group.key === 'items')?.count ?? 0;
+  $: totalSources = new Set(document.grants.map((row) => `${row.family}:${row.source.key}#${'variant' in row.source ? row.source.variant ?? '' : ''}`)).size + document.sources.classes.length;
+  $: classPlan = planColumns(classColumns, document.sources.classes);
+  $: facts = [
+    ...(document.base !== 0 && document.base !== document.max ? [{ label: 'Starting value', value: `${formatNumber(document.base)}${document.unit === 'percent' ? '%' : ''}` }] : []),
+    ...(document.max !== undefined && document.max !== 0 ? [{ label: 'Maximum', value: `${formatNumber(document.max)}${document.unit === 'percent' ? '%' : ''}` }] : []),
+    ...(document.min !== undefined && document.min !== 0 ? [{ label: 'Minimum', value: `${formatNumber(document.min)}${document.unit === 'percent' ? '%' : ''}` }] : []),
+    ...(document.procCooldown > 0 ? [{ label: 'Trigger cooldown', value: `${formatNumber(document.procCooldown)} seconds` }] : []),
+    ...(document.recovery.map((row) => ({ label: row.when === 'in-combat' ? 'In combat' : 'Out of combat', value: `${formatNumber(row.amount)} every ${formatNumber(row.interval)} seconds` }))),
+  ];
+  $: guideSection = document.onHit.length ? 'on-hit-effects' : document.vitality || document.recovery.length ? 'recovery' : document.category === 'Defense' || document.bonuses.some((row) => ['Resistance', 'Penetration', 'Damage'].includes(row.type)) ? 'damage-and-defense' : 'building-stats';
+  $: itemsHref = document.itemListColumn ? `${base}/items/?min.${encodeURIComponent(document.itemListColumn)}=0` : `${base}/items/?stat=${encodeURIComponent(`${document.ref.name}*`)}`;
+  $: onHit = document.onHit.length > 0;
 </script>
 
 <article class="detail-page">
-  <DetailFrame>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={document.category ? `${document.category} Stat` : 'Stat'} {registry}><StatStrip {stats} /></TitleBlock></div>
-    <div slot="answer"><AnswerCard title="What It Does" id="what-it-does">
-      {#if document.description}<div class="game-description"><span>In-Game Description</span><p>{document.description}</p></div>{/if}
-      {#if document.statCategory && document.statCategory !== document.category}<p>Stat Category: {document.statCategory}</p>{/if}
-      {#if document.vitality}<p>This is a vitality stat with a current amount and a maximum. It starts at {formatNumber(document.startPercentage ?? 0)}% of its maximum.</p>{/if}
-      {#if document.bonuses.length}
-        <ul class="bonuses">
-          {#each document.bonuses as bonus}
-            <li><strong>{bonus.type}</strong>{#if bonus.damageType}{' '}· {bonus.damageType}{/if}
-              {#if bonus.stat}<span>Applies To <EntityLink ref={bonus.stat} {registry} /></span>{/if}
-              {#if bonus.resistanceStat}<span>Recorded Resistance <EntityLink ref={bonus.resistanceStat} {registry} /></span>{/if}
-              {#if bonus.penetrationStat}<span>Recorded Penetration <EntityLink ref={bonus.penetrationStat} {registry} /></span>{/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
-      {#if document.onHit.length}
-        <h3>On-Hit Effects</h3>
-        <p>The stat's hit chance is checked first. Each linked effect has its own recorded chance.</p>
-        <ul class="on-hit">
-          {#each document.onHit as hit}
-            <li><EntityLink ref={hit.effect} {registry} /> <span>{formatNumber(hit.chance)}% Effect Chance</span></li>
-          {/each}
-        </ul>
-        <p>{document.procCooldown > 0 ? `Configured Trigger Cooldown: ${formatNumber(document.procCooldown)} Seconds` : 'No Configured Trigger Cooldown'}</p>
-      {/if}
-      {#if document.recovery.length}
-        <h3>Recorded Recovery Settings</h3>
-        <p>These are configured values, not a confirmed live recovery schedule.</p>
-        <ul class="recovery">{#each document.recovery as row}<li><strong>{row.when === 'in-combat' ? 'In Combat' : 'Outside Combat'}</strong><span>{formatNumber(row.amount)} Every {formatNumber(row.interval)} Seconds</span></li>{/each}</ul>
-      {/if}
-      <HowItWorks {guide} section={guideSection} label="Combat Mechanics" />
+  <DetailFrame side={facts.length > 1}>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.category ?? document.statCategory ?? 'General'} stat${onHit ? ' · On-hit trigger' : ''}`} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {registry} /></div>
+    <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
+      {#if document.description}<p class="description">{document.description}</p>{/if}
+      {#if document.note}<p>{document.note}</p>{/if}
+      {#if document.recovery.length}<p>Recovers {#each document.recovery as recovery, index}{index ? ', and ' : ''}{formatNumber(recovery.amount)} every {formatNumber(recovery.interval)} {recovery.interval === 1 ? 'second' : 'seconds'} {recovery.when === 'in-combat' ? 'in combat' : 'out of combat'}{/each}.</p>{/if}
+      {#if onHit}<p>On a hit, this stat can trigger {#each document.onHit as hit, index}{index ? ', ' : ''}<EntityLink ref={hit.effect} {registry} /> ({formatNumber(hit.chance)}% effect chance){/each}.</p>{/if}
+      {#if !document.description && !document.note && !document.recovery.length && !onHit}<p>{document.ref.name} is a {document.category?.toLowerCase() ?? document.statCategory?.toLowerCase() ?? 'character'} stat.</p>{/if}
+      {#if itemCount > 0}<p><a class="c-link" href={itemsHref}>Browse {formatNumber(itemCount)} {itemCount === 1 ? 'item' : 'items'} with {document.ref.name}</a>.{#if !document.itemListColumn}{' '}Fixed bonuses and possible rolls are listed below.{/if}</p>
+      {:else if totalSources > 0}<p>See the sources below for ways to gain this stat.</p>{/if}
+      <HowItWorks guide={combat} section={guideSection} label="How combat stats work" />
     </AnswerCard></div>
+    <svelte:fragment slot="side"><FactsCard {facts} title="At a glance" /></svelte:fragment>
     <Sections>
-      <Section id="where-it-comes-from" title="Where It Comes From">
-        <p class="items-link"><a class="c-link" href={itemsHref}>Browse Items With {document.ref.name}</a></p>
-        {#each sourceGroups as group}
-          {#if group.refs.length}<div class="source-group"><h3>{group.title} <span>{formatNumber(group.refs.length)}</span></h3><p>{group.note}</p><ul class="source-list">
-            {#each group.refs.slice(0, 6) as source}<li><EntityLink ref={source} {registry} /></li>{/each}
-          </ul>{#if group.refs.length > 6}<details><summary>Show {formatNumber(group.refs.length - 6)} More</summary><ul class="source-list extra">{#each group.refs.slice(6) as source}<li><EntityLink ref={source} {registry} /></li>{/each}</ul></details>{/if}</div>{/if}
-        {/each}
-        {#if document.sources.talents.length}<div class="source-group"><h3>Talents <span>{formatNumber(document.sources.talents.length)}</span></h3><ul class="source-list">
-          {#each document.sources.talents.slice(0, 6) as row}<li><EntityLink ref={row.talent} {registry} /> <span class="context">in <EntityLink ref={row.class} {registry} /></span></li>{/each}
-        </ul>{#if document.sources.talents.length > 6}<details><summary>Show {formatNumber(document.sources.talents.length - 6)} More</summary><ul class="source-list extra">{#each document.sources.talents.slice(6) as row}<li><EntityLink ref={row.talent} {registry} /> <span class="context">in <EntityLink ref={row.class} {registry} /></span></li>{/each}</ul></details>{/if}</div>{/if}
-        {#if document.sources.classes.length}<div class="source-group"><h3>Class Stats <span>{formatNumber(document.sources.classes.length)}</span></h3><ul class="source-list">
-          {#each document.sources.classes as row}<li><EntityLink ref={row.class} {registry} /> <span class="context">{#if row.starting !== 0}{row.starting > 0 ? '+' : ''}{formatNumber(row.starting)} Starting{/if}{#if row.starting !== 0 && row.growth !== 0},{' '}{/if}{#if row.growth !== 0}{row.growth > 0 ? '+' : ''}{formatNumber(row.growth)} Per Level{/if}</span></li>{/each}
-        </ul></div>{/if}
-      </Section>
+      {#if groups.length}<Section id="sources" title="Sources" count={document.grants.length} line={document.sources.randomItems.length ? 'Fixed bonuses always apply. Possible item rolls vary by copy.' : undefined}>
+        <TabSet {tabs} label="Stat source types" idPrefix="stat-sources" param="source" let:key>
+          {#each groups.filter((group) => group.key === key) as group (group.key)}
+            <RelationTable columns={group.columns} rows={group.rows} label={`${group.label} granting ${document.ref.name}`}>
+              <svelte:fragment slot="cell" let:row let:column>
+                {#if column === 'source'}<EntityLink ref={row.source} {registry} />
+                {:else if column === 'amount'}{#if row.family === 'randomItems'}Possible roll:{' '}{/if}{#if row.min !== undefined && row.max !== undefined}{signedAmount(row.min, row.percent)}–{signedAmount(row.max, row.percent)}{:else if row.amount !== undefined}{signedAmount(row.amount, row.percent)}{/if}
+                {:else if column === 'tier'}{#if row.tier !== undefined}{row.family === 'sets' ? `${formatNumber(row.tier)} pieces` : formatNumber(row.tier)}{/if}
+                {:else if column === 'class'}{#if row.class}<EntityLink ref={row.class} {registry} />{/if}{/if}
+              </svelte:fragment>
+            </RelationTable>
+          {/each}
+        </TabSet>
+      </Section>{/if}
+      {#if document.sources.classes.length}<Section id="class-stats" title="Class stats" count={document.sources.classes.length} line="Starting value and the increase at each level.">
+        <RelationTable columns={classPlan.columns} rows={document.sources.classes} label="Class stat growth"><svelte:fragment slot="cell" let:row let:column>
+          {#if column === 'class'}<EntityLink ref={row.class} {registry} />{:else if column === 'starting'}{row.starting ? signedAmount(row.starting) : ''}{:else if column === 'growth'}{row.growth ? signedAmount(row.growth) : ''}{/if}
+        </svelte:fragment></RelationTable>
+      </Section>{/if}
     </Sections>
   </DetailFrame>
 </article>
 
 <style>
-  .game-description { padding: .65rem .8rem; border-left: 2px solid var(--c-accent); background: var(--c-surface-1); }
-  .game-description span { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 650; }
-  .game-description p { margin: .3rem 0 0; white-space: pre-line; }
-  h3 { margin: .9rem 0 .35rem; font: 650 1rem/1.3 var(--c-serif); color: var(--c-text-strong); }
-  .bonuses, .on-hit, .recovery, .source-list { margin: .35rem 0 .5rem; padding: 0; list-style: none; }
-  .bonuses li { display: grid; gap: .15rem; padding: .35rem 0; border-bottom: 1px solid var(--c-line-soft); }
-  .bonuses li span, .context, .source-group p { color: var(--c-text-dim); }
-  .on-hit li, .recovery li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .35rem 1rem; padding: .3rem 0; }
-  .items-link { margin: .1rem 0 1rem; }
-  .source-group { margin-top: 1.1rem; }
-  .source-group h3 span { margin-left: .25rem; color: var(--c-text-mute); font: 500 var(--c-text-small)/1.3 var(--c-sans); }
-  .source-group p { margin: .2rem 0 .6rem; font-size: var(--c-text-small); }
-  .source-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .35rem 1rem; }
-  .source-list li { min-width: 0; }
-  details { margin-top: .5rem; }
-  summary { width: fit-content; color: var(--c-accent); cursor: pointer; }
-  .extra { margin-top: .55rem; }
+  .description { color: var(--c-text-strong); font-size: 1.06rem; line-height: 1.5; white-space: pre-line; }
 </style>

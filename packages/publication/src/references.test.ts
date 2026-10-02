@@ -88,10 +88,24 @@ test("connected effects get stable pages while orphan effects stay plain text", 
   const sources = [{ effectKey: "effects:435", family: "interactableObject", sourceId: "door",
     place: { entityKey: "scenes:10", label: "Duskfall Depths" }, placementIds: ["door-1"], label: "Exit" }];
   const { refs, pages } = buildEntityReferences(entities, { facts, relations: { ...emptyRelations, conditions }, effectWorldSources: sources });
-  expect(pages.get("effects:435")?.ref.name).toBe("Dismount Effect #435");
+  expect(pages.get("effects:435")?.ref.name).toBe("Unnamed Dismount Effect");
   expect(pages.has("effects:62")).toBe(true);
   expect(pages.has("effects:301")).toBe(false);
   expect(createReferenceResolver(refs)({ entityKey: "effects:301", label: "RESET RENT TIMER 2" })).toEqual({ key: null, label: "Reset Rent Timer 2" });
+});
+
+test("different effects can share their authored name without displaying record numbers", () => {
+  const entities = [entity("effects", 144, "Corruption"), entity("effects", 215, "Corruption")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, progression: {
+    ...emptyFacts.progression,
+    facts: entities.map((row) => ({ kind: "effects", entityKey: row.entityKey, name: row.name,
+      details: { effectType: { name: "Stat" } } }) as CatalogProgressionFact),
+  } };
+  const sources = entities.map((row) => ({ effectKey: row.entityKey, family: "interactableObject", sourceId: row.entityKey,
+    place: null, placementIds: [row.entityKey], label: null }));
+  const { pages } = buildEntityReferences(entities, { facts, relations: emptyRelations, effectWorldSources: sources });
+  expect([...pages.values()].map((page) => page.ref.name)).toEqual(["Corruption", "Corruption"]);
+  expect(new Set([...pages.values()].map((page) => page.ref.slug)).size).toBe(2);
 });
 
 test("qualifies places of one name by the area of their entrance and numbers places that share it", () => {
