@@ -24,7 +24,7 @@
 </script>
 
 {#if count}
-  {#if compact}<div id={versions.length > 1 ? id : undefined} class="compact"><h3>{title} {count}{#if refs.every((ref) => ref.key !== null && ref.kind === 'npcs')}{' creatures'}{/if}</h3>
+  {#if compact}<div id={versions.length > 1 ? id : undefined} class="compact"><h3>{title} {count}{#if refs.every((ref) => ref.key !== null && ref.kind === 'npcs')}{' NPCs'}{/if}</h3>
     <ul class="preview">{#each refs.slice(0, previewCount) as ref}<li><EntityLink {ref} {registry} /></li>{/each}</ul>
     {#if previewCount < count}<a class="c-link all" href={showAllHref} on:click={() => onShowAll?.()}>Show all {count}</a>{/if}
   </div>

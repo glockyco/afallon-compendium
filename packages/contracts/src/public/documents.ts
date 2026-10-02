@@ -516,6 +516,12 @@ export const NpcVariantSchema = Type.Object({
 }, { additionalProperties: false });
 export type NpcVariant = Static<typeof NpcVariantSchema>;
 
+// An item that adventurers can take as gear, with what it is.
+const adventurerGearItem = { item: RefSchema, type: optional(text) };
+export const AdventurerGearItemSchema = Type.Object(adventurerGearItem, { additionalProperties: false });
+// The gear of an adventurer: the chance that a finished job tries an upgrade from the reward gear list, and the items of
+// the adventurer's own gear kit, if it has one.
+export const NpcAdventurerGearSchema = Type.Object({ rewardChance: percent, kit: Type.Array(AdventurerGearItemSchema) }, { additionalProperties: false });
 // A page groups the records that share a display name. `variantFields` lists the record facts that differ between
 // them, so an empty list means that the variants differ only in where, when, and with what services they appear.
 export const PublicNpcSchema = Type.Object({
@@ -525,6 +531,7 @@ export const PublicNpcSchema = Type.Object({
   drops: Type.Array(NpcDropRowSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
   usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, hunter: optional(RefSchema), linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
+  adventurerGear: optional(NpcAdventurerGearSchema),
 }, { additionalProperties: false });
 export type PublicNpc = Static<typeof PublicNpcSchema>;
 
@@ -848,10 +855,9 @@ export type LootGuide = Static<typeof LootGuideSchema>;
 // The gear that adventurers can take as upgrades, each item with what it is. `rewards` is the shared list of job rewards
 // and arrival gear, with the adventurer level from which an item can be picked (level 1 for an item without a band).
 // `kits` are the gear kits of single adventurers, whose items need no level.
-const adventurerGearItem = { item: RefSchema, type: optional(text) };
 export const AdventurerGearSchema = Type.Object({
   rewards: Type.Array(Type.Object({ ...adventurerGearItem, level: count }, { additionalProperties: false })),
-  kits: Type.Array(Type.Object({ adventurer: RefSchema, items: Type.Array(Type.Object(adventurerGearItem, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false })),
+  kits: Type.Array(Type.Object({ adventurer: RefSchema, items: Type.Array(AdventurerGearItemSchema, { minItems: 1 }) }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type AdventurerGear = Static<typeof AdventurerGearSchema>;
 export const AdventurersGuideSchema = Type.Object({
@@ -876,7 +882,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v20", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
+  items: "compendium.static-item.v20", npcs: "compendium.static-npc.v10", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v7", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v13", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
@@ -901,14 +907,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v20": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v20": typeof StaticItemDocumentSchema; "compendium.static-npc.v10": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v7": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v13": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v20": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
+  "compendium.static-item.v20": StaticItemDocumentSchema, "compendium.static-npc.v10": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v7": StaticClassDocumentSchema,
@@ -919,7 +925,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
+  resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v10"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v7"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v13"),
   resourceReference("compendium.static-gathering-node.v5"),

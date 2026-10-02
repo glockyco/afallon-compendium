@@ -16,20 +16,20 @@
       text: 'The scanned game data names no creature, vendor, container, object, resource, quest, recipe, usable item, dungeon reward, Dungeon Finder run, quest pickup, or published starting gear that gives these items.',
     },
     itemAdventurerOnly: {
-      title: 'Items carried only by adventurers',
-      text: 'Adventurers carry these items, but no known player source gives them.',
+      title: 'Items only adventurers can get',
+      text: 'Adventurers can take these items as gear, but no known player source gives them.',
     },
     npcWithoutLocation: {
-      title: 'Creatures without a map location',
-      text: 'No scanned spawner places these creatures in a scanned scene, so their pages show no location.',
+      title: 'NPCs without a map location',
+      text: 'The scanned game data puts these NPCs at no place on a map, so their pages show no location.',
     },
     npcWithoutLevel: {
-      title: 'Creatures without a level',
-      text: 'These creatures have a map location but no published level. Adventurers and companions take their level from the saved progress of the player. The level rule of the others is not confirmed.',
+      title: 'NPCs without a level',
+      text: 'These NPCs have a map location but no published level. Adventurers and companions take their level from the saved progress of the player. The level rule of the others is not confirmed.',
     },
     placeWithoutMap: {
       title: 'Places without a map',
-      text: 'No reviewed game map shows these places, so their creatures and objects have no map markers.',
+      text: 'No reviewed game map shows these places, so their NPCs and objects have no map markers.',
     },
     unresolvedReference: {
       title: 'Pages with an unknown reference',

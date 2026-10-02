@@ -10,7 +10,7 @@ import { GUIDES, guideSections } from "./guide-sections";
 import { killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
-import { itemTypeLabel } from "./item-type";
+import { itemKind, itemTypeLabel } from "./item-type";
 
 /** Job operands must match the settings in this catalog, not an earlier reviewed value. */
 function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): CatalogMechanicsRule {
@@ -30,12 +30,10 @@ function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): Catalo
  * The gear that adventurers can take. A reward item can be picked from its band's minimum level, or from level 1 when it
  * has no band, as `GearContentLevel` decides. Kit items belong to their kit's adventurer and need no level.
  */
-function adventurerGear(facts: CatalogFacts, entityDocuments: ReadonlyMap<string, PublicDocument>, resolve: ReferenceResolver): AdventurerGear {
+function adventurerGear(facts: CatalogFacts, resolve: ReferenceResolver): AdventurerGear {
   const rows = facts.adventurerItems ?? [];
-  const isItem = (document: PublicDocument | undefined): document is PublicItem => document?.ref.kind === "items";
   const gearItem = (key: string) => {
-    const document = entityDocuments.get(key);
-    const type = isItem(document) ? itemTypeLabel(document.facts) : null;
+    const type = itemTypeLabel(itemKind(facts.items.find((item) => item.entityKey === key)));
     return { item: resolve({ entityKey: key, label: key }), ...(type ? { type } : {}) };
   };
   const nameOf = (ref: Ref) => "name" in ref ? ref.name : ref.label;
@@ -356,7 +354,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
-    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, entityDocuments, resolve) } satisfies AdventurersGuide] : []),
+    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve) } satisfies AdventurersGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));

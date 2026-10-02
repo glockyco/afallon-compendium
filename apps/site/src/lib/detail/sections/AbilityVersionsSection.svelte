@@ -42,7 +42,7 @@
           {#if row.version.usedBy.length + row.version.usedByItems.length}
             <details class="users" open={showAllUsers}>
               <summary>{row.version.usedBy.length + row.version.usedByItems.length} users</summary>
-              {#if row.version.usedBy.length}<h3>Creatures</h3><LinkGrid refs={row.version.usedBy} {registry} />{/if}
+              {#if row.version.usedBy.length}<h3>NPCs</h3><LinkGrid refs={row.version.usedBy} {registry} />{/if}
               {#if row.version.usedByItems.length}<h3>Items</h3><LinkGrid refs={row.version.usedByItems} {registry} />{/if}
             </details>
           {:else}0{/if}

@@ -12,7 +12,7 @@
   export let registry: PublicKindEntry[];
 
   const kinds: Record<QuestWorldChange['sourceKind'], string> = {
-    creature: 'Creature', object: 'Object', container: 'Container', resource: 'Resource',
+    creature: 'NPC', object: 'Object', container: 'Container', resource: 'Resource',
     craftingStation: 'Crafting station', worldZone: 'World quest zone',
   };
   const columns: RelationColumn<QuestWorldChange>[] = [

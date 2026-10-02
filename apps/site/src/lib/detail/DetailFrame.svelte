@@ -1,10 +1,12 @@
 <script lang="ts">
   import '../compendium.css';
+  /** Whether the page has an answer card. Without one, the side starts beside the sections. */
+  export let answer = true;
 </script>
 
-<div class="detail-frame">
+<div class="detail-frame" class:no-answer={!answer}>
   <div class="head"><slot name="head" /></div>
-  <div class="answer"><slot name="answer" /></div>
+  {#if answer}<div class="answer"><slot name="answer" /></div>{/if}
   <aside class="side" aria-label="Additional details"><slot name="side" /></aside>
   <div class="rest"><slot /></div>
 </div>
@@ -21,6 +23,7 @@
     gap: var(--c-space-section) 2.5rem;
     align-items: start;
   }
+  .detail-frame.no-answer { grid-template-areas: 'head .' 'rest side'; grid-template-rows: auto 1fr; }
   .head { grid-area: head; }
   .answer { grid-area: answer; }
   /* The side scrolls when it is taller than the window. The scroll box clips anything outside it, so a small padding
@@ -31,6 +34,7 @@
   .detail-frame > * { min-width: 0; }
   @media (max-width: 1023px) {
     .detail-frame { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'answer' 'side' 'rest'; grid-template-rows: none; }
+    .detail-frame.no-answer { grid-template-areas: 'head' 'side' 'rest'; }
     .side { position: static; max-height: none; overflow: visible; margin: 0; padding: 0; }
   }
 </style>

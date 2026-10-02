@@ -10,6 +10,8 @@
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import type { RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import { npcQuestRows } from '../quest-rows';
   import AbilitiesSection from '../sections/AbilitiesSection.svelte';
   import DropsSection from '../sections/DropsSection.svelte';
@@ -48,9 +50,18 @@
   $: moreFacts = Boolean(adventurerGuide || facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
+  $: gearGuide = document.placedRules.find((rule) => rule.target === 'adventurer-gear');
+  $: gear = document.adventurerGear;
+  // The answer card says what you get from this NPC: its drops, an adventurer's gear, or for an NPC you fight that it
+  // drops nothing. A friendly NPC without drops has no answer card, and its sections say what it offers.
+  $: answer = document.drops.length ? 'drops' : gear ? 'gear' : combat ? 'drops' : undefined;
+  const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
+    { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
+    { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type },
+  ];
 </script>
 
-<DetailFrame>
+<DetailFrame answer={answer !== undefined}>
   <svelte:fragment slot="head">
     <TitleBlock name={document.ref.name} {typeLine} facts={titleFacts} imageUrl={portrait ? `${base}/data/${portrait.url}` : undefined} portrait={Boolean(portrait)} mapHref={document.spotCount ? entityOnMap(document.ref.key) : undefined} {registry}>
       <StatStrip {stats} />
@@ -58,9 +69,24 @@
   </svelte:fragment>
 
   <svelte:fragment slot="answer">
-    <AnswerCard title="Drops" id="drops">
-      <DropsSection rows={document.drops} variants={document.variants} {registry} answer />
-    </AnswerCard>
+    {#if answer === 'drops'}
+      <AnswerCard title="Drops" id="drops">
+        <DropsSection rows={document.drops} variants={document.variants} name={document.ref.name} {registry} answer />
+      </AnswerCard>
+    {:else if answer === 'gear' && gear}
+      <AnswerCard title="Gear" id="gear">
+        <div class="c-stack">
+          <p>After a job, {document.ref.name} has a {formatNumber(gear.rewardChance)}% chance to take an upgrade from the {#if gearGuide}<a class="c-link" href={`${base}/mechanics/${gearGuide.guide.slug}/#${gearGuide.section}`}>reward gear list</a>{:else}reward gear list{/if}.</p>
+          {#if gear.kit.length}
+            <p>{document.ref.name} also has a gear kit, which is tried once, the first time {document.ref.name} appears in the world after joining.</p>
+            <RelationTable columns={kitColumns} rows={gear.kit} label={`Gear kit of ${document.ref.name}`}>
+              <svelte:fragment slot="cell" let:row let:column>{#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{row.type ?? ''}{/if}</svelte:fragment>
+            </RelationTable>
+          {/if}
+          {#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurer gear works" />{/if}
+        </div>
+      </AnswerCard>
+    {/if}
   </svelte:fragment>
 
   <svelte:fragment slot="side">

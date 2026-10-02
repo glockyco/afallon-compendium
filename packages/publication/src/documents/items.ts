@@ -8,6 +8,7 @@ import { placedRules, topicRef } from "../placed-rules";
 import { displayName, plainText } from "../text";
 import { roundWeaponDamage, weaponDamageLabel } from "../weapon-display";
 import { bandWorldLoot, type WorldLootItem, type WorldLootTable } from "../world-loot";
+import { itemKind } from "../item-type";
 import { lootFields } from "./loot";
 import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
@@ -285,7 +286,6 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const crafting = productRecipe?.recipe.entityKey ? projectCraft(productRecipe.recipe.entityKey, input, indexes) : undefined;
   const teaches = taughtRecipe === undefined ? undefined : projectCraft(taughtRecipe, input, indexes);
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
-  const isArmor = fact?.itemType === "ARMOR" || (fact?.itemType === "Trinket" && fact.armorSlot === "Trinket");
   const isWeapon = fact?.itemType === "WEAPON";
   const settings = input.facts.corruption;
   const dungeonRewards = input.corruptionRewards?.byItem.get(entity.entityKey);
@@ -315,9 +315,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   return {
     ...baseDocument(entity, ref, input),
     facts: {
-      ...(fact?.rarity ? { rarity: plainText(fact.rarity) } : {}), ...(fact?.itemType ? { itemType: plainText(fact.itemType) } : {}),
-      ...(isArmor && fact?.armorSlot ? { slot: plainText(fact.armorSlot) } : {}), ...(isArmor && fact?.armorType ? { armorType: plainText(fact.armorType) } : {}),
-      ...(isWeapon && fact?.weaponType ? { weaponType: plainText(fact.weaponType) } : {}), ...(isWeapon && fact?.weaponSlot ? { weaponSlot: plainText(fact.weaponSlot) } : {}),
+      ...(fact?.rarity ? { rarity: plainText(fact.rarity) } : {}), ...itemKind(fact),
       ...(isWeapon && fact?.attackSpeed !== null && fact?.attackSpeed !== undefined ? { attackSpeed: fact.attackSpeed } : {}),
       ...(isWeapon && optionalCount(fact?.minDamage ?? null) !== undefined ? { minDamage: optionalCount(fact?.minDamage ?? null) } : {}),
       ...(isWeapon && optionalCount(fact?.maxDamage ?? null) !== undefined ? { maxDamage: optionalCount(fact?.maxDamage ?? null) } : {}),

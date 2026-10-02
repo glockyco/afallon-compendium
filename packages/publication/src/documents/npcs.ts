@@ -4,7 +4,8 @@ import { markerCategories, shownCategories } from "../categories";
 import { killExperience } from "../experience";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "../levels";
 import { placeSpots } from "../place-spots";
-import { placedRules } from "../placed-rules";
+import { itemKind, itemTypeLabel } from "../item-type";
+import { placedRules, topicRef } from "../placed-rules";
 import type { PublishedPage } from "../references";
 import { plainText } from "../text";
 import { shownNpcStats } from "../variants";
@@ -184,6 +185,14 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
       placedRuleKeys.add(key);
       return true;
     });
+  // An adventurer can take reward gear after a job, and some adventurers also have a gear kit of their own.
+  const world = input.facts.adventurerWorld;
+  const adventurer = world !== null && page.members.some((member) => roster.has(member.entity.entityKey));
+  const kit = [...new Set((input.facts.adventurerItems ?? []).flatMap((row) => row.kind === "kitUpgradeItem" && row.adventurer?.entityKey && memberKeys.has(row.adventurer.entityKey) ? [row.itemKey] : []))]
+    .map((key) => {
+      const type = itemTypeLabel(itemKind(input.facts.items.find((item) => item.entityKey === key)));
+      return { item: input.resolve({ entityKey: key, label: key }), ...(type ? { type } : {}) };
+    });
   return {
     ...base, facts, variantFields,
     variants: records.map(({ member }, index) => {
@@ -200,6 +209,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
     usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
     ...(has("linkedNpc") && shared.linkedNpc ? { linkedNpc: shared.linkedNpc } : {}),
-    placedRules: npcPlacedRules,
+    placedRules: adventurer ? [...npcPlacedRules, { target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : npcPlacedRules,
+    ...(adventurer ? { adventurerGear: { rewardChance: chancePercent(world.equipmentRewardChance), kit } } : {}),
   };
 }

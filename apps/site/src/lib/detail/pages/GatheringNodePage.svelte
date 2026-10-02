@@ -101,7 +101,7 @@
         <h2>Spawns</h2>
         <dl class="spawn-facts">
           {#if spawnerTotal}<div><dt>Spawners</dt><dd>{formatNumber(spawnerTotal)}</dd></div>{/if}
-          {#if placedTotal}<div><dt>Placed by scenes</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
+          {#if placedTotal}<div><dt>Placed in the world</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
         </dl>
         {#if shareLevels.length}
           <table class="shares">

@@ -13,6 +13,8 @@
   export let variants: NpcVariant[] = [];
   export let registry: PublicKindEntry[];
   export let answer = false;
+  /** The name of the NPC, which the empty state names. */
+  export let name: string;
 
   const columns: RelationColumn<NpcDropRow>[] = [
     { id: 'name', label: 'Item', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
@@ -43,7 +45,7 @@
         </div>
       {/each}
     </div>
-  {:else}<p class="empty">No drops are published for this creature.</p>{/if}
+  {:else}<p class="empty">No drops are published for {name}.</p>{/if}
 {/snippet}
 
 {#if answer}

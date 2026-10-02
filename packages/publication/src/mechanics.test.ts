@@ -138,13 +138,15 @@ test("the Adventurers guide lists reward gear by the level an adventurer needs a
   const band = (itemKey: string, minimumContentLevel: number) => ({ itemKey, kind: "equipmentBand" as const, adventurer: null, minimumContentLevel, rewardChance: null });
   const reward = (itemKey: string) => ({ itemKey, kind: "equipmentReward" as const, adventurer: null, minimumContentLevel: null, rewardChance: 0.4 });
   const kitItem = (itemKey: string, adventurer: string) => ({ itemKey, kind: "kitUpgradeItem" as const, adventurer: ref(adventurer, adventurer), minimumContentLevel: null, rewardChance: null });
-  const source = { ...facts, adventurerItems: [band("items:1", 17), reward("items:1"), reward("items:3"), band("items:2", 0), reward("items:2"), band("items:9", 24),
+  const source = { ...facts, items: [{ entityKey: "items:2", itemType: "WEAPON", weaponType: "BOW", weaponSlot: "TWO_HAND", armorType: "PLATE", armorSlot: null }], adventurerItems: [band("items:1", 17), reward("items:1"), reward("items:3"), band("items:2", 0), reward("items:2"), band("items:9", 24),
     kitItem("items:3", "npcs:7"), kitItem("items:1", "npcs:7"), kitItem("items:2", "npcs:1")],
     progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, { ruleId: "adventurer-gear-list", topic: "adventurers", section: "gear-upgrades", ordinal: 0, status: "verified",
       phrase: "Gear.", operands: {}, links: [], sources: [], placements: [] } as CatalogMechanicsRule] } } as CatalogFacts;
   const gear = (documents(source).get("mechanics:adventurers") as AdventurersGuide).gear;
   // A band below level 1 still needs level 1, an item without a band needs level 1, and a band without a reward entry lists nothing.
   expect(gear.rewards.map((row) => [row.item.key, row.level])).toEqual([["items:2", 1], ["items:3", 1], ["items:1", 17]]);
+  // A weapon is named by its weapon type, not by armor values that the catalog keeps for it.
+  expect(gear.rewards[0]?.type).toBe("Bow");
   expect(gear.kits.map((kit) => [kit.adventurer.key, kit.items.map((row) => row.item.key)])).toEqual([["npcs:7", ["items:3", "items:1"]], ["npcs:1", ["items:2"]]]);
 });
 

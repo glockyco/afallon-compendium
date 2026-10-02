@@ -53,7 +53,7 @@
   $: fieldOf = (column: string): NpcVariantField | undefined => document.variantFields.find((field) => field === column);
 </script>
 
-<Section id="variants" title="Variants" count={variants.length} line="The game has several versions of this creature. They share a name but differ in the facts below.">
+<Section id="variants" title="Variants" count={variants.length} line={`The game has several versions of ${document.ref.name}. They share a name but differ in the facts below.`}>
   <RelationTable columns={plan.columns} rows={variants} label="Variants" rowAnchors={(variant) => [variant.anchor]}>
     <svelte:fragment slot="cell" let:row let:column>
       {@const field = fieldOf(column)}
