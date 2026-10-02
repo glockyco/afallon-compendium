@@ -1,51 +1,50 @@
 ## Context
 
-See `proposal.md` for the motivation. The accepted catalog has 660 nodes in 30 talent trees. Its `talent_nodes` coordinates range from tier 1 to 10 and position 1 to 6. It has 497 bonus facts and no artwork bindings for bonuses or trees. These counts come from read-only queries of accepted catalog 6bc13a4c. `support.csx:3-19,348-357` records each entry's `entryIcon` name and each node's coordinates. The evidence brief reports nonempty `entryIcon` values for 497 of 497 bonuses and 30 of 30 trees. These names are not image assets. `artwork.csx:98-116` exports icons for other families but omits bonuses and trees.
+The accepted catalog `d3b56f3f` (build 25653798) has 31 `talentTrees` canonical entities, 558 `bonuses` progression facts, and `talent_nodes` rows with each node's tree, index, type, target, `tier`, `row`, and condition. Its `artwork_bindings` cover other entity kinds but no talent tree. Bonuses have no canonical entity rows.
 
-`packages/catalog/src/normalize.ts:227-241` binds exported artwork only to canonical entities. Trees are canonical entities, but bonuses are progression facts without canonical entity rows. `packages/publication/src/artwork.ts:18-51` converts entity artwork to WebP. `packages/contracts/src/public/documents.ts:449-457,617-622` has no tree or node icon field, and its artwork edge collector does not visit these fields. `apps/site/src/lib/detail/pages/ClassPage.svelte:42-54` shows a separate table section for every tree. `documents.ts:839-850,905-920` defines stable node anchors and orders the rows by tier and position.
+`packages/scan/src/probes/collectors/artwork.csx` exports the `entryIcon` of many database families through one sprite reader, but not of talent trees or bonuses. `RPGTalentTree` (recovered declaration `RPGTalentTree.cs`) is an `RPGBuilderDatabaseEntry`. It has its own `icon` sprite (+0x60), `TiersAmount` (+0x68), `treePointAcceptedID` (+0x6C), and `nodeList` (+0x70) of `Node_DATA` with `nodeType`, `abilityID`, `recipeID`, `resourceNodeID`, `bonusID`, `Tier`, `Row`, and requirements. `RPGBonus` is also an `RPGBuilderDatabaseEntry`.
+
+The game draws a tree in `TalentTreePanel` (`Blink/RPGBuilder/Managers/TalentTreePanel.cs`): tier slots from `TierSlotPrefab`, separate prefabs for active and passive nodes, `GenerateLine` and `InitTalentTreeNodeLines` for lines between nodes, and spacing fields such as `nodeXStartOffset` and `nodeDistanceOffset`. Those fields and the line rule decide what the page should mirror.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Preserve the existing node identity, effects, requirements, ability links, and authored tree order.
-- Export source sprites and make the grid and table read the same published rows.
-- Keep a missing sprite visible as a coverage issue without hiding its node.
+- Record every tree and passive talent icon that the game has, and an explicit issue for each one it cannot read.
+- Record the facts the game's panel uses to place nodes and draw lines, verified from its native code.
+- Produce screenshots of the in-game panel and a preview of the captured data for the layout decision.
 
 **Non-Goals:**
-- Do not allocate points, infer legal builds, or make a planner. `build-character-planner` follows this change.
-- Do not create separate public pages for trees or passive talents.
-- Do not interpret tier and position as a requirement or a progression gate. They are captured layout coordinates.
+- Class page layout, class document fields, talent links, and anchors. A later change designs them.
+- A planner, point allocation, or build advice.
 
 ## Decisions
 
-### Use the artwork collector and store explicit progression bindings
+### Read the panel code before deciding what to capture
 
-Extend `artwork.csx` to export `entryIcon` for `GetTalentTrees()` and `GetBonuses()`, using the existing sprite reader and `icon` role. Keep extracted, missing, and unsupported statuses with source paths. Do not render icons from names in support evidence. Names identify candidates but cannot supply pixels. The accepted support evidence already has coordinates, so this change does not alter support projection.
+Decompile `TalentTreePanel.InitTree`, `InitTalentTreeLines`, `InitTalentTreeNodeLines`, `GenerateLine`, `HandleLine`, and `getNodeTierSlotIndex`. Record how the panel turns `Tier` and `Row` into a slot, which requirement makes a line between two nodes, and whether the tree icon comes from `icon` or `entryIcon`. Capture only the fields that this code reads and the catalog lacks. Spacing constants of the panel are presentation values of one prefab and stay out of the catalog unless the layout decision needs them.
 
-Tree bindings can use the existing canonical-entity artwork table. Bonus bindings need a catalog table keyed to a progression fact, with a foreign key to `progression_facts`, an asset reference, a role, and provenance. Extend normalized inputs and queries to return these bindings. Avoid inserting fake canonical bonus entities merely to reuse `artwork_bindings`. Reuse the existing content-hashed artwork asset table for both kinds of binding. Compare both the new bindings and the preserved tree and node rows against the accepted catalog.
+### Export tree and bonus icons through the artwork collector
 
-### Add artwork to published tree and node data
+Extend `artwork.csx` with the `talentTrees` and `bonuses` families. Use the sprite that the panel code shows for each. Keep `extracted`, `missing`, and `unsupported` statuses with source paths, as the other families do.
 
-Extend the class document so each tree and each passive node can carry an optional icon reference. An ability node uses its existing ability reference icon when present. The same rows supply the grid and the table. Publish bonus icons through the existing WebP conversion path, with hash-based deduplication and graph assets. Include the new icon references in `artEdges` and publication graph checks. This avoids URLs derived in site code and keeps missing icons optional. Check the largest class document against its existing size budget.
+### Bind bonus icons to progression facts
 
-### Use the shared tab set for tree selection
+Trees bind through the existing `artwork_bindings` table, because they are canonical entities. Bonuses need a binding table keyed to `progression_facts`, with an asset reference, a role, and provenance, and with a foreign key to the fact. Inserting fake canonical bonus entities to reuse `artwork_bindings` was rejected. Both kinds reuse the content-hashed `artwork_assets` table.
 
-`add-page-navigation` owns the reusable tab component and the `tab` URL query parameter. Render one Talent trees section with the class's trees in authored order. Use a stable internal tree key for tab values and readable tree names for tab labels. The selected tree presents its point type, default grid, and a Grid/Table view control. Store the view choice in local UI state. Changing a tree keeps the selected view. This change does not replace or duplicate C2's tab set.
+### Keep the published pages unchanged
 
-Build grid rows from captured tier and position. Keep empty slots so nodes retain their relative positions. Do not truncate when a later build exceeds current maxima. Use the captured bounds to size the grid. At 390 px, contain overflow inside the grid panel with a visible horizontal scroll cue and touch access. Do not scroll the page sideways or shrink text below a usable size. Each node has a focusable icon/name control and a detail panel with its rank effects, requirements, and ability link. The table keeps the current full-row presentation. It remains a second view, not a second copy of the nodes in the document.
+The catalog candidate must publish the same pages as the accepted publication, apart from the catalog identity. The publication comparison shows any other difference, which needs an explanation before acceptance.
 
-### Resolve anchors across tabs and views
+### Screenshots for the layout decision
 
-Keep `talent-<tree>-<node>` and `tree-<tree>` anchors unchanged. A fragment that targets a node takes precedence over a stale `tab` parameter. Select its owner tree before scrolling to the active view. Retain one DOM element with each node ID in the selected view, rather than duplicate IDs in hidden views. When the reader changes views, keep the selected node visible. On navigation within the same page, react to hash changes as well as initial load. Other talent references keep their existing class-local resolution. Do not add redirects or alternate paths.
+With the game running, open the talent tree panel of two classes, including one tree with lines between nodes and one Heroic tree, and save screenshots under ignored `local/research/`. Render the same trees from the catalog candidate in a throwaway preview with the captured icons, tiers, rows, and lines. Both sets go to the owner for the layout decision.
 
 ## Risks / Trade-offs
 
-- Bonus artwork lacks a canonical-entity row. → Use a progression-specific foreign key and verify bindings against the accepted bonus fact set.
-- Some sprite exports can fail. → Retain explicit issues and readable node controls with no icon.
-- Grid geometry can exceed a phone's width. → Scroll only its panel and check all positions and details at 390 px in a browser.
-- URL tabs and fragments can disagree. → Give the node fragment precedence and verify both direct loading and in-page navigation.
-- New artwork increases publication size. → Deduplicate by image hash and measure assets and the largest class document.
+- Some sprites cannot be read. → The catalog records the issue and keeps the tree and node.
+- A new scan can change unrelated rows. → Compare the catalog candidate with `d3b56f3f` table by table and explain each difference before acceptance.
+- Opening the panel changes game UI state. → Close the panel and confirm a clean runtime receipt before the next operation.
 
 ## Migration Plan
 
-Implement the collector, catalog contracts and bindings, publication contracts and assets, and class UI. Run a new scan if artwork evidence is absent. Build a catalog candidate and compare its rows with accepted catalog 6bc13a4c. Record all scan-to-scan changes and stop on unexplained differences. Stage a publication candidate against the accepted publication. Check class pages, deep links, and both views at 1440 px and 390 px. Accept the catalog and publication together with one update report. Keep the previous accepted publication as rollback. No route alias or redirect is part of this change.
+Decompile the panel code. Extend the collectors and the catalog. Scan build 25653798 with a clean runtime receipt. Build a catalog candidate, compare it with `d3b56f3f`, publish from it, and check that pages are unchanged. Accept the catalog and publication together. Take the screenshots and the preview for the layout decision.
