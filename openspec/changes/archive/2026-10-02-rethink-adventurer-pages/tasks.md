@@ -11,4 +11,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check Agra Emberhide, Eldeth Goldvein, and a creature with abilities at 1440 and 390 px, and accept the update
+- [x] 3.1 Publish, check Agra Emberhide, Eldeth Goldvein, and a creature with abilities at 1440 and 390 px, and accept the update
