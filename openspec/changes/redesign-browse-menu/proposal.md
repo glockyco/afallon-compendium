@@ -8,6 +8,7 @@ The Browse panel was a plain grid of text links whose columns were too narrow fo
 - On phones the columns become full-width sections that open one at a time, starting with the section of the current page.
 - The bar ends with a Support link to Ko-fi, which shrinks to the Ko-fi cup on phones. The Browse panel ends with a Ko-fi line, and the page footer links Ko-fi too. The map's button uses the same glyph.
 - The Mechanics column and the hub list the Travel and World Quests guides.
+- The bar names the site in the serif of the page titles, links Map, Items, Quests, Classes, and Mechanics, marks the current link with a gold rule on its lower edge, gives search a glyph and a short placeholder, and sets the Support link apart as a quiet link.
 
 ## Capabilities
 

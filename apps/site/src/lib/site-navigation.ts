@@ -9,8 +9,8 @@ export interface Navigation { primary: NavigationLink[]; sections: NavigationGro
 /** The page that supports the Compendium on Ko-fi. */
 export const KOFI_URL = 'https://ko-fi.com/wowmuch';
 
-// The most visited destinations, shown directly in the bar.
-const PRIMARY: readonly string[] = ['map', 'items', 'recipes', 'quests', 'classes', 'skills'];
+// The most visited destinations, shown directly in the bar. Mechanics opens the list of guides.
+const PRIMARY: readonly string[] = ['map', 'items', 'quests', 'classes', 'mechanics'];
 // Browse panel columns in order. Recipes have a list without detail pages.
 const SECTIONS: ReadonlyArray<{ id: string; label: string; entries: readonly string[] }> = [
   { id: 'world', label: 'World', entries: ['map', 'places', 'npcs', 'quests', 'properties', 'factions'] },
@@ -78,5 +78,6 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
     { id: 'other', label: 'Other', links: other },
   ].filter((section) => section.links.length > 0);
   // The bar keeps its links short; the panel carries the descriptions and glyphs.
-  return { primary: PRIMARY.flatMap(links).map(({ label, href }) => ({ label, href })), sections };
+  const primary = PRIMARY.flatMap((id): NavigationLink[] => id === 'mechanics' ? (mechanics ? [{ label: mechanics.plural, href: `${base}/${mechanics.route}/` }] : []) : links(id).map(({ label, href }) => ({ label, href })));
+  return { primary, sections };
 }

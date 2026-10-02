@@ -6,6 +6,10 @@
   import EntityLink from './EntityLink.svelte';
   import { levelText, searchPlaceholder } from './format';
   import { entityOnMap, itemOnMap, placeOnMap } from './map-links';
+  import { Search } from 'lucide';
+  import { iconNodeToSvg } from './icon-svg';
+
+  const searchGlyph = iconNodeToSvg(Search, 'currentColor');
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
@@ -21,7 +25,8 @@
   let error = '';
 
   $: results = query.trim() ? rankCompendiumEntries(query, entries).slice(0, limit) : [];
-  $: placeholder = searchPlaceholder(registry.filter((entry) => entry.searchable).map((entry) => entry.plural));
+  // The hub's large field names what it finds. The header's field is narrow, so it says only what it searches.
+  $: placeholder = size === 'large' ? searchPlaceholder(registry.filter((entry) => entry.searchable).map((entry) => entry.plural)) : 'Search the Compendium';
 
   // A result names its kind first. The level and the place follow when the search corpus publishes them.
   function entryDetail(entry: PublicSearchEntry): string {
@@ -52,6 +57,7 @@
 <div class="compendium-search" class:large={size === 'large'}>
   <label for="compendium-search" class="visually-hidden">Search the compendium</label>
   <div class="input-wrap">
+    <span class="glyph" aria-hidden="true">{@html searchGlyph}</span>
     <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} on:focus={loadSearch} on:input={loadSearch} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
@@ -62,10 +68,15 @@
 <style>
   .compendium-search { position: relative; max-width: 36rem; }
   .input-wrap { position: relative; }
-  input { width: 100%; min-height: 2.3rem; padding: .4rem .65rem; border: 1px solid var(--c-line-strong); border-radius: 2px; background: var(--c-surface-0); color: var(--c-text-strong); }
+  input { width: 100%; min-height: 2.3rem; padding: .4rem .65rem .4rem 2.1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-0); color: var(--c-text-strong); }
+  input:hover { border-color: var(--c-line-strong); }
+  .glyph { position: absolute; top: 50%; left: .7rem; display: flex; color: var(--c-text-mute); transform: translateY(-50%); pointer-events: none; }
+  .glyph :global(svg) { width: 1rem; height: 1rem; }
+  .large .glyph { left: 1rem; }
+  .large .glyph :global(svg) { width: 1.2rem; height: 1.2rem; }
   /* The large field sits on the artwork of the hub. It sets only its left padding, so the error state keeps its room. */
   .large { max-width: none; }
-  .large input { min-height: 3.2rem; padding-left: 1rem; border-color: var(--c-frame-strong); border-radius: 6px; background: color-mix(in srgb, var(--c-surface-deep) 88%, transparent); font-size: var(--c-text-prose); box-shadow: 0 10px 30px var(--c-shadow); }
+  .large input { min-height: 3.2rem; padding-left: 2.8rem; border-color: var(--c-frame-strong); border-radius: 6px; background: color-mix(in srgb, var(--c-surface-deep) 88%, transparent); font-size: var(--c-text-prose); box-shadow: 0 10px 30px var(--c-shadow); }
   input:where(.has-error) { padding-right: 10rem; }
   .spinner { position: absolute; top: 50%; right: .85rem; width: 1rem; height: 1rem; margin-top: -.5rem; border: 2px solid var(--c-text-mute); border-top-color: var(--c-accent); border-radius: 50%; pointer-events: none; animation: spin .7s linear infinite; }
   .error { position: absolute; top: 50%; right: .65rem; transform: translateY(-50%); color: var(--c-danger); font-size: var(--c-text-small); pointer-events: none; }
