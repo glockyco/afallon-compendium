@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { PUBLICATION_PART_BUDGET, type PublicClass, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest } from "@afallon/contracts/public";
+import { PUBLICATION_PART_BUDGET, type PublicClass, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateIndexResources } from "./index-resources";
 import { buildKindLists } from "./lists";
@@ -141,4 +141,22 @@ test("item rows name the classes that can use them, what they are, their craftin
   expect(rows.get("Copper Ore")!.stats).toBeUndefined();
   documents.set("items:6", item("items:6", "War Scythe", { itemType: "WEAPON", weaponType: "Scythe" }));
   expect(() => buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents)).toThrow("No offered class can use the weapon type Scythe");
+});
+
+test("skill rows say whether a skill is for crafting, gathering, or a weapon, and leave counts that do not apply blank", () => {
+  const skill = (key: string, name: string, experience: PublicSkill["experience"], recipes: number, nodes: number) => ({
+    ref: { key, kind: "skills", name, slug: name.toLowerCase() }, description: null, art: {}, facts: { highestLevel: 300, automatic: true },
+    recipes: Array.from({ length: recipes }, (_, index) => ({ recipe: { key: `recipes:${index}`, name: "Recipe" }, anchor: `r${index}` })),
+    gatheringNodes: Array.from({ length: nodes }, (_, index) => ({ node: { key: null, label: `Node ${index}` }, requirements: [] })), experience, placedRules: [],
+  }) as unknown as PublicSkill;
+  const skills = [skill("skills:1", "Alchemy", { crafting: true, gathering: false }, 22, 0), skill("skills:2", "Mining", { crafting: false, gathering: true }, 0, 14),
+    skill("skills:3", "Axes", { autoAttack: { perHit: 2 }, crafting: false, gathering: false }, 0, 0)];
+  const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "skills")!;
+  const rows = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map(skills.map((entry) => [entry.ref.key, entry]))).get("skills")![0]!.rows;
+  expect(rows.map((row) => [row.ref.name, row.values])).toEqual([
+    ["Alchemy", { type: "Crafting", highestLevel: 300, recipes: 22, gatheringNodes: null }],
+    ["Mining", { type: "Gathering", highestLevel: 300, recipes: null, gatheringNodes: 14 }],
+    ["Axes", { type: "Weapon", highestLevel: 300, recipes: null, gatheringNodes: null }],
+  ]);
+  expect(Object.keys(rows[0]!.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());
 });

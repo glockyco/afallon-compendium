@@ -119,8 +119,12 @@ function classRow(document: PublicClass): ListRow {
   return { ref: document.ref, values: { talentTrees: document.trees.length, abilities }, facets: {} };
 }
 
+// A skill's experience sources say what kind of skill it is. A count that does not apply to the skill stays blank.
 function skillRow(document: PublicSkill): ListRow {
-  return { ref: document.ref, values: { highestLevel: document.facts.highestLevel ?? null, recipes: document.recipes.length }, facets: {} };
+  const { experience } = document;
+  const type = experience.crafting ? "Crafting" : experience.gathering ? "Gathering" : experience.autoAttack ? "Weapon" : null;
+  return { ref: document.ref, values: { type, highestLevel: document.facts.highestLevel ?? null,
+    recipes: document.recipes.length || null, gatheringNodes: document.gatheringNodes.length || null }, facets: {} };
 }
 
 function gatheringNodeRow(document: PublicGatheringNode): ListRow {
@@ -151,7 +155,7 @@ export function buildKindLists(
       case "abilities": row = abilityRow(document as PublicAbility); break;
       case "classes": if (!isClass(document)) continue; row = classRow(document); break;
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
-      case "mechanics": row = { ref: document.ref, values: {}, facets: {} }; break;
+      case "mechanics": row = { ref: document.ref, values: { description: document.description }, facets: {} }; break;
       case "gatheringNodes": row = gatheringNodeRow(document as PublicGatheringNode); break;
       default: continue;
     }

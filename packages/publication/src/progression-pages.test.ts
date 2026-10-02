@@ -220,5 +220,5 @@ test("class and skill lists count trees, abilities, and recipes", () => {
   expect(lists.get("classes")?.[0]?.rows.map((row) => [row.ref.name, row.values])).toEqual([["Shieldmaster", { talentTrees: 2, abilities: 2 }], ["Assassin", { talentTrees: 1, abilities: 0 }]]);
   expect(lists.get("recipes")?.[0]?.rows).toEqual([{ ref: { key: "items:1", kind: "items", name: "Elixir", slug: "potion", variant: "crafting" },
     values: { station: null, skill: "Alchemy" }, facets: { station: [], skill: ["Alchemy"] } }]);
-  expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values).toEqual({ highestLevel: 2, recipes: 1 });
+  expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values).toEqual({ type: "Crafting", highestLevel: 2, recipes: 1, gatheringNodes: null });
 });

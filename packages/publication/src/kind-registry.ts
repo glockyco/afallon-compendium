@@ -31,10 +31,11 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   // Only the classes that a race offers have pages. The references of the other classes read as text.
   { kind: "classes", label: "Class", plural: "Classes", route: "classes", icon: "class", pages: true, list: true, searchable: true,
     columns: [column("talentTrees", "Talent trees", true), column("abilities", "Abilities", true)], facets: [] },
+  // A skill is a crafting, gathering, or weapon skill, and counts the recipes or gathering nodes that train it.
   { kind: "skills", label: "Skill", plural: "Skills", route: "skills", icon: "skill", pages: true, list: true, searchable: true,
-    columns: [column("highestLevel", "Highest level", true), column("recipes", "Recipes", true)], facets: [] },
+    columns: [column("type", "Type"), column("highestLevel", "Highest level", true), column("recipes", "Recipes", true), column("gatheringNodes", "Gathering nodes", true)], facets: [] },
   // Mechanics topics explain game systems. Their keys belong to the publication, not to game records.
-  { kind: "mechanics", label: "Mechanic", plural: "Mechanics", route: "mechanics", icon: "guide", pages: true, list: true, searchable: true, columns: [], facets: [] },
+  { kind: "mechanics", label: "Mechanic", plural: "Mechanics", route: "mechanics", icon: "guide", pages: true, list: true, searchable: true, columns: [column("description", "About")], facets: [] },
   // Gathering nodes come from world objects, not from game records. Their keys belong to the catalog.
   { kind: "gatheringNodes", label: "Gathering Node", plural: "Gathering Nodes", route: "gathering-nodes", icon: "gathering-node", pages: true, list: true, searchable: true,
     columns: [column("skill", "Skill"), column("requiredLevel", "Required level", true), column("locations", "Locations", true)], facets: [facet("skill", "Skill")] },

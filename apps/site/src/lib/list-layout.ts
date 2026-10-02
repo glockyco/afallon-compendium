@@ -22,8 +22,9 @@ const LIMITS: Record<'name' | 'text' | 'label', { cap: number; floor: number }> 
 // keep their width, because a badge cannot end in an ellipsis and a number cut short would read as another number.
 const STAGES: ReadonlyArray<ReadonlySet<ColumnShape>> = [new Set(['name', 'text']), new Set(['label'])];
 
-// The columns of other things' names, and the columns that show badges. Every other non-numeric column is a label.
-const TEXT_COLUMNS: ReadonlySet<string> = new Set(['place', 'chain', 'area', 'giver', 'source']);
+// The columns of other things' names or of sentences, and the columns that show badges. Every other non-numeric column is a
+// label.
+const TEXT_COLUMNS: ReadonlySet<string> = new Set(['place', 'chain', 'area', 'giver', 'source', 'description']);
 const BADGE_COLUMNS: ReadonlySet<string> = new Set(['role']);
 
 /** The shape of a published list column. The first column of every list is the entry's name. */
