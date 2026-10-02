@@ -38,7 +38,7 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
 
 // A publication with one map at its reviewed offset, its game-map layer, and one placement, whose search lists each
 // document.
-function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } }; crafting?: unknown; teaches?: unknown; recipes?: unknown }>): PublicationView {
+function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } }; crafting?: unknown; teaches?: unknown; recipes?: unknown; effect?: unknown }>): PublicationView {
   const art = documents.flatMap((document) => document.ref.icon ? [document.ref.icon.url] : []);
   return {
     publication: {
@@ -199,4 +199,18 @@ test("accepts only the removals that the exclusion list of the candidate names",
   // A same-build correction, which acceptance checks, applies the same rule.
   assertCorrectedPublicationParity(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), baseline);
   expect(() => assertCorrectedPublicationParity(summarizePublication(view([ironBar])), baseline)).toThrow("published entities: items:417");
+});
+
+test("withholding a referenced effect removes only its artwork, not artwork owned by the surviving page", () => {
+  const lost = { url: `art/${"c".repeat(64)}.webp` };
+  const kept = { url: `art/${"d".repeat(64)}.webp` };
+  const effect = { ref: { kind: "effects", key: "effects:4", icon: lost } };
+  const item = { ref: { kind: "items", key: "items:1", icon: kept }, effect: { kind: "effects", key: "effects:4", icon: lost } };
+  const baseline = summarizePublication(view([effect, item]));
+  expect(baseline.artworkOwners.get(lost.url)).toEqual(new Set(["effects:4"]));
+  const surviving = { ref: item.ref };
+  const accepted = summarizePublication(withExclusions(view([surviving]), ["effects:4"]));
+  assertCorrectedPublicationParity(accepted, baseline);
+  const removedOwnArtwork = summarizePublication(withExclusions(view([{ ref: { kind: "items", key: "items:1" } }]), ["effects:4"]));
+  expect(() => assertCorrectedPublicationParity(removedOwnArtwork, baseline)).toThrow("published artwork");
 });

@@ -84,17 +84,21 @@ function uniqueSet(values: Iterable<string>, subject: string): Set<string> {
   return result;
 }
 
-// The artwork files inside a value, found by shape: an image reference has a url under `art/`.
-function artUrls(value: unknown, into: string[] = []): string[] {
+/** Attribute an icon in a reference to the referenced entity, not the page that happens to mention it. */
+function ownArtwork(value: unknown, owner: string, owners: Map<string, Set<string>>): void {
   if (Array.isArray(value)) {
-    for (const entry of value) artUrls(entry, into);
-    return into;
+    for (const entry of value) ownArtwork(entry, owner, owners);
+    return;
   }
-  if (value === null || typeof value !== "object") return into;
+  if (value === null || typeof value !== "object") return;
   const record = value as Json;
-  if (typeof record.url === "string" && record.url.startsWith("art/")) into.push(record.url);
-  for (const child of Object.values(record)) artUrls(child, into);
-  return into;
+  const source = typeof record.key === "string" && typeof record.kind === "string" ? record.key : owner;
+  if (typeof record.url === "string" && record.url.startsWith("art/")) {
+    const keys = owners.get(record.url) ?? new Set<string>();
+    keys.add(source);
+    owners.set(record.url, keys);
+  }
+  for (const child of Object.values(record)) ownArtwork(child, source, owners);
 }
 
 /**
@@ -128,7 +132,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
   }
   for (const key of uniqueSet(searchKeys, "searchable entity")) entityKeys.add(key);
   const artworkOwners = new Map<string, Set<string>>();
-  const own = (key: unknown, value: unknown) => { for (const url of artUrls(value)) artworkOwners.set(url, (artworkOwners.get(url) ?? new Set()).add(text(key))); };
+  const own = (key: unknown, value: unknown) => ownArtwork(value, text(key), artworkOwners);
   for (const value of graph.resources.values()) {
     const record = object(value), document = object(record.document);
     if (Array.isArray(record.rows) && typeof record.kind === "string") listKinds.add(record.kind);
