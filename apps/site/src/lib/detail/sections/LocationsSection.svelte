@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import type { EntityRef, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
   import NpcLevel from '../../NpcLevel.svelte';
@@ -8,6 +8,7 @@
   import { alternativeText, roleLabel } from '../../format';
   import { spotOnMap } from '../../map-links';
   import { detailNavigation } from '../detail-navigation';
+  import HowItWorks from '../HowItWorks.svelte';
   import PlacesList from '../PlacesList.svelte';
   import Section from '../Section.svelte';
   import { fragmentId } from '../tab-state';
@@ -15,6 +16,9 @@
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
   export let variantTable: boolean;
+  /** What an empty section says, and the guide section that explains it. */
+  export let emptyText = 'No known location.';
+  export let emptyGuide: { guide: EntityRef; section: string; label: string } | undefined = undefined;
 
   $: locations = document.locations;
   $: places = document.places.map((place) => ({
@@ -58,7 +62,7 @@
 
 <Section id="where-to-find" title="Where to find" count={places.length || undefined}>
   {#if places.length}<PlacesList {places} {registry} />
-  {:else if !locations.length}<p class="empty">No known location.</p>{/if}
+  {:else if !locations.length}<p class="empty">{emptyText}</p>{#if emptyGuide}<HowItWorks guide={emptyGuide.guide} section={emptyGuide.section} label={emptyGuide.label} />{/if}{/if}
   {#if unknown.length}<p class="unknown">{unknown.length} {unknown.length === 1 ? 'location has' : 'locations have'} no identified place. Their spot details are below.</p>{/if}
   {#if detailsRows.length}
     <details bind:open={expanded}>

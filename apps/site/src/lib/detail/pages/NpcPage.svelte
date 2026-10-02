@@ -3,7 +3,7 @@
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, durationRangeText, formatNumber, joinText, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, listText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -24,6 +24,7 @@
   import VendorSection from '../sections/VendorSection.svelte';
   import StatStrip, { type Stat } from '../StatStrip.svelte';
   import TitleBlock, { type TitleFact } from '../TitleBlock.svelte';
+  import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
 
   export let document: PublicNpc;
@@ -43,16 +44,27 @@
   const combatRank = (name: string) => { const index = combatOrder.indexOf(name); return index < 0 ? combatOrder.length : index; };
   $: combatStats = facts.stats.filter((stat) => stat.amount !== 0 && stat !== health)
     .sort((left, right) => combatRank(nameOf(left.stat)) - combatRank(nameOf(right.stat)));
-  $: stats = [
+  // An adventurer's band names what the game sets up for it. Its NPC record's stats are not its own, so it shows none.
+  $: classRoute = registry.find((kind) => kind.kind === 'classes')?.route;
+  // When an adventurer arrives belongs with where to meet it.
+  $: hours = adventurer?.joinAfterHours ?? 0;
+  $: arrival = adventurer ? `${document.ref.name} joins the world at level ${formatNumber(adventurer.startingLevel)} ${hours ? `after ${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'} of play on your character` : 'at the start of a new character'}.` : '';
+  $: stats = adventurer ? [
+    { label: 'Class', value: nameOf(adventurer.class), ...(adventurer.class.key !== null && adventurer.class.slug && classRoute ? { href: `${base}/${classRoute}/${adventurer.class.slug}/` } : {}) },
+    ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),
+    { label: 'Party role', value: adventurer.role, ...(adventurer.defaultRole ? { note: 'By default' } : {}), ...(rosterGuide ? { guide: rosterGuide } : {}) },
+  ] satisfies Stat[] : [
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
     ...(combat && health ? [{ label: 'Health', value: formatNumber(health.amount) }] : []),
     ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     // A world adventurer that dies returns through its scene's spawn pool, not after its NPC record's respawn time.
     ...(combat && !document.adventurerGear && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ] satisfies Stat[];
-  // An adventurer's gear preference: the armor type and weapon types it takes, and the stat it values most in gear.
+  // An adventurer's gear preference: the armor type and weapon types it takes, and the stat it values most in gear. With
+  // the adventurer's Gear card it opens that card, and otherwise it is a fact of the side.
   $: preference = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
-  $: moreFacts = Boolean(adventurerGuide || facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || preference || document.factionRewards.length || document.linkedNpc);
+  $: preferredGear = preference ? [...(preference.armorType ? [`${categoryLabel(preference.armorType)} armor`] : []), ...preference.weaponTypes.map(categoryLabel)] : [];
+  $: moreFacts = Boolean(facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || preference && !gear || document.factionRewards.length || document.linkedNpc);
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
   $: gearGuide = document.placedRules.find((rule) => rule.target === 'adventurer-gear');
@@ -91,6 +103,7 @@
     {:else if answer === 'gear' && gear}
       <AnswerCard title="Gear" id="gear">
         <div class="c-stack">
+          {#if preference}<p>{document.ref.name}{#if preferredGear.length}{' '}prefers {listText(preferredGear)}{/if}{#if preference.stat}{preferredGear.length ? ', and' : ''}{' '}favours <EntityLink ref={preference.stat} {registry} /> in gear{/if}.</p>{/if}
           <p>After a job, {document.ref.name} has a {formatNumber(gear.rewardChance)}% chance to take an upgrade from the {#if gearGuide}<a class="c-link" href={`${base}/mechanics/${gearGuide.guide.slug}/#${gearGuide.section}`}>reward gear list</a>{:else}reward gear list{/if}.</p>
           {#if gear.kit.length}
             <p>{document.ref.name} also wears this gear kit, except where {document.ref.name}'s own gear is better.</p>
@@ -106,23 +119,9 @@
 
   <svelte:fragment slot="side">
     {#if document.description}<p class="description">{document.description}</p>{/if}
-    {#if adventurer}
-      <div class="side-card adventurer">
-        <FactList title="Adventurer">
-          <FactRow label="Class"><EntityLink ref={adventurer.class} {registry} /></FactRow>
-          {#if adventurer.race}<FactRow label="Race"><EntityLink ref={adventurer.race} {registry} /></FactRow>{/if}
-          <FactRow label="Party role">{adventurer.role}{adventurer.defaultRole ? ' by default' : ''}</FactRow>
-          {#if adventurer.preferredTree}<FactRow label="Preferred tree"><EntityLink ref={adventurer.preferredTree} {registry} tooltip={false} /></FactRow>{/if}
-          {#if adventurer.priorityAbilities.length}<FactRow label="Learns first"><ul class="learns">{#each adventurer.priorityAbilities as ability}<li><EntityLink ref={ability} {registry} /></li>{/each}</ul></FactRow>{/if}
-          <FactRow label="Starting level">{formatNumber(adventurer.startingLevel)}</FactRow>
-          <FactRow label="Joins">{joinText(adventurer.joinAfterHours)}</FactRow>
-        </FactList>
-        {#if rosterGuide}<HowItWorks guide={rosterGuide.guide} section={rosterGuide.section} label="How adventurers join and level" />{/if}
-      </div>
-    {/if}
     {#if combat && combatStats.length || moreFacts}
       <div class="side-card">
-        <FactList title={combat ? 'Combat' : 'About'}>
+        <FactList title={combat && combatStats.length ? 'Combat' : 'About'}>
           {#each (combat ? combatStats : []) as stat}<FactRow label={nameOf(stat.stat)}>{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''}</FactRow>{/each}
           {#if facts.faction}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
@@ -130,10 +129,9 @@
           {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within 30 m</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
-          {#if preference}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurers choose gear" />{/if}</FactRow>{/if}
+          {#if preference && !gear}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurers choose gear" />{/if}</FactRow>{/if}
           {#if document.factionRewards.length}<FactRow label="Faction standing per kill">{#each document.factionRewards as reward, index}{index ? ', ' : ''}<EntityLink ref={reward.counterpart} {registry} /> {signedAmount(reward.amount)}{/each}</FactRow>{/if}
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
-          {#if adventurerGuide}<FactRow label="Adventurers"><HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" /></FactRow>{/if}
         </FactList>
       </div>
     {/if}
@@ -145,11 +143,23 @@
         {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and bonuses in the kill calculator</a>{/if}
       </div>
     {/if}
-    <AbilitiesSection phases={document.abilityPhases} {registry} chips />
   </svelte:fragment>
 
   <Sections>
-    <LocationsSection {document} {registry} {variantTable} />
+    <!-- An adventurer has no fixed spot, so its empty location says how to meet it once it has joined. -->
+    <LocationsSection {document} {registry} {variantTable}
+      emptyText={adventurerGuide ? `No known location. ${arrival} Once they have joined, add them as a friend with Find in the Friends panel, then invite them from your friends.` : undefined}
+      emptyGuide={adventurerGuide ? { guide: adventurerGuide.guide, section: adventurerGuide.section, label: 'How adventurers join your party' } : undefined} />
+    {#if adventurer}
+      <Section id="talents" title="Talents">
+        <div class="c-stack">
+          <p>{document.ref.name} learns the talents of the <EntityLink ref={adventurer.class} {registry} /> class as they level{#if adventurer.preferredTree}, and spends talent points in <EntityLink ref={adventurer.preferredTree} {registry} tooltip={false} /> first{/if}.{#if adventurer.priorityAbilities.length}{' '}{document.ref.name} learns these abilities first when their requirements allow:{/if}</p>
+          {#if adventurer.priorityAbilities.length}<ul class="learns">{#each adventurer.priorityAbilities as ability}<li><EntityLink ref={ability} {registry} /></li>{/each}</ul>{/if}
+          {#if rosterGuide}<HowItWorks guide={rosterGuide.guide} section={rosterGuide.section} label="How adventurers learn talents" />{/if}
+        </div>
+      </Section>
+    {/if}
+    <AbilitiesSection phases={document.abilityPhases} {registry} />
     <VendorSection id="sells" title="Sells" counterpartLabel="Item" rows={document.sells} variants={document.variants} sort={{ id: 'name', dir: 'asc' }} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={npcQuestRows(document.quests, document.usedInQuests)} {registry} />
     {#if variantTable}<VariantsSection {document} {registry} />{/if}
@@ -159,9 +169,7 @@
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .kill { display: grid; gap: .75rem; }
-  .adventurer { display: grid; gap: .75rem; }
-  /* One ability on each line keeps every icon beside its name. */
-  .learns { display: grid; justify-items: end; gap: .2rem; margin: 0; padding: 0; list-style: none; }
+  .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   .kill h2 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
   .kill p { line-height: 1.5; }
   .kill a { width: fit-content; font-size: var(--c-text-small); }
