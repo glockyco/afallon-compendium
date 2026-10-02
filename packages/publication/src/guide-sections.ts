@@ -26,6 +26,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     sections: [
       { id: "kill-experience", title: "Kill experience", lead: "Heroic creatures give more experience than normal ones." },
       { id: "essence", title: "Heroic Essence", lead: "Heroic creatures can also give Heroic Essence." },
+      { id: "heroic-gear", title: "Heroic gear", lead: "Some gear from loot during the Heroic tier carries a Heroic bonus." },
       { id: "settings", title: "Creature and gear settings", lead: "These are the Heroic tier's values for creatures, affixes, and gear." },
     ],
   },
@@ -33,6 +34,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     overview: "Crafting turns materials into new items, and gathering collects items from nodes in the world. Both train skills.",
     sections: [
       { id: "crafting", title: "Crafting", lead: "A recipe can have several ranks, each with its own materials and products." },
+      { id: "enchanting", title: "Enchanting", lead: "Apply an enchanting item to matching gear to add its stats." },
       { id: "crafting-experience", title: "Crafting experience", lead: "Crafting is how you level up a crafting skill." },
       { id: "node-selection", title: "Node selection", lead: "Many gathering nodes appear at spawners, which can produce a different node each time. The tables show the most common spawners for each gathering skill." },
       { id: "node-availability", title: "Node availability", lead: "Nodes come back some time after you gather them." },

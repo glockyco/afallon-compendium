@@ -31,12 +31,15 @@
   import SummaryValue from '../SummaryValue.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
+  import FactList from '../FactList.svelte';
+  import FactRow from '../FactRow.svelte';
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
 
   let showAllRecipes = false;
   $: shownRecipes = shownRowCount(document.usedInRecipes.length, showAllRecipes);
   let corruptionLevel = 0;
+  let heroic = false;
   $: facts = document.facts;
   $: tone = rarityTone(facts.rarity);
   $: sources = itemSourceLines(document);
@@ -44,9 +47,11 @@
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting' && rule.section === 'crafting-experience')
     ?? document.placedRules.find((rule) => rule.target === 'crafting');
+  $: enchantingGuide = document.placedRules.find((rule) => rule.target === 'enchants');
   $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'chests');
   $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'supply-packs');
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
+  $: heroicGuide = document.placedRules.find((rule) => rule.target === 'heroic-gear');
   $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'dungeon-rewards');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
   $: questUses = itemQuestUseRows(document.usedInQuests);
@@ -131,7 +136,14 @@
     </svelte:fragment>
 
     <svelte:fragment slot="side">
-      <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel}><svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment></ItemTooltip></div>
+      <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel} {heroic}><svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment></ItemTooltip></div>
+      {#if facts.heroic}
+        <div class="heroic-control">
+          <button type="button" class="c-action" aria-pressed={heroic} on:click={() => (heroic = !heroic)}>{heroic ? 'Showing Heroic Gear' : 'Show Heroic Gear'}</button>
+          <p>Can drop Heroic while the Heroic tier is live. Random stat rolls keep their rolled values.</p>
+          {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
+        </div>
+      {/if}
       {#if facts.corruption}
         <div id="corruption" class="corruption-control">
           <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
@@ -141,6 +153,9 @@
         </div>
       {/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
+      {#if facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
+        <p class="side-fact">Can be enchanted <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>See enchanting items</a></p>
+      {/if}
       {#if facts.buyPrice}<p class="side-fact">Buy price <Price price={facts.buyPrice} showName /></p>{/if}
       {#if facts.stackLimit > 1}<p class="side-fact">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
     </svelte:fragment>
@@ -158,6 +173,30 @@
     {/if}
     {#if document.teaches}
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
+    {/if}
+    {#if facts.enchanting}
+      <Section id="enchants" title="Enchants">
+        <div class="c-stack">
+          <FactList>
+            <FactRow label="Fits">{facts.enchanting.fits.join(' and ')}</FactRow>
+            {#each facts.enchanting.tiers as tier}
+              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} adds` : 'Adds'}>
+                {#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}
+              </FactRow>
+              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} chance` : 'Success chance'}>{formatNumber(tier.successRate)}%</FactRow>
+              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} time` : 'Time'}>{formatNumber(tier.seconds)} {tier.seconds === 1 ? 'second' : 'seconds'}</FactRow>
+              {#if tier.currencyCosts.length || tier.itemCosts.length}
+                <FactRow label="Additional cost">
+                  {#each tier.currencyCosts as price, index}{index ? ', ' : ''}<Price {price} showName />{/each}
+                  {#each tier.itemCosts as cost, index}{index || tier.currencyCosts.length ? ', ' : ''}{formatNumber(cost.count)} <EntityLink ref={cost.item} {registry} />{/each}
+                </FactRow>
+              {/if}
+            {/each}
+          </FactList>
+          <p>Using this item uses it up. A successful enchantment replaces any different enchantment already on the gear.</p>
+          {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
+        </div>
+      </Section>
     {/if}
     {#if document.whenUsed.chests.length || document.whenUsed.packs.length || document.whenUsed.itemChanges.length}
       <!-- Tabs choose the tables of a pack, so a section with pack tables shows no count. -->
@@ -207,7 +246,7 @@
           {/each}
         </div>{/if}
       </Section>
-    {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
+    {:else if !document.teaches && !document.buys.length && !facts.enchanting}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
     {#if document.adventurers.length}
       <Section id="adventurers" title="Adventurers">
         <div class="adventurer-gear">
@@ -296,6 +335,8 @@
   .dungeon-list { display: grid; gap: .35rem; padding-left: 1.25rem; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
   .corruption-control { display: grid; gap: .6rem; scroll-margin-top: 1rem; }
   .corruption-control p { color: var(--c-text-dim); line-height: 1.5; }
+  .heroic-control { display: grid; justify-items: start; gap: .5rem; }
+  .heroic-control p { color: var(--c-text-dim); line-height: 1.5; }
   .description { color: var(--c-text-dim); }
   .side-fact { display: flex; justify-content: space-between; gap: .75rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }

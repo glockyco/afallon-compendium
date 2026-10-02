@@ -40,6 +40,21 @@
   <Sections>
     {#each document.sections as section (section.id)}
       <GuideSection {section} {registry}>
+        {#if section.id === 'enchanting'}
+          <div class="table-scroll"><table class="enchanting-table">
+            <thead><tr><th scope="col">Enchanting item</th><th scope="col">Fits</th><th scope="col">Adds</th><th scope="col">Where to get it</th></tr></thead>
+            <tbody>
+              {#each document.enchantingItems as row}
+                <tr>
+                  <th scope="row"><EntityLink ref={row.item} {registry} /></th>
+                  <td data-label="Fits">{row.fits.join(' and ')}</td>
+                  <td data-label="Adds">{#each row.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</td>
+                  <td data-label="Source">{#if row.crafting}Craft with <EntityLink ref={row.crafting} {registry} />{:else if row.vendors.length}{#each row.vendors as vendor, index}{index ? ', ' : ''}<EntityLink ref={vendor} {registry} />{/each}{:else if row.drops.length}Dropped by {#each row.drops as drop, index}{index ? ', ' : ''}<EntityLink ref={drop} {registry} />{/each}{:else}No known source{/if}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table></div>
+        {/if}
         {#if section.id === 'crafting-experience'}
           <div class="c-stack">
             <h3>Example: Runeweave Regalia</h3>
@@ -88,5 +103,19 @@
   th, td { padding: .5rem .7rem; border-bottom: 1px solid var(--c-line); }
   th { color: var(--c-text-dim); font-weight: 600; }
   td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
+  .enchanting-table td:not(:first-child), .enchanting-table th:not(:first-child) { text-align: left; white-space: normal; }
+  .enchanting-table td, .enchanting-table th { min-width: 8rem; vertical-align: top; }
+  .enchanting-table th:first-child { width: 21%; }
+  .enchanting-table th:nth-child(2) { width: 12%; }
+  .enchanting-table th:last-child { width: 23%; }
   tr.current th, tr.current td { color: var(--c-text-strong); font-weight: 600; }
+  @media (max-width: 640px) {
+    .enchanting-table thead { display: none; }
+    .enchanting-table, .enchanting-table tbody, .enchanting-table tr { display: block; }
+    .enchanting-table tr { padding: .85rem 0; border-bottom: 1px solid var(--c-line); }
+    .enchanting-table th { width: auto; }
+    .enchanting-table th, .enchanting-table td { display: block; min-width: 0; padding: .12rem 0; border: 0; }
+    .enchanting-table th { color: var(--c-text-strong); }
+    .enchanting-table td::before { content: attr(data-label) ' · '; color: var(--c-text-dim); }
+  }
 </style>

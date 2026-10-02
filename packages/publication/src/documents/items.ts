@@ -1,5 +1,5 @@
-import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts, CatalogQuestPickup } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, categoryLabel, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
+import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogClothDrops, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogQuestPickup } from "@afallon/contracts/catalog";
+import { categoryLabel, type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type Enchanting, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -192,6 +192,27 @@ function actionChance(row: { actionChance?: number; gameActionChance?: number })
   return chance < 100 ? { actionChance: Math.round(chance * 10) / 10 } : {};
 }
 
+/** The captured enchantment key, not the item's name, joins differently named pairs. */
+function projectEnchanting(key: string | null | undefined, input: DocumentProjectionInput): Enchanting | undefined {
+  if (!key) return undefined;
+  const fact = input.facts.progression.facts.find((row) => row.entityKey === key);
+  if (fact?.kind !== "enchantments" || !fact.details.tiers.length || !fact.details.appliesTo.length) return undefined;
+  const fits = fact.details.appliesTo.map((requirement) => {
+    const field = requirement.type.name;
+    const value = field === "ItemType" ? requirement.itemType : field === "ItemRarity" ? requirement.itemRarity
+      : field === "WeaponType" ? requirement.weaponType : field === "ArmorType" ? requirement.armorType
+      : field === "ArmorSlot" ? requirement.armorSlot : field === "WeaponSlot" ? requirement.weaponSlot : null;
+    if (!value) throw new Error(`Unknown enchanting gear requirement ${field} for ${key}.`);
+    return categoryLabel(value);
+  });
+  return { fits, tiers: fact.details.tiers.map((tier) => ({
+    tier: tier.tier, successRate: tier.successRate, seconds: tier.enchantTime,
+    stats: tier.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
+    currencyCosts: tier.currencyCosts.map((row) => ({ amount: row.amount, currency: input.resolve(row.currency) })),
+    itemCosts: tier.itemCosts.map((row) => ({ item: input.resolve(row.item), count: row.count })),
+  })) };
+}
+
 export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>, fromItems: ReadonlyMap<string, readonly FromItemRow[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const clothDrop = projectClothDrop(entity.entityKey, input);
@@ -201,6 +222,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const directlyReferenced = new Set(directAbilities.map((row) => row.ability.entityKey));
   const gameAbilities = (fact?.gameActions ?? []).filter((action) => action.type === "Ability" && action.target?.entityKey && !directlyReferenced.has(action.target.entityKey));
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
+  const enchanting = projectEnchanting(fact?.enchantment?.entityKey, input);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
   const currency = optionalFactRef(input.resolve, fact?.currency);
   const gearSet = fact?.gearSet?.entityKey ? projectItemGearSet(fact.gearSet.entityKey, input) : undefined;
@@ -277,6 +299,12 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const teaches = taughtRecipe === undefined ? undefined : projectCraft(taughtRecipe, input, indexes);
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
   const isWeapon = fact?.itemType === "WEAPON";
+  // Only creature-drop generation marks new equipment Heroic. Quest rewards, crafting, and chests take other paths.
+  const heroicSettings = input.facts.progression.facts.find((row) => row.entityKey === HEROIC_TIER_KEY);
+  const canDropHeroic = droppedBy.length > 0 && (fact?.itemType === "ARMOR" || fact?.itemType === "WEAPON"
+    || (fact?.itemType === "Trinket" && fact.armorSlot === "Trinket"));
+  const heroic = canDropHeroic && heroicSettings?.kind === "heroicTier"
+    ? { statBonusPercent: heroicSettings.details.heroicGearStatBonusPercent } : undefined;
   const settings = input.facts.corruption;
   const dungeonRewards = input.corruptionRewards?.byItem.get(entity.entityKey);
   const corruption = dungeonRewards?.some((reward) => !reward.guaranteed) && isCorruptibleEquipment(fact)
@@ -312,6 +340,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       ...(damageLabel === undefined ? {} : { weaponDamageLabel: damageLabel }),
       ...(itemPower === undefined ? {} : { itemPower }), ...(damagePerSecond === undefined ? {} : { damagePerSecond }),
       ...(corruption === undefined ? {} : { corruption }), ...(dungeonRewards?.length ? { dungeonRewards } : {}),
+      ...(heroic ? { heroic } : {}),
       ...(tokenInfo === undefined ? {} : { tokenInfo }),
       stats: (fact?.stats ?? []).filter((row) => row.stat.entityKey !== "stats:53")
         .map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
@@ -323,6 +352,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       ...(fact?.gem ? { gem: { ...(fact.gem.gemType && plainText(fact.gem.gemType) ? { gemType: plainText(fact.gem.gemType) } : {}),
         stats: fact.gem.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })) } } : {}),
       ...(enchantment === undefined ? {} : { enchantment }),
+      ...(enchanting ? { enchanting } : {}),
       ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: sellCurrency } } : {}),
       ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
       ...(currency === undefined ? {} : { currency }),
@@ -344,6 +374,8 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
       .filter((rule) => rule.target !== "adventurers" || adventurers.length > 0)
+      .concat(enchanting ? [{ target: "enchants", guide: topicRef("crafting-and-gathering"), section: "enchanting" }] : [])
+      .concat(heroic ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "heroic-gear" }] : [])
       .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), section: "gear" }] : [])
       .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), section: "tokens" }] : [])
       .concat(dungeonRewards?.length ? [{ target: "dungeon-rewards", guide: topicRef("corruption"), section: "timed-dungeons" }] : []),

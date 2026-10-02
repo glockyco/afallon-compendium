@@ -33,6 +33,25 @@ export function corruptionDisplay(facts: ItemFacts, level: number) {
     ? (minDamage + maxDamage) / 2 / facts.attackSpeed : undefined;
   return { stats, itemPower, minDamage, maxDamage, damagePerSecond };
 }
+/** Heroic adds half of each template stat to the current value, not half of a rolled stat or a corruption bonus. */
+export function equipmentDisplay(facts: ItemFacts, corruptionLevel: number, heroic: boolean) {
+  const corruption = corruptionLevel > 0 ? corruptionDisplay(facts, corruptionLevel) : undefined;
+  const heroicBonus = heroic ? (facts.heroic?.statBonusPercent ?? 0) / 100 : 0;
+  if (!corruption && !heroicBonus) return undefined;
+  const stats = facts.stats.map((row, index) => ({
+    ...row, amount: (corruption?.stats[index]?.amount ?? row.amount) + row.amount * heroicBonus,
+  }));
+  const itemPower = facts.itemPower === undefined ? undefined
+    : Math.trunc((corruptionLevel > 0 && facts.corruption
+      ? scaledTemplateStat(facts.itemPower, { key: 'stats:53', kind: 'stats', name: 'Item Power' }, corruptionLevel, facts.corruption)
+      : facts.itemPower) + facts.itemPower * heroicBonus);
+  const multiplier = 1 + (corruptionLevel > 0 && facts.corruption ? corruptionLevel * facts.corruption.allStatsPercentPerLevel / 100 : 0) + heroicBonus;
+  const minDamage = facts.minDamage === undefined ? undefined : roundTooltipDamage(facts.minDamage * multiplier);
+  const maxDamage = facts.maxDamage === undefined ? undefined : roundTooltipDamage(facts.maxDamage * multiplier);
+  const damagePerSecond = minDamage !== undefined && maxDamage !== undefined && facts.attackSpeed !== undefined && facts.attackSpeed > 0
+    ? (minDamage + maxDamage) / 2 / facts.attackSpeed : undefined;
+  return { stats, itemPower, minDamage, maxDamage, damagePerSecond };
+}
 
 const statFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 export function tooltipStat(value: number): string { return statFormat.format(value); }

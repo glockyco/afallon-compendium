@@ -65,10 +65,20 @@ function adventurerRosterRows(entityDocuments: ReadonlyMap<string, PublicDocumen
   }).sort((left, right) => (left.adventurer as EntityRef).name.localeCompare((right.adventurer as EntityRef).name));
 }
 
+function heroicGearRule(rule: CatalogMechanicsRule, facts: CatalogFacts): CatalogMechanicsRule {
+  if (rule.topic !== "heroic-tier" || !rule.ruleId.startsWith("heroic-gear-") || rule.operands.statBonusPercent === undefined) return rule;
+  const settings = facts.progression.facts.find((fact) => fact.entityKey === HEROIC_TIER_KEY);
+  if (settings?.kind !== "heroicTier" || rule.operands.statBonusPercent !== settings.details.heroicGearStatBonusPercent)
+    throw new Error(`Heroic gear rule ${rule.ruleId} disagrees with captured Heroic tier settings.`);
+  return rule;
+}
+
 /** The overview and the sections of a guide whose rules come from the rules record. */
 function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceResolver) {
   const rules = facts.progression.mechanicsRules.filter((rule) => rule.topic === topic).sort((a, b) => a.ordinal - b.ordinal);
-  return { overview: GUIDES[topic].overview, sections: guideSections(topic, rules.map((rule) => ({ section: rule.section, rule: projectRule(adventurerRule(rule, facts), resolve) }))) };
+  return { overview: GUIDES[topic].overview, sections: guideSections(topic, rules.map((rule) => ({
+    section: rule.section, rule: projectRule(heroicGearRule(adventurerRule(rule, facts), facts), resolve),
+  }))) };
 }
 
 /** Every offered class uses the same template because the guide shows one curve. */
@@ -246,11 +256,20 @@ function craftingExample(facts: CatalogFacts, published: ReadonlySet<string>, co
   };
 }
 
-function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string>, conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): CraftingAndGathering {
+function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string>, conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver,
+  entityDocuments: ReadonlyMap<string, PublicDocument>): CraftingAndGathering {
+  const enchantingItems = [...entityDocuments.values()].flatMap((document) => {
+    if (document.ref.kind !== "items") return [];
+    const item = document as PublicItem, enchant = item.facts.enchanting;
+    if (!enchant) return [];
+    return [{ item: { ...item.ref, variant: "enchants" }, fits: enchant.fits, stats: enchant.tiers[0]!.stats,
+      ...(item.crafting?.skill ? { crafting: item.crafting.skill } : {}),
+      vendors: item.soldBy.map((row) => row.counterpart), drops: item.droppedBy.map((row) => row.counterpart) }];
+  }).sort((a, b) => a.item.name.localeCompare(b.item.name));
   return {
     ref: topicRef("crafting-and-gathering"), description: MECHANICS_TOPIC_NAMES["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
     ...guide(facts, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map(), verifiedOdds(facts)), attunements: attunements(facts, resolve),
-    example: craftingExample(facts, published, conditions, resolve),
+    enchantingItems, example: craftingExample(facts, published, conditions, resolve),
   };
 }
 
@@ -375,7 +394,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
   const documents: PublicMechanics[] = [
     ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve, entityDocuments)] : []),
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
-    ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
+    ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve, entityDocuments)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
     ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
     ...(topics.has("factions") ? [factionsGuide(facts, resolve, entityDocuments)] : []),

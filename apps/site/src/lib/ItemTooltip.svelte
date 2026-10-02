@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PublicItem, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
-  import { corruptionDisplay, tooltipStat } from './detail/corruption';
+  import { equipmentDisplay, tooltipStat } from './detail/corruption';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
   import NativeText from './NativeText.svelte';
@@ -14,11 +14,11 @@
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
   export let corruptionLevel = 0;
+  export let heroic = false;
 
   $: facts = document.facts;
-  // The weapon line is the damage range followed by the published label, which the 0.16.3 attack profile resolves.
-  // A corruption preview changes only the range.
-  $: calculated = corruptionLevel > 0 ? corruptionDisplay(facts, corruptionLevel) : undefined;
+  // The weapon line follows the game's attack profile. Corruption and Heroic bonuses can change its range.
+  $: calculated = equipmentDisplay(facts, corruptionLevel, heroic);
   $: minDamage = calculated?.minDamage ?? facts.minDamage;
   $: maxDamage = calculated?.maxDamage ?? facts.maxDamage;
   $: damage = facts.weaponDamageLabel && minDamage !== undefined && maxDamage !== undefined ? `${minDamage} - ${maxDamage} ${facts.weaponDamageLabel}` : undefined;
@@ -44,7 +44,8 @@
       <p>Speed {attackSpeed.toFixed(2)}</p>
       {#if facts.damagePerSecond !== undefined}<p class="dim">({(calculated?.damagePerSecond ?? facts.damagePerSecond).toFixed(1)} damage per second)</p>{/if}
     {/if}
-    {#if calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
+    {#if corruptionLevel > 0 && calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
+    {#if heroic && facts.heroic}<p class="good">Heroic · +{formatNumber(facts.heroic.statBonusPercent)}% base stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}</p>{/if}
 
     {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}
     {#if facts.randomStats.length}

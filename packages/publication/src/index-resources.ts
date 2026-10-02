@@ -84,11 +84,12 @@ function itemSourceKinds(document: PublicDocument): string[] {
     item.collectedFrom.length > 0 ? "interaction" : null, item.rewardedBy.length > 0 ? "quest" : null,
     item.crafting ? "recipe" : null, item.startingGearOf.length > 0 ? "startingGear" : null].filter((value): value is string => value !== null);
 }
-/** Other names that find a craft through its product or its skill row. */
+/** Other names that find a craft or an enchanting item through its item page. */
 export function searchAliases(document: PublicDocument): string[] {
   if (document.ref.kind === "items") {
-    const name = (document as PublicItem).crafting?.recipe.name;
-    return name && name !== document.ref.name ? [name] : [];
+    const item = document as PublicItem;
+    return [...new Set([item.crafting?.recipe.name, item.facts.enchanting && item.facts.enchantment?.key !== null ? item.facts.enchantment?.name : undefined]
+      .filter((name): name is string => Boolean(name && name !== document.ref.name)))];
   }
   return document.ref.kind === "skills" ? (document as PublicSkill).recipes.filter((row) => !row.product || row.product.key === null || !row.product.slug).map((row) => row.recipe.name) : [];
 }

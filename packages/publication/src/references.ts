@@ -366,7 +366,22 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
         : null;
     refs[index] = [key, target ? { ...target, name: ref.name, ...(ref.icon ? { icon: ref.icon } : {}) } : ref];
   }
+  linkEnchantmentsToItems(refs, refsByKey, context.facts, excluded);
   return { refs: new FrozenEntityRefMap(refs), pages };
+}
+
+/** An enchantment's own name links to the item that applies it, including differently named pairs. */
+function linkEnchantmentsToItems(refs: Array<readonly [string, EntityRef]>, byKey: ReadonlyMap<string, EntityRef>,
+  facts: CatalogFacts | undefined, excluded: ReadonlySet<string>): void {
+  const items = new Map(facts?.items.flatMap((item) => item.enchantment?.entityKey
+    ? [[item.enchantment.entityKey, item.entityKey] as const] : []) ?? []);
+  for (const [index, [key, ref]] of refs.entries()) {
+    if (ref.kind !== "enchantments" || excluded.has(key)) continue;
+    const item = byKey.get(items.get(key) ?? "");
+    if (item?.slug && item.kind === "items") refs[index] = [key, {
+      ...item, name: ref.name, variant: "enchants", ...(ref.icon ? { icon: ref.icon } : {}),
+    }];
+  }
 }
 
 export function resolveCatalogEndpoint(refs: ReadonlyMap<string, EntityRef>, endpoint: CatalogEndpoint): EntityRef | UnresolvedRef {

@@ -367,16 +367,28 @@ export const CorruptionTokenInfoSchema = Type.Object({
 }, { additionalProperties: false });
 
 
+// An enchanting item's authored requirements all apply to the same piece of gear.
+export const EnchantingSchema = Type.Object({
+  fits: Type.Array(text, { minItems: 1 }),
+  tiers: Type.Array(Type.Object({
+    tier: count, successRate: percent, seconds: number, stats: Type.Array(StatRowSchema),
+    currencyCosts: Type.Array(PriceSchema), itemCosts: Type.Array(Type.Object({ item: RefSchema, count }, { additionalProperties: false })),
+  }, { additionalProperties: false }), { minItems: 1 }),
+}, { additionalProperties: false });
+export type Enchanting = Static<typeof EnchantingSchema>;
+
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
   attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count), weaponDamageLabel: optional(text),
   // The game's weapon line is the damage range followed by this label ("8 - 13 Slashing Damage (Melee)"), with the
   // speed and the damage per second below it. A corruption preview changes only the range.
   itemPower: optional(number), damagePerSecond: optional(number),
-  corruption: optional(CorruptionPreviewSchema), dungeonRewards: optional(Type.Array(DungeonRewardSchema, { minItems: 1 })), tokenInfo: optional(CorruptionTokenInfoSchema),
+  corruption: optional(CorruptionPreviewSchema), heroic: optional(Type.Object({ statBonusPercent: number }, { additionalProperties: false })),
+  dungeonRewards: optional(Type.Array(DungeonRewardSchema, { minItems: 1 })), tokenInfo: optional(CorruptionTokenInfoSchema),
   stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema), currency: optional(RefSchema),
+  enchanting: optional(EnchantingSchema),
   stackLimit: count, questDropOnly: Type.Boolean(), corruptionToken: Type.Boolean(),
   // A direct item action has a known rank; a game action targets an ability without publishing a rank.
   actionAbilities: Type.Array(Type.Object({ ability: RefSchema, rankIndex: optional(count) }, { additionalProperties: false })), useLines: Type.Array(NativeTextLineSchema),
@@ -875,8 +887,13 @@ export const CraftingExampleSchema = Type.Object({
   gather: Type.Object({ node: EntityRefSchema, skill: RefSchema, levelChances: Type.Array(Type.Object({ level: count, chance: percent }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false }),
 }, { additionalProperties: false });
 export type CraftingExample = Static<typeof CraftingExampleSchema>;
+export const EnchantingItemRowSchema = Type.Object({
+  item: EntityRefSchema, fits: Type.Array(text), stats: Type.Array(StatRowSchema),
+  crafting: optional(RefSchema), vendors: refs, drops: refs,
+}, { additionalProperties: false });
 export const CraftingAndGatheringSchema = Type.Object({
   ...documentBase, topic: Type.Literal("crafting-and-gathering"), ...guide,
+  enchantingItems: Type.Array(EnchantingItemRowSchema),
   spawnerExamples: Type.Array(SpawnerExampleSchema), attunements: Type.Array(AttunementSchema), example: CraftingExampleSchema,
 }, { additionalProperties: false });
 export type CraftingAndGathering = Static<typeof CraftingAndGatheringSchema>;

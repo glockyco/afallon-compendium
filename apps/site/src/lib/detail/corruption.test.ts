@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { ItemFacts } from '@afallon/contracts/public';
-import { corruptionDisplay, roundTooltipDamage } from './corruption';
+import { corruptionDisplay, equipmentDisplay, roundTooltipDamage } from './corruption';
 
 const stat = (id: number, name: string, amount: number) => ({ stat: { key: `stats:${id}`, kind: 'stats' as const, name }, amount, isPercent: false });
 const settings = { maxLevel: 30, allStatsPercentPerLevel: 5, statBonuses: [
@@ -42,4 +42,14 @@ test('matching bonus types add independently without scaling rolls or gems', () 
   expect(gear.randomStats[0]?.min).toBe(34.77);
   expect(gear.gem?.stats[0]?.amount).toBe(3);
   expect(corruptionDisplay({ ...gear, corruption: undefined }, 5)).toBeUndefined();
+});
+
+test('Heroic adds to fixed stats and weapon damage without multiplying corruption or rolled stats', () => {
+  const gear = { ...sword, heroic: { statBonusPercent: 50 }, randomStats: [{ stat: stat(27, 'Strength', 0).stat, min: 4, max: 12, isPercent: false, whole: true }] } as ItemFacts;
+  expect(equipmentDisplay(gear, 0, true)).toMatchObject({
+    itemPower: 7, stats: [{ amount: 4.5 }], minDamage: 20, maxDamage: 33, damagePerSecond: 26.5 / 2.8,
+  });
+  expect(equipmentDisplay(gear, 1, true)).toMatchObject({ itemPower: 12, stats: [{ amount: 4.65 }], minDamage: 20, maxDamage: 34 });
+  expect(gear.randomStats[0]).toMatchObject({ min: 4, max: 12 });
+  expect(equipmentDisplay({ ...gear, heroic: undefined }, 0, true)).toBeUndefined();
 });

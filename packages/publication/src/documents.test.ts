@@ -90,6 +90,47 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
   return { refs: references.refs, documents };
 }
+test("an enchantment's authored requirements and tiers live on its item, with its own search name", () => {
+  const kit = { ...entities[0]!, entityKey: "items:88", nativeId: 88, name: "Enchant Health" };
+  const enchantment = { ...entities[0]!, entityKey: "enchantments:0", kind: "enchantments", nativeId: 0, name: "Health Enchantment" };
+  const sourceEntities = [...entities, kit, enchantment];
+  const sourceFacts: CatalogFacts = { ...facts, entities: sourceEntities,
+    items: [...facts.items, { ...facts.items[0]!, entityKey: kit.entityKey, itemType: "ENCHANTMENT", enchantment: { entityKey: enchantment.entityKey, label: enchantment.name } }],
+    progression: { ...facts.progression, facts: [{ entityKey: enchantment.entityKey, name: enchantment.name, kind: "enchantments",
+      details: { appliesTo: [{ type: { value: 0, name: "ItemType" }, itemType: "ARMOR", itemRarity: null, weaponType: null, armorType: null, armorSlot: null, weaponSlot: null },
+        { type: { value: 4, name: "ArmorSlot" }, itemType: null, itemRarity: null, weaponType: null, armorType: null, armorSlot: "HEAD", weaponSlot: null }],
+        tiers: [{ tier: 0, successRate: 75, enchantTime: 3, skill: null, skillExperience: 0,
+          currencyCosts: [], itemCosts: [{ item: { entityKey: "items:1", label: "Blade" }, count: 2 }],
+          stats: [{ stat: { entityKey: "stats:27", label: "Strength" }, amount: 15, isPercent: false }] }] } }] } };
+  const { refs, documents } = project(sourceEntities, sourceFacts, relations);
+  const item = documents.get(kit.entityKey) as PublicItem;
+  expect(refs.get(enchantment.entityKey)).toMatchObject({ key: kit.entityKey, kind: "items", name: "Health Enchantment", slug: "enchant-health", variant: "enchants" });
+  expect(item.facts.enchanting).toMatchObject({ fits: ["Armor", "Head"], tiers: [{ successRate: 75, seconds: 3, stats: [{ stat: { key: "stats:27" }, amount: 15 }],
+    itemCosts: [{ item: { key: "items:1" }, count: 2 }] }] });
+  expect(searchAliases(item)).toContain("Health Enchantment");
+});
+
+test("only equipment with a creature-drop route receives the captured Heroic preview", () => {
+  const chestOnly = { ...entities[0]!, entityKey: "items:89", nativeId: 89, name: "Chest Sword" };
+  const sourceEntities = [...entities, chestOnly];
+  const heroic = { entityKey: "heroicTier:settings", name: "Heroic Tier", kind: "heroicTier" as const, details: {
+    asset: "Heroic Tier", killExperienceMultiplier: 5, essenceTreePoint: null, essenceBaseAmount: 1, essencePerAffix: 1,
+    essenceEliteMultiplier: 1, essenceRareMultiplier: 1, essenceBossMultiplier: 1, essenceHealthBaseline: 1,
+    essenceHealthFactorMin: 0, essenceHealthFactorMax: 1, baseHealthMultiplier: 1, baseDamageMultiplier: 1,
+    gearScoreCoefficient: 0, maxGearBonus: 0, affixChance: 0, extraAffixChance: 0, maxAffixes: 0,
+    rareGuaranteedAffixes: 0, affixLootDropMultiplier: 1, heroicGearStatBonusPercent: 50,
+  } };
+  const sourceFacts: CatalogFacts = { ...facts, entities: sourceEntities,
+    progression: { ...facts.progression, facts: [heroic] },
+    items: [...facts.items, { ...facts.items[0]!, entityKey: chestOnly.entityKey }] };
+  const sourceRelations: CatalogRelations = { ...relations, containers: [...relations.containers, {
+    ...relations.containers[0]!, item: { entityKey: chestOnly.entityKey, label: chestOnly.name },
+  }] };
+  const { documents } = project(sourceEntities, sourceFacts, sourceRelations);
+  expect((documents.get("items:1") as PublicItem).facts.heroic).toEqual({ statBonusPercent: 50 });
+  expect((documents.get(chestOnly.entityKey) as PublicItem).facts.heroic).toBeUndefined();
+});
+
 
 test("a timed dungeon names its thresholds, token bonuses, and altar, and a Dungeon Finder dungeon names the supply pack", () => {
   const dungeon = (firstRemainingSeconds: number | null): NonNullable<CatalogFacts["corruption"]>["dungeons"][number] => ({ scene: { entityKey: "scenes:10", label: "Crypt" },
