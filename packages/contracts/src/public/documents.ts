@@ -1,4 +1,5 @@
-import { Type, type Static, type TSchema } from "typebox";
+import { Type, type Static, type TSchema, type TLiteral, type TObject } from "typebox";
+import { MECHANICS_TOPICS, type MechanicsTopic } from "../catalog/mechanics";
 import { schemaRegistry } from "../schema-registry";
 import { count, hash, number, publicMarkerCategory, resourceReference, text, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceIdentityFields } from "./primitives";
 
@@ -10,20 +11,39 @@ const identity = StaticResourceIdentityFields;
 // Kinds with pages own a route and a document schema. Kinds without pages still have references,
 // names, and icons, so an enchantment renders as text with its icon rather than as a dead link. A recipe has no page:
 // its reference links the Crafting section of its product, and its kind keeps a list of crafts.
-export const PUBLIC_PAGE_KIND_VALUES = ["items", "npcs", "quests", "places", "properties", "abilities", "classes", "skills", "mechanics", "gatheringNodes",
-  "gearSets", "currencies", "craftingStations", "races", "factions", "stats", "effects"] as const;
-export type PublicPageKind = typeof PUBLIC_PAGE_KIND_VALUES[number];
+// Register each paged kind once. Schema getters are deferred because entity references use the
+// kind union before the document schemas (which themselves contain entity references) are defined.
+const PAGE_DOCUMENTS = {
+  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v22" },
+  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v12" },
+  quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
+  places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
+  properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
+  abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v6" },
+  classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v8" },
+  skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
+  mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v17" },
+  gatheringNodes: { schema: () => PublicGatheringNodeSchema, schemaId: "compendium.static-gathering-node.v6" },
+  gearSets: { schema: () => PublicGearSetSchema, schemaId: "compendium.static-gear-set.v1" },
+  currencies: { schema: () => PublicCurrencySchema, schemaId: "compendium.static-currency.v1" },
+  craftingStations: { schema: () => PublicCraftingStationSchema, schemaId: "compendium.static-crafting-station.v1" },
+  races: { schema: () => PublicRaceSchema, schemaId: "compendium.static-race.v1" },
+  factions: { schema: () => PublicFactionSchema, schemaId: "compendium.static-faction.v1" },
+  stats: { schema: () => PublicStatSchema, schemaId: "compendium.static-stat.v1" },
+  effects: { schema: () => PublicEffectSchema, schemaId: "compendium.static-effect.v1" },
+} as const;
+export type PublicPageKind = keyof typeof PAGE_DOCUMENTS;
+export const PUBLIC_PAGE_KIND_VALUES: PublicPageKind[] = Object.keys(PAGE_DOCUMENTS) as PublicPageKind[];
 export const PUBLIC_LIST_KIND_VALUES = [...PUBLIC_PAGE_KIND_VALUES, "recipes"] as const;
 export type PublicListKind = typeof PUBLIC_LIST_KIND_VALUES[number];
 export const PUBLIC_REFERENCE_KIND_VALUES = [...PUBLIC_LIST_KIND_VALUES, "enchantments", "species", "lootTables"] as const;
 export type PublicReferenceKind = typeof PUBLIC_REFERENCE_KIND_VALUES[number];
-export const PublicPageKindSchema = Type.Union([Type.Literal("items"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("places"), Type.Literal("properties"), Type.Literal("abilities"), Type.Literal("classes"), Type.Literal("skills"), Type.Literal("mechanics"), Type.Literal("gatheringNodes"),
-  Type.Literal("gearSets"), Type.Literal("currencies"), Type.Literal("craftingStations"), Type.Literal("races"), Type.Literal("factions"), Type.Literal("stats"), Type.Literal("effects")]);
-export const PublicListKindSchema = Type.Union([...PublicPageKindSchema.anyOf, Type.Literal("recipes")]);
+export const PublicPageKindSchema = Type.Union(PUBLIC_PAGE_KIND_VALUES.map((kind) => Type.Literal(kind)) as [TLiteral<PublicPageKind>, ...TLiteral<PublicPageKind>[]]);
+export const PublicListKindSchema = Type.Union([...PublicPageKindSchema.anyOf, Type.Literal("recipes")] as [TLiteral<PublicListKind>, ...TLiteral<PublicListKind>[]]);
 const referenceKind = Type.Union([
   ...PublicListKindSchema.anyOf,
   Type.Literal("enchantments"), Type.Literal("species"), Type.Literal("lootTables"),
-]);
+] as [TLiteral<PublicReferenceKind>, ...TLiteral<PublicReferenceKind>[]]);
 export const PUBLIC_SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 const slug = Type.String({ pattern: PUBLIC_SLUG_PATTERN });
 // A variant anchor names one section of a grouped page. It uses the slug alphabet, so a URL fragment needs no escaping.
@@ -1052,100 +1072,67 @@ export const TravelGuideSchema = Type.Object({
   ...documentBase, topic: Type.Literal("travel"), ...guide, networks: Type.Array(FlightNetworkSchema),
 }, { additionalProperties: false });
 export type TravelGuide = Static<typeof TravelGuideSchema>;
-export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema, AdventurersGuideSchema, FactionsGuideSchema, WorldQuestsGuideSchema, TravelGuideSchema, CombatGuideSchema]);
+interface GuideSchemas {
+  "character-progression": typeof CharacterProgressionSchema; "heroic-tier": typeof HeroicTierSchema;
+  "crafting-and-gathering": typeof CraftingAndGatheringSchema; corruption: typeof CorruptionGuideSchema;
+  loot: typeof LootGuideSchema; adventurers: typeof AdventurersGuideSchema; factions: typeof FactionsGuideSchema;
+  "world-quests": typeof WorldQuestsGuideSchema; travel: typeof TravelGuideSchema; combat: typeof CombatGuideSchema;
+}
+const guideSchemas: GuideSchemas = {
+  "character-progression": CharacterProgressionSchema, "heroic-tier": HeroicTierSchema,
+  "crafting-and-gathering": CraftingAndGatheringSchema, corruption: CorruptionGuideSchema,
+  loot: LootGuideSchema, adventurers: AdventurersGuideSchema, factions: FactionsGuideSchema,
+  "world-quests": WorldQuestsGuideSchema, travel: TravelGuideSchema, combat: CombatGuideSchema,
+} satisfies Record<MechanicsTopic, TSchema>;
+const guideSchemaValues = MECHANICS_TOPICS.map((topic) => guideSchemas[topic]);
+export const PublicMechanicsSchema = Type.Union(guideSchemaValues as [GuideSchemas[MechanicsTopic], ...GuideSchemas[MechanicsTopic][]]);
 export type PublicMechanics = Static<typeof PublicMechanicsSchema>;
 
 
-// The schema maps carry explicit types that name each schema, because the inferred types are too large
-// for the compiler to serialize into declarations.
-export const PUBLIC_DOCUMENT_SCHEMAS: {
+// Naming each schema in this interface keeps the emitted declarations bounded. The values and
+// schema IDs come exclusively from PAGE_DOCUMENTS, never from another hand-maintained kind map.
+interface PageDocumentSchemas {
   items: typeof PublicItemSchema; npcs: typeof PublicNpcSchema; quests: typeof PublicQuestSchema; places: typeof PublicPlaceSchema;
   properties: typeof PublicPropertySchema; abilities: typeof PublicAbilitySchema;
   classes: typeof PublicClassSchema; skills: typeof PublicSkillSchema; mechanics: typeof PublicMechanicsSchema; gatheringNodes: typeof PublicGatheringNodeSchema;
   gearSets: typeof PublicGearSetSchema; currencies: typeof PublicCurrencySchema; craftingStations: typeof PublicCraftingStationSchema;
   races: typeof PublicRaceSchema; factions: typeof PublicFactionSchema; stats: typeof PublicStatSchema; effects: typeof PublicEffectSchema;
-} = {
-  items: PublicItemSchema, npcs: PublicNpcSchema, quests: PublicQuestSchema, places: PublicPlaceSchema,
-  properties: PublicPropertySchema, abilities: PublicAbilitySchema,
-  classes: PublicClassSchema, skills: PublicSkillSchema, mechanics: PublicMechanicsSchema, gatheringNodes: PublicGatheringNodeSchema,
-  gearSets: PublicGearSetSchema, currencies: PublicCurrencySchema, craftingStations: PublicCraftingStationSchema, races: PublicRaceSchema, factions: PublicFactionSchema,
-  stats: PublicStatSchema, effects: PublicEffectSchema,
-} satisfies Record<PublicPageKind, TSchema>;
-export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace | PublicProperty | PublicAbility | PublicClass | PublicSkill | PublicMechanics | PublicGatheringNode
-  | PublicGearSet | PublicCurrency | PublicCraftingStation | PublicRace | PublicFaction | PublicStat | PublicEffect;
-export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
+}
+export const PUBLIC_DOCUMENT_SCHEMAS = Object.fromEntries(
+  PUBLIC_PAGE_KIND_VALUES.map((kind) => [kind, PAGE_DOCUMENTS[kind].schema()]),
+) as unknown as PageDocumentSchemas;
+export type PublicDocument = { [K in PublicPageKind]: Static<PageDocumentSchemas[K]> }[PublicPageKind];
+export type PublicDocumentOf<K extends PublicPageKind> = Static<PageDocumentSchemas[K]>;
 
-export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v22", npcs: "compendium.static-npc.v12", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
-  properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v8", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v17", gatheringNodes: "compendium.static-gathering-node.v6",
-  gearSets: "compendium.static-gear-set.v1", currencies: "compendium.static-currency.v1", craftingStations: "compendium.static-crafting-station.v1",
-  races: "compendium.static-race.v1", factions: "compendium.static-faction.v1", stats: "compendium.static-stat.v1", effects: "compendium.static-effect.v1",
-} as const satisfies Record<PublicPageKind, string>;
+export const STATIC_DOCUMENT_SCHEMA_IDS = Object.fromEntries(
+  PUBLIC_PAGE_KIND_VALUES.map((kind) => [kind, PAGE_DOCUMENTS[kind].schemaId]),
+) as { readonly [K in PublicPageKind]: (typeof PAGE_DOCUMENTS)[K]["schemaId"] };
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
 /** Whether a reference kind has pages, which lets a caller narrow a registry or reference kind without a cast. */
 export function isPublicPageKind(kind: string): kind is PublicPageKind {
-  return Object.hasOwn(STATIC_DOCUMENT_SCHEMA_IDS, kind);
+  return Object.hasOwn(PAGE_DOCUMENTS, kind);
 }
 
-const staticDocument = <K extends PublicPageKind>(kind: K) => Type.Object({
+type StaticDocumentSchema<K extends PublicPageKind> = TObject<{
+  schemaVersion: TLiteral<(typeof PAGE_DOCUMENTS)[K]["schemaId"]>;
+  kind: TLiteral<K>;
+  document: PageDocumentSchemas[K];
+} & typeof identity>;
+const staticDocument = <K extends PublicPageKind>(kind: K): StaticDocumentSchema<K> => Type.Object({
   schemaVersion: Type.Literal(STATIC_DOCUMENT_SCHEMA_IDS[kind]), ...identity, kind: Type.Literal(kind), document: PUBLIC_DOCUMENT_SCHEMAS[kind],
 }, { additionalProperties: false });
-export const StaticItemDocumentSchema = staticDocument("items");
-export const StaticNpcDocumentSchema = staticDocument("npcs");
-export const StaticQuestDocumentSchema = staticDocument("quests");
-export const StaticPlaceDocumentSchema = staticDocument("places");
-export const StaticPropertyDocumentSchema = staticDocument("properties");
-export const StaticAbilityDocumentSchema = staticDocument("abilities");
-export const StaticClassDocumentSchema = staticDocument("classes");
-export const StaticSkillDocumentSchema = staticDocument("skills");
-export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
-export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
-export const StaticGearSetDocumentSchema = staticDocument("gearSets");
-export const StaticCurrencyDocumentSchema = staticDocument("currencies");
-export const StaticCraftingStationDocumentSchema = staticDocument("craftingStations");
-export const StaticRaceDocumentSchema = staticDocument("races");
-export const StaticFactionDocumentSchema = staticDocument("factions");
-export const StaticStatDocumentSchema = staticDocument("stats");
-export const StaticEffectDocumentSchema = staticDocument("effects");
-export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v22": typeof StaticItemDocumentSchema; "compendium.static-npc.v12": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
-  "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
-  "compendium.static-class.v8": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v17": typeof StaticMechanicsDocumentSchema;
-  "compendium.static-gathering-node.v6": typeof StaticGatheringNodeDocumentSchema;
-  "compendium.static-gear-set.v1": typeof StaticGearSetDocumentSchema; "compendium.static-currency.v1": typeof StaticCurrencyDocumentSchema;
-  "compendium.static-crafting-station.v1": typeof StaticCraftingStationDocumentSchema; "compendium.static-race.v1": typeof StaticRaceDocumentSchema;
-  "compendium.static-faction.v1": typeof StaticFactionDocumentSchema; "compendium.static-stat.v1": typeof StaticStatDocumentSchema;
-  "compendium.static-effect.v1": typeof StaticEffectDocumentSchema;
-} = {
-  "compendium.static-item.v22": StaticItemDocumentSchema, "compendium.static-npc.v12": StaticNpcDocumentSchema,
-  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
-  "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
-  "compendium.static-class.v8": StaticClassDocumentSchema,
-  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v17": StaticMechanicsDocumentSchema,
-  "compendium.static-gathering-node.v6": StaticGatheringNodeDocumentSchema,
-  "compendium.static-gear-set.v1": StaticGearSetDocumentSchema, "compendium.static-currency.v1": StaticCurrencyDocumentSchema,
-  "compendium.static-crafting-station.v1": StaticCraftingStationDocumentSchema, "compendium.static-race.v1": StaticRaceDocumentSchema,
-  "compendium.static-faction.v1": StaticFactionDocumentSchema, "compendium.static-stat.v1": StaticStatDocumentSchema,
-  "compendium.static-effect.v1": StaticEffectDocumentSchema,
+type StaticDocumentSchemas = {
+  [K in PublicPageKind as (typeof PAGE_DOCUMENTS)[K]["schemaId"]]: StaticDocumentSchema<K>
 };
-export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
-  | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
-  | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>
-  | Static<typeof StaticGearSetDocumentSchema> | Static<typeof StaticCurrencyDocumentSchema> | Static<typeof StaticCraftingStationDocumentSchema>
-  | Static<typeof StaticRaceDocumentSchema> | Static<typeof StaticFactionDocumentSchema> | Static<typeof StaticStatDocumentSchema> | Static<typeof StaticEffectDocumentSchema>;
-export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v22"), resourceReference("compendium.static-npc.v12"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
-  resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v8"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v17"),
-  resourceReference("compendium.static-gathering-node.v6"),
-  resourceReference("compendium.static-gear-set.v1"), resourceReference("compendium.static-currency.v1"), resourceReference("compendium.static-crafting-station.v1"),
-  resourceReference("compendium.static-race.v1"), resourceReference("compendium.static-faction.v1"),
-  resourceReference("compendium.static-stat.v1"), resourceReference("compendium.static-effect.v1"),
-]);
+export const STATIC_DOCUMENT_SCHEMAS = Object.fromEntries(
+  PUBLIC_PAGE_KIND_VALUES.map((kind) => [STATIC_DOCUMENT_SCHEMA_IDS[kind], staticDocument(kind)]),
+) as StaticDocumentSchemas;
+export type StaticDocument = { [K in PublicPageKind]: Static<StaticDocumentSchemas[(typeof PAGE_DOCUMENTS)[K]["schemaId"]]> }[PublicPageKind];
+const documentReferences = PUBLIC_PAGE_KIND_VALUES.map((kind) => resourceReference(STATIC_DOCUMENT_SCHEMA_IDS[kind]));
+export const documentReference = Type.Union(
+  documentReferences as [typeof documentReferences[number], ...typeof documentReferences[number][]],
+);
 export type DocumentReference = Static<typeof documentReference>;
 
 // The registry is data the site reads: labels, routes, and list shape per kind. A kind absent

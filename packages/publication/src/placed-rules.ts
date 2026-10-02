@@ -1,23 +1,10 @@
-import { placementTargetKind, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic, type RulePlacement, type RulePlacementPage } from "@afallon/contracts/catalog";
+import { MECHANICS_TOPIC_DETAILS, placementTargetKind, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic, type RulePlacement, type RulePlacementPage } from "@afallon/contracts/catalog";
 import type { EntityRef, MechanicsRule, PlacedRule } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents/projection";
 import { guideHasSection } from "./guide-sections";
 
-export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: string; description: string }>> = {
-  "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points." },
-  "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear." },
-  "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience." },
-  corruption: { name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work." },
-  loot: { name: "Loot", description: "How bags, chests, supply packs, world objects, cloth drops, quest pickups, and the Dungeon Finder give items." },
-  adventurers: { name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles." },
-  factions: { name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat." },
-  "world-quests": { name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards." },
-  travel: { name: "Travel", description: "Flight masters, discovered stops, routes, and fares." },
-  combat: { name: "Combat", description: "How stats, damage, critical hits, on-hit effects, and lasting effects work." },
-};
-
 export function topicRef(topic: MechanicsTopic): EntityRef {
-  return { key: `mechanics:${topic}`, kind: "mechanics", name: MECHANICS_TOPIC_NAMES[topic].name, slug: topic };
+  return { key: `mechanics:${topic}`, kind: "mechanics", name: MECHANICS_TOPIC_DETAILS[topic].name, slug: topic };
 }
 
 export function projectRule(rule: CatalogMechanicsRule, resolve: ReferenceResolver): MechanicsRule {

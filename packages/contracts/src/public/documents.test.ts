@@ -5,7 +5,7 @@ import {
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode, type PublicGearSet, type PublicCurrency, type PublicCraftingStation, type PublicRace, type PublicFaction, type PublicStat, type PublicEffect,
-  type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
+  type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticDocument, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
 
@@ -235,7 +235,7 @@ test("a document's graph edges reach every artwork that it carries, such as a pa
 
 test("a root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
-  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.items, ...identity, kind: "items", document: fixtures.items as PublicItem };
+  const itemDocument: Extract<StaticDocument, { kind: "items" }> = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.items, ...identity, kind: "items", document: fixtures.items as PublicItem };
   const npcDocument = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.npcs, ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v6", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };

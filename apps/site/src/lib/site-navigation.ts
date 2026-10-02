@@ -1,4 +1,4 @@
-import type { PublicKindEntry } from '@afallon/contracts/public';
+import { MECHANICS_TOPIC_DEFINITIONS, type PublicKindEntry } from '@afallon/contracts/public';
 
 /** A destination. `description` is the one line that the Browse panel shows under its label; `icon` names a kind glyph. */
 export interface NavigationLink { label: string; href: string; description?: string; icon?: string }
@@ -41,19 +41,10 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   effects: 'Buffs, debuffs, and states',
 };
 
-/** The mechanics guides in the order of the menu: each topic's label, the slug of its page, and its menu line. The hub lists them too. */
-export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string; description: string }> = [
-  { label: 'Adventurers', slug: 'adventurers', description: 'Jobs and parties' },
-  { label: 'Character Progression', slug: 'character-progression', description: 'Experience and talents' },
-  { label: 'Crafting and Gathering', slug: 'crafting-and-gathering', description: 'Recipes and nodes' },
-  { label: 'Combat', slug: 'combat', description: 'Stats, damage, and effects' },
-  { label: 'Corruption', slug: 'corruption', description: 'Tokens and timed dungeons' },
-  { label: 'Factions and Reputation', slug: 'factions', description: 'Standing and stances' },
-  { label: 'Heroic Tier', slug: 'heroic-tier', description: 'Heroic creatures and gear' },
-  { label: 'Loot', slug: 'loot', description: 'Bags, chests, and packs' },
-  { label: 'Travel', slug: 'travel', description: 'Flight masters and routes' },
-  { label: 'World Quests', slug: 'world-quests', description: 'Timed quests in zones' },
-];
+/** The mechanics guides in menu order. The hub uses these same destinations. */
+export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string; description: string }> =
+  [...MECHANICS_TOPIC_DEFINITIONS].sort((a, b) => a.menuOrder - b.menuOrder)
+    .map(({ id, name, menuDescription }) => ({ label: name, slug: id, description: menuDescription }));
 
 /**
  * The navigation of a publication. A paged kind that no column names goes to an Other column, so the menu never hides a

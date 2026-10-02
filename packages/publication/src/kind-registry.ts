@@ -3,7 +3,7 @@ import type { PublicKindEntry, PublicReferenceKind } from "@afallon/contracts/pu
 const column = (id: string, label: string, numeric = false): PublicKindEntry["columns"][number] => ({ id, label, sortable: true, numeric });
 const facet = (id: string, label: string, defaultHiddenValues?: string[]): PublicKindEntry["facets"][number] => ({ id, label, ...(defaultHiddenValues ? { defaultHiddenValues } : {}) });
 
-export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
+const kindEntries = [
   { kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true,
     // The name colour shows the rarity, so rarity is a filter and not a column. One Type column names what an item is,
     // and the weapon, armor, slot, and type filters keep each of those facts.
@@ -59,7 +59,12 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "lootTables", label: "Loot Table", plural: "Loot Tables", route: "loot-tables", icon: "loot-table", pages: false, list: false, searchable: false, columns: [], facets: [] },
   { kind: "craftingStations", label: "Crafting Station", plural: "Crafting Stations", route: "crafting-stations", icon: "crafting-station", pages: true, list: true, searchable: true,
     columns: [column("skill", "Skill"), column("recipes", "Recipes", true), column("spots", "Map spots", true)], facets: [] },
-] satisfies PublicKindEntry[]);
+] as const satisfies readonly PublicKindEntry[];
+
+// A new reference kind must be given presentation metadata, even when it has no page.
+const allKindsRegistered: Exclude<PublicReferenceKind, (typeof kindEntries)[number]["kind"]> extends never ? true : never = true;
+void allKindsRegistered;
+export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze(kindEntries);
 
 export const PUBLIC_KIND_BY_KIND: Readonly<Record<PublicReferenceKind, PublicKindEntry>> = Object.freeze(
   Object.fromEntries(PUBLIC_KIND_REGISTRY.map((entry) => [entry.kind, entry])) as Record<PublicReferenceKind, PublicKindEntry>,

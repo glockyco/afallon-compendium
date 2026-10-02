@@ -1,4 +1,4 @@
-import { Type, type Static } from "typebox";
+import { Type, type Static, type TLiteral } from "typebox";
 import { ContentIdentitySchema } from "../lifecycle";
 import { schemaRegistry } from "../schema-registry";
 import type { ProvenanceReference } from "./query";
@@ -7,9 +7,24 @@ const text = Type.String({ minLength: 1 });
 const sha256 = Type.String({ pattern: "^[0-9a-f]{64}$" });
 const ruleId = Type.String({ pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" });
 
-export const MECHANICS_TOPICS = ["character-progression", "heroic-tier", "crafting-and-gathering", "corruption", "loot", "adventurers", "factions", "world-quests", "travel", "combat"] as const;
-export const MechanicsTopicSchema = Type.Union([Type.Literal("character-progression"), Type.Literal("heroic-tier"), Type.Literal("crafting-and-gathering"), Type.Literal("corruption"), Type.Literal("loot"), Type.Literal("adventurers"), Type.Literal("factions"), Type.Literal("world-quests"), Type.Literal("travel"), Type.Literal("combat")]);
+/** One definition per published guide; schema order is the order of these declarations. */
+export const MECHANICS_TOPIC_DEFINITIONS = [
+  { id: "character-progression", name: "Character Progression", description: "How a character gains experience, levels, and talent points.", menuDescription: "Experience and talents", menuOrder: 1 },
+  { id: "heroic-tier", name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear.", menuDescription: "Heroic creatures and gear", menuOrder: 6 },
+  { id: "crafting-and-gathering", name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience.", menuDescription: "Recipes and nodes", menuOrder: 2 },
+  { id: "corruption", name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work.", menuDescription: "Tokens and timed dungeons", menuOrder: 4 },
+  { id: "loot", name: "Loot", description: "How bags, chests, supply packs, world objects, cloth drops, quest pickups, and the Dungeon Finder give items.", menuDescription: "Bags, chests, and packs", menuOrder: 7 },
+  { id: "adventurers", name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles.", menuDescription: "Jobs and parties", menuOrder: 0 },
+  { id: "factions", name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat.", menuDescription: "Standing and stances", menuOrder: 5 },
+  { id: "world-quests", name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards.", menuDescription: "Timed quests in zones", menuOrder: 9 },
+  { id: "travel", name: "Travel", description: "Flight masters, discovered stops, routes, and fares.", menuDescription: "Flight masters and routes", menuOrder: 8 },
+  { id: "combat", name: "Combat", description: "How stats, damage, critical hits, on-hit effects, and lasting effects work.", menuDescription: "Stats, damage, and effects", menuOrder: 3 },
+] as const;
+export const MECHANICS_TOPICS = MECHANICS_TOPIC_DEFINITIONS.map(({ id }) => id);
+export const MechanicsTopicSchema = Type.Union(MECHANICS_TOPIC_DEFINITIONS.map(({ id }) => Type.Literal(id)) as [TLiteral<(typeof MECHANICS_TOPICS)[number]>, ...TLiteral<(typeof MECHANICS_TOPICS)[number]>[]]);
 export type MechanicsTopic = Static<typeof MechanicsTopicSchema>;
+export const MECHANICS_TOPIC_DETAILS: Readonly<Record<MechanicsTopic, (typeof MECHANICS_TOPIC_DEFINITIONS)[number]>> =
+  Object.fromEntries(MECHANICS_TOPIC_DEFINITIONS.map((topic) => [topic.id, topic])) as Record<MechanicsTopic, (typeof MECHANICS_TOPIC_DEFINITIONS)[number]>;
 
 // Where a reader meets a rule. A `section` target lists the rule in that section of the page; a `fact` target makes the
 // rule the explanation of that label. `linked` places the rule only on the pages of the entities in its links. The

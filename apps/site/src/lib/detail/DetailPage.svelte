@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
+  import type { MechanicsTopic, PublicDocument, PublicDocumentOf, PublicKindEntry, PublicMechanics, PublicPageKind, StaticDocument } from '@afallon/contracts/public';
+  import type { Component } from 'svelte';
   import AbilityPage from './pages/AbilityPage.svelte';
   import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
   import CraftingAndGatheringPage from './pages/CraftingAndGatheringPage.svelte';
@@ -22,30 +23,33 @@
   import StatPage from './pages/StatPage.svelte';
   import SkillPage from './pages/SkillPage.svelte';
 
+  type DetailProps<Document> = { document: Document; registry: PublicKindEntry[] };
+  const pages = {
+    items: ItemPage, npcs: NpcPage, quests: QuestPage, places: PlacePage, properties: PropertyPage,
+    abilities: AbilityPage, classes: ClassPage, skills: SkillPage, gatheringNodes: GatheringNodePage,
+    gearSets: GearSetPage, currencies: CurrencyPage, craftingStations: CraftingStationPage,
+    races: RacePage, factions: FactionPage, stats: StatPage, effects: EffectPage,
+  } satisfies { [K in Exclude<PublicPageKind, 'mechanics'>]: Component<DetailProps<PublicDocumentOf<K>>> };
+  const guidePages = {
+    'character-progression': CharacterProgressionPage, 'heroic-tier': HeroicTierPage,
+    'crafting-and-gathering': CraftingAndGatheringPage, corruption: CorruptionPage,
+    loot: GuidePage, adventurers: GuidePage, factions: GuidePage, 'world-quests': GuidePage,
+    travel: GuidePage, combat: GuidePage,
+  } satisfies { [K in MechanicsTopic]: Component<DetailProps<Extract<PublicMechanics, { topic: K }>>> };
+
   /** The published document with its kind, which selects the page of that kind. */
   export let page: StaticDocument;
   export let registry: PublicKindEntry[];
   export let inlineItem: Extract<StaticDocument, { kind: 'items' }>['document'] | undefined = undefined;
+  $: detail = page.kind === 'mechanics' ? null
+    : pages[page.kind] as Component<DetailProps<PublicDocument>>;
+  $: guide = page.kind === 'mechanics'
+    ? guidePages[page.document.topic] as Component<DetailProps<PublicMechanics> & { inlineItem?: typeof inlineItem }>
+    : null;
 </script>
 
-{#if page.kind === 'items'}<ItemPage document={page.document} {registry} />
-{:else if page.kind === 'npcs'}<NpcPage document={page.document} {registry} />
-{:else if page.kind === 'quests'}<QuestPage document={page.document} {registry} />
-{:else if page.kind === 'places'}<PlacePage document={page.document} {registry} />
-{:else if page.kind === 'properties'}<PropertyPage document={page.document} {registry} />
-{:else if page.kind === 'abilities'}<AbilityPage document={page.document} {registry} />
-{:else if page.kind === 'classes'}<ClassPage document={page.document} {registry} />
-{:else if page.kind === 'skills'}<SkillPage document={page.document} {registry} />
-{:else if page.kind === 'mechanics' && page.document.topic === 'character-progression'}<CharacterProgressionPage document={page.document} {registry} />
-{:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
-{:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
-{:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} {inlineItem} />
-{:else if page.kind === 'mechanics' && (page.document.topic === 'loot' || page.document.topic === 'adventurers' || page.document.topic === 'factions' || page.document.topic === 'world-quests' || page.document.topic === 'travel' || page.document.topic === 'combat')}<GuidePage document={page.document} {registry} />
-{:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />
-{:else if page.kind === 'gearSets'}<GearSetPage document={page.document} {registry} />
-{:else if page.kind === 'currencies'}<CurrencyPage document={page.document} {registry} />
-{:else if page.kind === 'craftingStations'}<CraftingStationPage document={page.document} {registry} />
-{:else if page.kind === 'races'}<RacePage document={page.document} {registry} />
-{:else if page.kind === 'factions'}<FactionPage document={page.document} {registry} />
-{:else if page.kind === 'stats'}<StatPage document={page.document} {registry} />
-{:else if page.kind === 'effects'}<EffectPage document={page.document} {registry} />{/if}
+{#if page.kind === 'mechanics'}
+  {#if guide}<svelte:component this={guide} document={page.document} {registry} {inlineItem} />{/if}
+{:else if detail}
+  <svelte:component this={detail} document={page.document} {registry} />
+{/if}

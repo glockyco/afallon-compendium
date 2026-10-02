@@ -1,4 +1,4 @@
-import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
+import { HEROIC_TIER_KEY, MECHANICS_TOPIC_DETAILS, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
 import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, CombatGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, TravelGuide, WorldQuestsGuide } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
@@ -6,7 +6,7 @@ import { flightNetworks } from "./flight-network";
 import type { ReferenceResolver } from "./documents/projection";
 import { requiredLevel, spawnerExamples, verifiedOdds } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
-import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
+import { placedRules, projectRule, topicRef } from "./placed-rules";
 import { GUIDES, guideSections } from "./guide-sections";
 import { characterLevelTemplate, killExperience } from "./experience";
 import { levelUnion } from "./levels";
@@ -203,7 +203,7 @@ function characterProgression(facts: CatalogFacts, published: ReadonlySet<string
   const rows = template.details.rows.slice(0, Math.max(0, cap - 1)).map((row, index) => ({ level: index + 1, toNext: Math.max(0, row.experienceRequired) }));
   if (rows.length === 0 || rows.length !== cap - 1) throw new Error(`The class level template has ${template.details.rows.length} rows for its cap ${cap}.`);
   return {
-    ref: topicRef("character-progression"), description: MECHANICS_TOPIC_NAMES["character-progression"].description, art: {}, topic: "character-progression",
+    ref: topicRef("character-progression"), description: MECHANICS_TOPIC_DETAILS["character-progression"].description, art: {}, topic: "character-progression",
     curve: { template: displayName(template.name ?? "") || "Character levels", cap, rows },
     sources: experienceSources(facts, published, spawned, resolve), talentPoints: levelUpTalentPoints(facts),
     ...guide(facts, "character-progression", resolve), killCalculator: killCalculator(facts, published, resolve, entityDocuments),
@@ -229,7 +229,7 @@ function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier
   const example = "unavailable" in settings ? undefined : essenceExample(settings);
   if (example) verifiedRule(facts, "essence-rank-multiplier");
   return {
-    ref: topicRef("heroic-tier"), description: MECHANICS_TOPIC_NAMES["heroic-tier"].description, art: {}, topic: "heroic-tier", settings,
+    ref: topicRef("heroic-tier"), description: MECHANICS_TOPIC_DETAILS["heroic-tier"].description, art: {}, topic: "heroic-tier", settings,
     ...guide(facts, "heroic-tier", resolve), ...(example ? { example } : {}),
   };
 }
@@ -267,7 +267,7 @@ function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string
       vendors: item.soldBy.map((row) => row.counterpart), drops: item.droppedBy.map((row) => row.counterpart) }];
   }).sort((a, b) => a.item.name.localeCompare(b.item.name));
   return {
-    ref: topicRef("crafting-and-gathering"), description: MECHANICS_TOPIC_NAMES["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
+    ref: topicRef("crafting-and-gathering"), description: MECHANICS_TOPIC_DETAILS["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
     ...guide(facts, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map(), verifiedOdds(facts)), attunements: attunements(facts, resolve),
     enchantingItems, example: craftingExample(facts, published, conditions, resolve),
   };
@@ -348,7 +348,7 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
     };
   });
   return {
-    ref: topicRef("corruption"), description: MECHANICS_TOPIC_NAMES.corruption.description, art: {}, topic: "corruption",
+    ref: topicRef("corruption"), description: MECHANICS_TOPIC_DETAILS.corruption.description, art: {}, topic: "corruption",
     nativeRules: { ...CORRUPTION_NATIVE_RULES },
     overview: GUIDES.corruption.overview,
     // Native and live evidence establish the corruption rules that the leads and computed sentences state.
@@ -381,7 +381,7 @@ function factionsGuide(facts: CatalogFacts, resolve: ReferenceResolver, entityDo
     && (document as PublicQuest).rewards.some((row) => row.counterpart.key !== null && row.counterpart.kind === "factions")).length;
   const items = facts.items.filter((item) => entityDocuments.has(item.entityKey) && (item.gameActions ?? []).some((action) => action.type === "Faction")).length;
   return {
-    ref: topicRef("factions"), description: MECHANICS_TOPIC_NAMES.factions.description, art: {}, topic: "factions", ...guide(facts, "factions", resolve),
+    ref: topicRef("factions"), description: MECHANICS_TOPIC_DETAILS.factions.description, art: {}, topic: "factions", ...guide(facts, "factions", resolve),
     standings: rows, standingChanges: creatures + quests + items,
   };
 }
@@ -396,16 +396,16 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve, entityDocuments)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
-    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
+    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_DETAILS.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
     ...(topics.has("factions") ? [factionsGuide(facts, resolve, entityDocuments)] : []),
-    ...(topics.has("combat") ? [{ ref: topicRef("combat"), description: MECHANICS_TOPIC_NAMES.combat.description, art: {}, topic: "combat", ...guide(facts, "combat", resolve),
+    ...(topics.has("combat") ? [{ ref: topicRef("combat"), description: MECHANICS_TOPIC_DETAILS.combat.description, art: {}, topic: "combat", ...guide(facts, "combat", resolve),
       recovery: facts.progression.facts.flatMap((fact) => fact.kind === "stats" && ["Health", "Mana", "Energy", "Endurance"].includes(fact.name ?? "")
         ? [{ stat: resolve({ entityKey: fact.entityKey, label: fact.name ?? fact.entityKey }),
           entries: fact.details.regeneration.filter((entry) => entry.amount !== 0 && entry.interval > 0) }] : []),
     } satisfies CombatGuide] : []),
-    ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
-    ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_NAMES["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve) } satisfies WorldQuestsGuide] : []),
-    ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_NAMES.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),
+    ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_DETAILS.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
+    ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_DETAILS["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve) } satisfies WorldQuestsGuide] : []),
+    ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_DETAILS.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

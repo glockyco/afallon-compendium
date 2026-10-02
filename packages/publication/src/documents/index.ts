@@ -1,4 +1,4 @@
-import { isEntityRef, type PublicDocument, type PublicNpc } from "@afallon/contracts/public";
+import { isEntityRef, isPublicPageKind, type PublicDocument, type PublicNpc } from "@afallon/contracts/public";
 import { adventurerRoster } from "../adventurers";
 import { projectAbilityPage } from "./abilities";
 import { projectClass, startingGearByItem } from "./classes";
@@ -45,7 +45,15 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
       case "stats": document = projectStat(entity, ref, input); break;
       case "effects": document = projectEffectPage(page, input, conditions); break;
       case "factions": factions.push([key, entity, ref]); continue;
-      default: continue;
+      // These pages are projected from rules and gathering sources, not catalog entity groups.
+      case "mechanics":
+      case "gatheringNodes": continue;
+      default:
+        if (isPublicPageKind(page.kind)) {
+          const unhandled: never = page.kind;
+          throw new Error(`No document projection for ${unhandled}`);
+        }
+        continue;
     }
     result.set(key, document);
   }

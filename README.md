@@ -43,6 +43,12 @@ flowchart LR
 - **Coverage.** Reachability, extraction, and imagery are separate. A scene without results is not proof that the game has none, and the accepted build is published in preview mode until its coverage is complete.
 - **Game rules.** Rules such as kill experience, loot rolls, or gathering odds rest on decompiled game code or a recorded runtime check. They live in a registered rules record, which the guides and entity pages render, so a number on the site always names its rule.
 
+### Extending pages and guides
+
+Register a paged kind's document schema and static schema ID in `PAGE_DOCUMENTS` in `packages/contracts/src/public/documents.ts`; its kind values, schema maps, static document union, and references derive from that declaration. Give it list and route metadata in `packages/publication/src/kind-registry.ts`, and implement its document and list projections. The exhaustive dispatch in `DetailPage.svelte` and `TooltipPresenter.svelte` requires both a page and a hover card.
+
+Register a mechanics topic's ID, name, description, and Browse label in `MECHANICS_TOPIC_DEFINITIONS` in `packages/contracts/src/catalog/mechanics.ts`. Add the topic's document schema in `documents.ts`, its guide sections in `packages/publication/src/guide-sections.ts`, and its page component in `DetailPage.svelte`. The topic schema, publication labels, and site navigation derive from the definition.
+
 ## Repository layout
 
 | Path | What it holds |

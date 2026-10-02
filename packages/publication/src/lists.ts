@@ -4,6 +4,7 @@ import { itemTypeLabel } from "./item-type";
 import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
 import { partitionStaticRecords } from "./resources";
+import { isPublicPageKind } from "@afallon/contracts/public";
 import type {
   ListRow,
   ListStat,
@@ -210,7 +211,13 @@ export function buildKindLists(
       case "factions": row = factionRow(document as PublicFaction); break;
       case "stats": row = statRow(document as PublicStat); break;
       case "effects": row = effectRow(document as PublicEffect); break;
-      default: continue;
+      default: {
+        if (isPublicPageKind(document.ref.kind)) {
+          const unhandled: never = document.ref.kind;
+          throw new Error(`No list projection for ${unhandled}`);
+        }
+        continue;
+      }
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];
     rows.push(row);

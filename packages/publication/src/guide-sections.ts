@@ -7,8 +7,9 @@ export interface GuideSectionText { id: string; title: string; lead: string }
 /** The reader text of one guide: its overview and its sections in reading order. */
 export interface GuideText { overview: string; sections: GuideSectionText[] }
 
-// A section covers one mechanic or one context of its topic. Its id is the `section` of its rules in the rules record,
-// and the Corruption rules of `mechanics.ts`. A lead says where the mechanic applies and does not repeat its rules.
+// Every topic declared by the catalog must have reader text here. A section covers one mechanic or one context of its
+// topic. Its id is the `section` of its rules in the rules record, and the Corruption rules of `mechanics.ts`.
+// A lead says where the mechanic applies and does not repeat its rules.
 export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "character-progression": {
     overview: "You earn character levels with experience, mostly from kills and quests. Each skill also has its own level, which rises as you use it.",
