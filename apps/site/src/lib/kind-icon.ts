@@ -1,4 +1,4 @@
-import { Anvil, BookOpen, Coins, Flag, Gem, Hammer, House, Map, PawPrint, Package, Pickaxe, Shield, Shirt, ScrollText, Sparkles, Star, Sword, User, Users, Wrench, Zap, type IconNode } from 'lucide';
+import { Anvil, BookOpen, Coins, Compass, Flag, Gem, Hammer, House, Map, PawPrint, Package, Pickaxe, Shield, Shirt, ScrollText, Sparkles, Star, Sword, User, Users, Wrench, Zap, type IconNode } from 'lucide';
 import { iconNodeToSvg } from './icon-svg';
 
 // The registry names a glyph per kind. An entity whose artwork the build never captured shows its
@@ -8,6 +8,7 @@ const KIND_ICONS: Record<string, IconNode> = {
   npc: User,
   quest: ScrollText,
   place: Map,
+  'world-map': Compass,
   property: House,
   ability: Zap,
   recipe: Hammer,

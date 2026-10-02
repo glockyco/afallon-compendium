@@ -5,13 +5,13 @@ import { siteNavigation } from './site-navigation';
 const kind = (kind: PublicKindEntry['kind'], plural: string, pages = true, list = pages): PublicKindEntry => ({ kind, label: plural, plural, route: kind, icon: 'item', pages, list, searchable: pages, columns: [], facets: [] });
 
 test('the Browse panel keeps every published kind and hides empty columns', () => {
-  const { primary, sections } = siteNavigation([kind('items', 'Items'), kind('npcs', 'NPCs'), kind('effects', 'Effects'), kind('stats', 'Stats', false)], '/base');
+  const { primary, sections } = siteNavigation([kind('items', 'Items'), kind('npcs', 'NPCs'), kind('lootTables', 'Loot Tables'), kind('stats', 'Stats', false)], '/base');
   expect(primary.map((link) => link.href)).toEqual(['/base/map/', '/base/items/']);
   expect(sections.map((section) => [section.label, section.links.map((link) => link.href)])).toEqual([
     ['World', ['/base/map/', '/base/npcs/']],
     ['Items', ['/base/items/']],
     // A paged kind that no column names stays reachable. A kind without pages has no link.
-    ['Other', ['/base/effects/']],
+    ['Other', ['/base/lootTables/']],
   ]);
 });
 
