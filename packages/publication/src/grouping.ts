@@ -21,6 +21,17 @@ export function nameKey(name: string): string {
   return name.normalize("NFKC").toLowerCase().replaceAll("’", "'").replaceAll(/\s+/g, " ").trim();
 }
 
+// The game names some abilities and effects in code, such as BoarAttack1 or HealingPotion. Such a word reads as
+// separate words: Boar Attack 1 and Healing Potion. A capital that ends its word, as in AoE or DoT, keeps an
+// abbreviation together. Items and other kinds keep the names that the game shows.
+const CODE_NAMED_KINDS: ReadonlySet<PublicReferenceKind> = new Set<PublicReferenceKind>(["abilities", "effects"]);
+const CODE_WORD = /^[A-Z][a-z]+(?:[A-Z][a-z]+)*\d*$/;
+function spaceCodeWords(name: string): string {
+  return name.split(" ").map((word) => CODE_WORD.test(word)
+    ? word.replaceAll(/([a-z])(?=[A-Z][a-z])/g, "$1 ").replace(/([A-Za-z])(?=\d+$)/, "$1 ")
+    : word).join(" ");
+}
+
 /**
  * The formatted name of a record. A record without a name reads as "Unnamed" and its kind, and the qualifier step
  * tells several unnamed records of one kind apart, because a native id is not a name that a player sees.
@@ -29,7 +40,8 @@ export function baseName(entity: CatalogEntityRow, kind: PublicReferenceKind): s
   // Authored internal name "NPC Skeleton Attack" identifies this otherwise code-named ability.
   if (kind === "abilities" && entity.entityKey === "abilities:9"
     && entity.name === "SkeletonAttack1 NPC" && entity.internalName === "NPC Skeleton Attack") return "Skeleton Attack (NPC)";
-  return displayName(entity.name ?? "") || displayName(`Unnamed ${PUBLIC_KIND_BY_KIND[kind].label}`);
+  const name = displayName(entity.name ?? "");
+  return (CODE_NAMED_KINDS.has(kind) ? spaceCodeWords(name) : name) || displayName(`Unnamed ${PUBLIC_KIND_BY_KIND[kind].label}`);
 }
 
 // The title uses the most frequent spelling in the group, and a tie takes the spelling of the lowest native id.

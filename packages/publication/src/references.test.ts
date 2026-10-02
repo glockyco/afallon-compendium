@@ -138,6 +138,14 @@ test("gives each unnamed record its own page and a name without its native id", 
   expect(["npcs:125", "npcs:130", "scenes:1"].map((key) => refs.get(key)?.name)).toEqual(["Unnamed NPC (1)", "Unnamed NPC (2)", "Unnamed Place"]);
 });
 
+test("spaces the code-named words of abilities and effects but keeps abbreviations and item names", () => {
+  const { refs } = buildEntityReferences([entity("abilities", 5, "BoarAttack1"), entity("abilities", 6, "Spider Attack2"), entity("abilities", 7, "AoE Cursed"),
+    entity("effects", 20, "HealingPotion"), entity("effects", 21, "Hailstorm DoT"), entity("items", 30, "Large FirePlace")]);
+  expect(["abilities:5", "abilities:6", "abilities:7", "effects:20", "effects:21", "items:30"].map((key) => refs.get(key)?.name))
+    .toEqual(["Boar Attack 1", "Spider Attack 2", "AoE Cursed", "Healing Potion", "Hailstorm DoT", "Large FirePlace"]);
+  expect(refs.get("abilities:5")?.slug).toBe("boar-attack-1");
+});
+
 test("drops apostrophes instead of splitting a slug", () => {
   const { refs } = buildEntityReferences([entity("items", 1040, "Oathbreaker's Edge"), entity("abilities", 8, "Nature’s Grasp")]);
   expect(refs.get("items:1040")?.slug).toBe("oathbreakers-edge");
