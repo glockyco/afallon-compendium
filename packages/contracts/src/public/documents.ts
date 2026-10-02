@@ -665,9 +665,10 @@ export const TalentRankSchema = Type.Object({
   text: Type.Array(NativeTextLineSchema),
 }, { additionalProperties: false });
 export type TalentRank = Static<typeof TalentRankSchema>;
-// One node of a talent tree. An ability node links its ability. A passive talent shows its first rank and its last rank.
+// One node of a talent tree. An ability node links its ability, which carries its icon. A passive talent has its own
+// `icon` and shows its first rank and its last rank.
 export const TalentRowSchema = Type.Object({
-  anchor, tier: count, position: count, name: text, ability: optional(RefSchema), ranks: count,
+  anchor, tier: count, position: count, name: text, ability: optional(RefSchema), icon: optional(ArtRefSchema), ranks: count,
   first: optional(TalentRankSchema), last: optional(TalentRankSchema), requirements,
 }, { additionalProperties: false });
 export type TalentRow = Static<typeof TalentRowSchema>;
@@ -897,7 +898,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v21", npcs: "compendium.static-npc.v10", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v7", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v14", gatheringNodes: "compendium.static-gathering-node.v6",
+  classes: "compendium.static-class.v8", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v14", gatheringNodes: "compendium.static-gathering-node.v6",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -923,14 +924,14 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v21": typeof StaticItemDocumentSchema; "compendium.static-npc.v10": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
-  "compendium.static-class.v7": typeof StaticClassDocumentSchema;
+  "compendium.static-class.v8": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v14": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v6": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v21": StaticItemDocumentSchema, "compendium.static-npc.v10": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
-  "compendium.static-class.v7": StaticClassDocumentSchema,
+  "compendium.static-class.v8": StaticClassDocumentSchema,
   "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v14": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v6": StaticGatheringNodeDocumentSchema,
 };
@@ -940,7 +941,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v21"), resourceReference("compendium.static-npc.v10"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v7"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v14"),
+  resourceReference("compendium.static-class.v8"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v14"),
   resourceReference("compendium.static-gathering-node.v6"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

@@ -150,7 +150,9 @@ export async function generateIndexResources(
   const excluded = new Set(exclusions.map((exclusion) => exclusion.key));
   const relations = { ...catalogRelations, records: withoutExcludedRelations(usable, excluded) };
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
-  const artwork = await generateArtworkResources(store, entities.records, protection);
+  // Talent bonuses are not entities, but class pages show their icons.
+  const bonusArtwork = facts.records.progression.facts.flatMap((fact) => fact.kind === "bonuses" && fact.artwork?.length ? [{ entityKey: fact.entityKey, artwork: fact.artwork }] : []);
+  const artwork = await generateArtworkResources(store, [...entities.records, ...bonusArtwork], protection);
   const levelsByRecord = new Map<string, PublicLevel[]>();
   for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
   const spawnedLevels = new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const));

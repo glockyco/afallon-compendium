@@ -15,9 +15,10 @@ const WIDTH_BY_ROLE: Readonly<Record<CatalogArtworkBinding["role"], number>> = {
   artwork: 1600,
 };
 
+/** The sized artwork of every entity, and of every non-entity record that carries artwork, such as a talent bonus. */
 export async function generateArtworkResources(
   store: ArtifactStore,
-  entities: readonly CatalogEntityRow[],
+  entities: ReadonlyArray<Pick<CatalogEntityRow, "entityKey" | "artwork">>,
   protection?: ObjectWriteProtection,
 ): Promise<GeneratedArtworkResources> {
   const variants = new Map<string, ArtRef>();

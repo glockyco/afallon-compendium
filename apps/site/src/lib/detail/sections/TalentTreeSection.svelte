@@ -30,7 +30,7 @@
   <RelationTable columns={plan.columns} rows={tree.rows} label={tree.name} rowAnchors={(row) => [row.anchor]}>
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'tier'}{row.tier}
-      {:else if column === 'talent'}{#if row.ability}<EntityLink ref={row.ability} {registry} />{:else}{row.name}{/if}
+      {:else if column === 'talent'}{#if row.ability}<EntityLink ref={row.ability} {registry} />{:else}<span class="passive">{#if row.icon}<img src={`${base}/data/${row.icon.url}`} width={row.icon.width} height={row.icon.height} alt="" loading="lazy" />{/if}{row.name}</span>{/if}
       {:else if column === 'ranks'}{row.ranks}
       {:else if column === 'effect'}<TalentEffect {row} {registry} />
       {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
@@ -40,4 +40,6 @@
 
 <style>
   .points { color: var(--c-text-dim); line-height: 1.5; }
+  /* A passive talent has no page, so its icon and name match the look of a link's icon without being a link. */
+  .passive img { box-sizing: border-box; width: 2rem; height: 2rem; margin-right: .35em; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); object-fit: contain; vertical-align: middle; position: relative; top: -.12em; }
 </style>

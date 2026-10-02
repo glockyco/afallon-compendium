@@ -135,7 +135,9 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
         const ranks = bonus?.kind === "bonuses" ? bonus.details.ranks : [];
         return {
           anchor: talentAnchor(treeKey, node.nodeIndex), tier: Math.max(0, node.tier), position: Math.max(0, node.row), name: displayName(target.label),
-          ...(node.nodeType === "ability" ? { ability: input.resolve(target) } : {}), ranks: Math.max(1, ranks.length),
+          ...(node.nodeType === "ability" ? { ability: input.resolve(target) } : {}),
+          ...(node.nodeType === "bonus" && input.artByEntity.get(target.entityKey!)?.icon ? { icon: input.artByEntity.get(target.entityKey!)!.icon } : {}),
+          ranks: Math.max(1, ranks.length),
           ...(ranks[0] ? { first: talentRank(ranks[0], input) } : {}), ...(ranks.length > 1 ? { last: talentRank(ranks.at(-1)!, input) } : {}),
           requirements: node.conditionId === null ? [] : requirementsFor([node.conditionId], conditions, resolve),
         };
