@@ -59,10 +59,10 @@
 <Section id="where-to-find" title="Where to find" count={places.length || undefined}>
   {#if places.length}<PlacesList {places} {registry} />
   {:else if !locations.length}<p class="empty">No known location.</p>{/if}
-  {#if unknown.length}<p class="unknown">{unknown.length} {unknown.length === 1 ? 'location has' : 'locations have'} no identified place. The published placement details are below.</p>{/if}
+  {#if unknown.length}<p class="unknown">{unknown.length} {unknown.length === 1 ? 'location has' : 'locations have'} no identified place. Their spot details are below.</p>{/if}
   {#if detailsRows.length}
     <details bind:open={expanded}>
-      <summary>Show placement details and conditions</summary>
+      <summary>Show spot details and conditions</summary>
       <div class="placements">
         {#each detailsRows as location}
           <div class="placement">
