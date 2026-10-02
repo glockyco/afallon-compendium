@@ -8,7 +8,7 @@
   import TalentEffect from '../../TalentEffect.svelte';
   import { detailNavigation } from '../detail-navigation';
   import { fragmentId } from '../tab-state';
-  import { drawPoint, fitView, panBy, viewBox, wedgePath, zoomAt, type WebView } from '../talent-web-view';
+  import { drawPoint, fitView, LABEL_PX, labelArc, panBy, viewBox, wedgePath, zoomAt, type WebView } from '../talent-web-view';
 
   /** A class's talents as the game's talent screen lays them out, with the trees whose rows the nodes show. */
   export let web: TalentWeb;
@@ -24,9 +24,6 @@
   $: talents = new Map(trees.flatMap((tree) => tree.rows.map((row) => [row.anchor, { row, tree }] as const)));
   $: treesByAnchor = new Map(trees.map((tree) => [tree.anchor, tree]));
   $: outer = Math.max(RING_START, ...web.nodes.map((node) => Math.hypot(node.x, node.y))) + NODE;
-  // The tree names stand outside the outermost talents.
-  $: labelRadius = outer + 110;
-  $: extent = labelRadius + 120;
 
   // The address selects: a talent's anchor selects the talent, and a tree's anchor marks the tree.
   $: anchor = $location ? fragmentId($location.hash) : '';
@@ -40,8 +37,11 @@
   let width = 0;
   let height = 0;
   let view: WebView | undefined;
-  $: fitted = width && height ? fitView(extent, width, height) : undefined;
-  $: if (fitted && !view) view = fitted;
+  // The view follows the fit through resizes until the reader moves or zooms the web.
+  let following = true;
+  $: fitted = width && height ? fitView(outer, width, height) : undefined;
+  $: if (fitted && (following || !view)) view = fitted;
+  const move = (next: WebView) => { following = false; view = next; };
 
   // Dragging moves the web, and two fingers zoom it. A drag that started on a talent does not select it.
   const pointers = new Map<number, { x: number; y: number }>();
@@ -62,13 +62,13 @@
       const before = Math.hypot(previous.x - other.x, previous.y - other.y);
       const after = Math.hypot(event.clientX - other.x, event.clientY - other.y);
       const box = svg.getBoundingClientRect();
-      if (before > 0) view = zoomAt(view, after / before, (event.clientX + other.x) / 2 - box.left, (event.clientY + other.y) / 2 - box.top, width, height, fitted.zoom);
+      if (before > 0) move(zoomAt(view, after / before, (event.clientX + other.x) / 2 - box.left, (event.clientY + other.y) / 2 - box.top, width, height, fitted.zoom));
       dragged = true;
     } else {
       if (!dragged && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 5) return;
       if (!dragged) svg.setPointerCapture(event.pointerId);
       dragged = true;
-      view = panBy(view, event.clientX - previous.x, event.clientY - previous.y);
+      move(panBy(view, event.clientX - previous.x, event.clientY - previous.y));
     }
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   }
@@ -83,10 +83,10 @@
     if (!(event.ctrlKey || event.metaKey) || !view || !fitted) return;
     event.preventDefault();
     const box = svg.getBoundingClientRect();
-    view = zoomAt(view, Math.exp(-event.deltaY * 0.0025), event.clientX - box.left, event.clientY - box.top, width, height, fitted.zoom);
+    move(zoomAt(view, Math.exp(-event.deltaY * 0.0025), event.clientX - box.left, event.clientY - box.top, width, height, fitted.zoom));
   }
-  const zoomBy = (factor: number) => { if (view && fitted) view = zoomAt(view, factor, width / 2, height / 2, width, height, fitted.zoom); };
-  const fit = () => { if (fitted) view = fitted; };
+  const zoomBy = (factor: number) => { if (view && fitted) move(zoomAt(view, factor, width / 2, height / 2, width, height, fitted.zoom)); };
+  const fit = () => { following = true; if (fitted) view = fitted; };
 
   // A link to a talent or a tree centres it, so it is in view when the page scrolls to it.
   onMount(() => navigation?.addRevealer(async (id) => {
@@ -96,7 +96,7 @@
     const zoom = Math.max(view?.zoom ?? fitted.zoom, fitted.zoom * (node ? 2.5 : 1.6));
     const radius = (RING_START + outer) / 2;
     const [cx, cy] = node ? drawPoint(node.x, node.y) : drawPoint(radius * Math.cos(wedge!.angle * Math.PI / 180), radius * Math.sin(wedge!.angle * Math.PI / 180));
-    view = { cx, cy, zoom };
+    move({ cx, cy, zoom });
     return true;
   }));
 </script>
@@ -111,12 +111,12 @@
         <defs>
           <clipPath id="talent-web-circle"><circle r={NODE / 2 - 9} /></clipPath>
           <clipPath id="talent-web-square"><rect x={-(NODE / 2 - 9)} y={-(NODE / 2 - 9)} width={NODE - 18} height={NODE - 18} rx="10" /></clipPath>
+          {#each web.wedges as wedge (wedge.tree)}<path id={`talent-web-label-${wedge.tree}`} d={labelArc(wedge.angle, wedge.width, outer, view.zoom)} />{/each}
         </defs>
         {#each web.wedges as wedge (wedge.tree)}
           {@const tree = treesByAnchor.get(wedge.tree)}
-          {@const [lx, ly] = drawPoint(labelRadius * Math.cos(wedge.angle * Math.PI / 180), labelRadius * Math.sin(wedge.angle * Math.PI / 180))}
           <path class="wedge" class:marked={markedTree === wedge.tree} d={wedgePath(wedge.angle, wedge.width, RING_START - NODE, outer)} />
-          {#if tree}<a href={`#${wedge.tree}`} class="tree-name"><text id={wedge.tree} x={lx} y={ly} class:marked={markedTree === wedge.tree}>{tree.name}</text></a>{/if}
+          {#if tree}<a href={`#${wedge.tree}`} class="tree-name"><text id={wedge.tree} style:font-size={`${LABEL_PX / view.zoom}px`} class:marked={markedTree === wedge.tree}><textPath href={`#talent-web-label-${wedge.tree}`} startOffset="50%">{tree.name}</textPath></text></a>{/if}
         {/each}
         {#each web.edges as edge (`${edge.from}>${edge.to}`)}
           <polyline class="edge" class:related={selected && (edge.from === anchor || edge.to === anchor)} class:dim={selected && edge.from !== anchor && edge.to !== anchor} points={edge.points.map(([x, y]) => drawPoint(x, y).join(',')).join(' ')} />
@@ -139,11 +139,12 @@
         {/each}
       </svg>
     {/if}
-    <div class="controls">
-      <button type="button" on:click={() => zoomBy(1.4)} aria-label="Zoom in">+</button>
-      <button type="button" on:click={() => zoomBy(1 / 1.4)} aria-label="Zoom out">−</button>
-      <button type="button" on:click={fit}>Fit</button>
-    </div>
+  </div>
+  <div class="toolbar">
+    <button type="button" on:click={() => zoomBy(1.4)} aria-label="Zoom in">+</button>
+    <button type="button" on:click={() => zoomBy(1 / 1.4)} aria-label="Zoom out">−</button>
+    <button type="button" on:click={fit}>Fit</button>
+    <p>Drag to move the web. Zoom with the buttons, a pinch, or Ctrl and the scroll wheel.</p>
   </div>
 
   <div class="detail" aria-live="polite">
@@ -156,19 +157,19 @@
       {#if unlocks.length}<p class="unlocks"><span>Unlocks</span> {#each unlocks as entry, index (entry.row.anchor)}{index ? ', ' : ''}<a class="c-link" href={`#${entry.row.anchor}`}>{entry.row.name}</a>{/each}</p>{/if}
       <a class="c-link list" href={`?view=list#${selected.row.anchor}`}>Show in the list</a>
     {:else}
-      <p class="hint">Select a talent to see its ranks and requirements. Drag to move the web, and zoom with the buttons, a pinch, or Ctrl and the scroll wheel.</p>
+      <p class="hint">Select a talent to see its ranks, effect, and requirements.</p>
     {/if}
   </div>
 </div>
 
 <style>
   .talent-web { display: grid; gap: 1rem; }
-  .canvas { position: relative; height: min(78vh, 760px); border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-sunken); overflow: hidden; }
+  .canvas { position: relative; aspect-ratio: 1; max-height: min(78vh, 760px); border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-sunken); overflow: hidden; }
   svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
   svg:active { cursor: grabbing; }
   .wedge { fill: var(--c-surface-1); stroke: var(--c-line-soft); stroke-width: 4; }
   .wedge.marked { fill: var(--c-tint-hover); stroke: var(--c-accent); }
-  .tree-name text { fill: var(--c-text-dim); font: 600 64px var(--c-serif); text-anchor: middle; dominant-baseline: middle; }
+  .tree-name text { fill: var(--c-text-dim); font-weight: 600; font-family: var(--c-serif); text-anchor: middle; }
   .tree-name text.marked, .tree-name:hover text { fill: var(--c-accent-strong); }
   .edge { fill: none; stroke: var(--c-frame); stroke-width: 10; stroke-linejoin: round; }
   .edge.related { stroke: var(--c-accent); stroke-width: 14; }
@@ -179,9 +180,10 @@
   .node.selected .shape { stroke: var(--c-accent); stroke-width: 14; }
   .node.dim { opacity: .4; }
   .ranks { fill: var(--c-text-strong); font: 700 30px var(--c-sans, inherit); text-anchor: end; paint-order: stroke; stroke: var(--c-surface-sunken); stroke-width: 8; }
-  .controls { position: absolute; top: .6rem; right: .6rem; display: flex; gap: .35rem; }
-  .controls button { min-width: 2.2rem; height: 2.2rem; padding: 0 .55rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-strong); font: inherit; cursor: pointer; }
-  .controls button:hover { border-color: var(--c-accent); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: -.5rem; }
+  .toolbar p { flex: 1 1 14rem; margin: 0 0 0 .4rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .toolbar button { min-width: 2.2rem; height: 2.2rem; padding: 0 .55rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-strong); font: inherit; cursor: pointer; }
+  .toolbar button:hover { border-color: var(--c-accent); }
   .detail { display: grid; gap: .6rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   h3 { margin: 0; color: var(--c-text-strong); font: 600 1.1rem/1.3 var(--c-serif); }
   h3 img { box-sizing: border-box; width: 2rem; height: 2rem; margin-right: .45rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); vertical-align: middle; }

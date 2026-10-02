@@ -9,9 +9,31 @@ export const MAX_ZOOM_FACTOR = 8;
 /** The drawing point of a game point. */
 export const drawPoint = (x: number, y: number): [number, number] => [x, -y];
 
-/** The view that fits a square of `extent` game units around the centre into a box of `width` by `height` pixels. */
-export function fitView(extent: number, width: number, height: number): WebView {
-  return { cx: 0, cy: 0, zoom: Math.min(width, height) / (2 * extent) };
+// Tree names follow the arc just outside the web, at a fixed size in pixels: LABEL_GAP from the circle, then a line of text.
+export const LABEL_PX = 14;
+const LABEL_GAP = 6;
+const LABEL_BAND = LABEL_GAP + LABEL_PX * 1.3;
+const BOX_PAD = 8;
+
+/** The largest centred view in which a circle of `radius` game units and the names around it fit a box of `width` by `height` pixels. */
+export function fitView(radius: number, width: number, height: number): WebView {
+  return { cx: 0, cy: 0, zoom: Math.max((Math.min(width, height) / 2 - BOX_PAD - LABEL_BAND) / radius, 1e-3) };
+}
+
+/**
+ * The SVG path that a wedge's name follows outside a circle of `radius` game units at zoom `zoom`. The path spans the wedge
+ * and its gaps, centred on the game angle `angle`, and runs from left to right on screen, so the name reads normally. Over
+ * the upper half, including the sides, the letters stand on the path, and over the lower half they hang from it, outward in
+ * both cases.
+ */
+export function labelArc(angle: number, width: number, radius: number, zoom: number): string {
+  const upper = Math.sin(angle * Math.PI / 180) > -1e-9;
+  const r = radius + (LABEL_GAP + (upper ? 0 : LABEL_PX * 0.75)) / zoom;
+  const half = Math.min(width + 18, 178) / 2;
+  const [from, to] = upper ? [angle + half, angle - half] : [angle - half, angle + half];
+  const at = (degrees: number) => drawPoint(r * Math.cos(degrees * Math.PI / 180), r * Math.sin(degrees * Math.PI / 180)).map((value) => value.toFixed(1)).join(' ');
+  // Upper paths turn clockwise on screen (sweep flag 1), and lower paths turn counterclockwise.
+  return `M ${at(from)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 ${upper ? 1 : 0} ${at(to)}`;
 }
 
 /** The SVG view box of a view in a box of `width` by `height` pixels. */
