@@ -594,7 +594,10 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
     ],
     containers: [{ ...relations.containers[0]!, availability: [night], placementIds: ["p2"] }],
     interactions: [{ objectName: "Egg cluster", sourceId: "chest-action", place: endpoint("scenes:10", "Crypt"),
-      item: endpoint("items:1", "Blade"), min: 2, max: 3, rawRate: 30, availability: [night, { effect: "requires", conditionId: "empty", durationSeconds: null }], placementIds: ["p4"] }],
+      item: endpoint("items:1", "Blade"), min: 2, max: 3, rawRate: 30, availability: [night, { effect: "requires", conditionId: "empty", durationSeconds: null }], placementIds: ["p4"] },
+      // The same object with its conditions in the other order.
+      { objectName: "Egg cluster", sourceId: "chest-action-2", place: endpoint("scenes:10", "Crypt"),
+      item: endpoint("items:1", "Blade"), min: 2, max: 3, rawRate: 30, availability: [{ effect: "requires", conditionId: "empty", durationSeconds: null }, night], placementIds: ["p4"] }],
     gatedSources: [
       { sourceId: "spawn-1", family: "npcProducer", label: null, subjects: [endpoint("npcs:2", "Guardian")], placementIds: ["p1"], availability: [afterQuest] },
       { sourceId: "spawn-2", family: "npcProducer", label: null, subjects: [endpoint("npcs:2", "Guardian")], placementIds: ["p2", "unpublished"], availability: [afterQuest] },

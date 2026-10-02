@@ -71,7 +71,10 @@ function lootObjects(placeKey: string, host: { key: string; here: ReadonlySet<st
     const object = {
       label: interactionLabel(row.objectName), ...(row.choiceLabel ? { choiceLabel: displayName(row.choiceLabel) } : {}),
       ...(row.cost ? { cost: { currency: input.resolve(row.cost.currency), amount: row.cost.amount } } : {}),
-      availability: projectAvailability(row.availability, conditions, input.resolve),
+      // The conditions of one object come in no fixed order, so they are sorted by their text.
+      availability: projectAvailability(row.availability, conditions, input.resolve)
+        .map((rule) => ({ rule, text: JSON.stringify([rule.effect, rule.requirements.map((group) => group.requirements.map((requirement) => requirement.label))]) }))
+        .sort((left, right) => left.text.localeCompare(right.text)).map(({ rule }) => rule),
     };
     // Rows merge by what a reader sees, so two conditions with the same text are one row.
     const key = JSON.stringify([object.label, object.choiceLabel, object.cost?.amount, object.cost ? refKey(object.cost.currency) : null,

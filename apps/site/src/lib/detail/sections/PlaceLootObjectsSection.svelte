@@ -4,52 +4,76 @@
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
   import { spotOnMap } from '../../map-links';
-  import { shownRowCount } from '../relation-table';
   import Section from '../Section.svelte';
 
   /** The objects of a place that give items, with what using them takes and the items they can give. */
   export let rows: PlaceLootObject[];
   export let registry: PublicKindEntry[];
-  let expanded = false;
-  $: shown = shownRowCount(rows.length, expanded);
-  // A row names its first items and shows the rest on request. The item pages list the chances.
-  const ITEMS_SHOWN = 6;
-  let open = new Set<number>();
-  const reveal = (index: number) => { open = new Set([...open, index]); };
+
+  // Objects with one name form one group, such as the locked chests of each level range. A variant shows a short item
+  // list at once and a long one on request, because the item pages list the chances.
+  const SHORT_LIST = 10;
+  $: groups = [...rows.reduce((map, row) => map.set(row.label, [...(map.get(row.label) ?? []), row]), new Map<string, PlaceLootObject[]>())]
+    .map(([label, variants]) => ({ label, variants: [...variants].sort(byConditions), spots: new Set(variants.flatMap((row) => row.placements.map((placement) => placement.placementId))).size }));
+  // Variants can share spots, such as the level ranges of one chest, so the object counts each spot once.
+  // Variants of one object run from the lowest required level up, and then by the text of their conditions.
+  const requirements = (row: PlaceLootObject) => row.availability.flatMap((rule) => rule.requirements.flatMap((group) => group.requirements));
+  const lowestLevel = (row: PlaceLootObject) => Math.min(...requirements(row).filter((requirement) => requirement.type.name === 'Level')
+    .map((requirement) => Number(/\d+/.exec(requirement.label)?.[0] ?? Number.POSITIVE_INFINITY)));
+  const conditionText = (row: PlaceLootObject) => requirements(row).map((requirement) => requirement.label).join(' ');
+  function byConditions(left: PlaceLootObject, right: PlaceLootObject): number {
+    const [a, b] = [lowestLevel(left), lowestLevel(right)];
+    return (a === b ? 0 : a < b ? -1 : 1) || conditionText(left).localeCompare(conditionText(right));
+  }
+  let open = new Set<PlaceLootObject>();
+  const toggle = (row: PlaceLootObject) => { open = open.has(row) ? new Set([...open].filter((entry) => entry !== row)) : new Set([...open, row]); };
+  const spots = (count: number) => `${formatNumber(count)} ${count === 1 ? 'spot' : 'spots'}`;
 </script>
 
-{#if rows.length}
-  <Section id="loot-objects" title="Objects with loot" count={rows.length}>
-    <div class="source-list">
-      {#each rows.slice(0, shown) as row, rowIndex}
-        <div class="source-row">
-          <div class="source-main">
-            <strong>{row.label}{#if row.choiceLabel}: {row.choiceLabel}{/if}</strong>
-            {#if row.cost || row.availability.length}<div class="source-sub">
-              {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{/if}
-              {#if row.availability.length}<Availability rules={row.availability} {registry} />{/if}
-            </div>{/if}
-            <p class="items">Can give {#each open.has(rowIndex) ? row.items : row.items.slice(0, ITEMS_SHOWN) as item, index}{index ? ', ' : ''}<EntityLink ref={item} {registry} />{/each}{#if !open.has(rowIndex) && row.items.length > ITEMS_SHOWN}{', '}<button type="button" class="c-action more" on:click={() => reveal(rowIndex)}>Show {formatNumber(row.items.length - ITEMS_SHOWN)} more</button>{/if}</p>
-          </div>
-          {#if row.placements.length === 1}<a class="c-link spots" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>
-          {:else if row.placements.length}<span class="spots">{formatNumber(row.placements.length)} spots</span>{/if}
-        </div>
+{#if groups.length}
+  <Section id="loot-objects" title="Objects with loot" count={groups.length}>
+    <div class="objects">
+      {#each groups as group (group.label)}
+        <article class="object">
+          <header><h3>{group.label}</h3>{#if group.spots}<span class="spots">{spots(group.spots)}</span>{/if}</header>
+          {#each group.variants as row}
+            <div class="variant">
+              <div class="variant-head">
+                <div class="conditions">
+                  {#if row.choiceLabel}<span class="choice">{row.choiceLabel}</span>{/if}
+                  {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{/if}
+                  {#if row.availability.length}<Availability rules={row.availability} {registry} />{/if}
+                  {#if !row.choiceLabel && !row.cost && !row.availability.length}<span>No requirements</span>{/if}
+                </div>
+                <div class="meta">
+                  {#if group.variants.length > 1 && row.placements.length}{#if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>{:else}<span>{spots(row.placements.length)}</span>{/if}{:else if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>Show on map</a>{/if}
+                  {#if row.items.length > SHORT_LIST}<button type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide items' : `Show ${formatNumber(row.items.length)} items`}</button>{/if}
+                </div>
+              </div>
+              {#if row.items.length <= SHORT_LIST || open.has(row)}
+                <ul class="items">{#each row.items as item}<li><EntityLink ref={item} {registry} /></li>{/each}</ul>
+              {/if}
+            </div>
+          {/each}
+        </article>
       {/each}
-      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
     </div>
   </Section>
 {/if}
 
 <style>
-  .source-list { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); overflow: hidden; }
-  .source-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .5rem 1rem; min-width: 0; padding: .65rem .8rem; border-top: 1px solid var(--c-line-soft); }
-  .source-row:first-child { border-top: 0; }
-  .source-main { display: grid; gap: .2rem; min-width: 0; }
-  strong { color: var(--c-text-strong); font-weight: 600; overflow-wrap: anywhere; }
-  .source-sub { display: flex; flex-wrap: wrap; gap: .25rem .6rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .source-sub :global(.availability li) { font-size: var(--c-text-small); }
-  .items { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
-  .spots { min-height: 1.5rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--c-text-dim); }
-  .show-more { margin: .5rem .8rem; }
-  .more { margin-left: .2rem; }
+  .objects { display: grid; gap: .75rem; }
+  .object { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); overflow: hidden; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .65rem .85rem; border-bottom: 1px solid var(--c-line-soft); }
+  h3 { margin: 0; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); overflow-wrap: anywhere; }
+  .spots, .meta span { color: var(--c-text-dim); font-size: var(--c-text-small); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .variant { display: grid; gap: .55rem; padding: .6rem .85rem; }
+  .variant + .variant { border-top: 1px solid var(--c-line-soft); }
+  .variant-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .4rem 1rem; }
+  .conditions { display: flex; flex-wrap: wrap; gap: .25rem .6rem; min-width: 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .conditions :global(.availability li) { font-size: var(--c-text-small); }
+  .choice { color: var(--c-text-strong); font-weight: 600; }
+  .meta { display: flex; align-items: center; gap: .75rem; font-size: var(--c-text-small); }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: .3rem 1rem; margin: 0; padding: 0; list-style: none; line-height: 1.5; }
+  .items li { min-width: 0; overflow-wrap: anywhere; }
 </style>
