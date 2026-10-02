@@ -13,9 +13,9 @@
 - [x] 3.1 Add `GuideSection.svelte` and a rule phrase with a "Show N more" control for more than ten links. Render the five guides as sections with their data. Remove `GuideSteps.svelte`, `MechanicsRules.svelte`, and `rule-numbers.ts`.
 - [x] 3.2 Link How it works to section anchors from every caller, and show the How it works link of Found in objects.
 - [x] 3.3 Add the `param` property to `TabSet` and show the supply pack bands with class and level tabs. Verify that the level band stays selected across classes.
-- [ ] 3.4 Check the five guides, Adventurer's Supply Pack, Soaked Bag, Human Skull, Linen Cloth, Boar Haunch, Runeweave Regalia, a corrupted reward item, the Corruption Token, Small Iron Vein, a skill, an NPC, a quest, and a class in the browser at 1440 px and 390 px, with every How it works link landing on its section and no sideways scroll.
+- [x] 3.4 Check the five guides, Adventurer's Supply Pack, Soaked Bag, Human Skull, Linen Cloth, Boar Haunch, Runeweave Regalia, a corrupted reward item, the Corruption Token, Small Iron Vein, a skill, an NPC, a quest, and a class in the browser at 1440 px and 390 px, with every How it works link landing on its section and no sideways scroll.
 
 ## 4. Publication and acceptance
 
-- [ ] 4.1 Publish a candidate against the accepted publication and stage it. Verify publication validation and the parity checks.
-- [ ] 4.2 Write the update report, accept the update, stage the accepted publication in the main checkout, and sync the delta specs.
+- [x] 4.1 Publish a candidate against the accepted publication and stage it. Verify publication validation and the parity checks.
+- [x] 4.2 Write the update report, accept the update, stage the accepted publication in the main checkout, and sync the delta specs.

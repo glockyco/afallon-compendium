@@ -130,7 +130,7 @@ At 390 px a relation SHALL remain legible with icon, wrapping name and subline, 
 
 ### Requirement: Sections explain their own values
 
-Sections SHALL label probabilities, quantities, and conditions in plain language sufficient to interpret the shown values without another page. A short computed sentence MAY explain an entity-specific value; rule prose SHALL instead live in the relevant guide step linked by a quiet How it works action. Labels and explanatory hints SHALL work on hover, focus, and tap, but SHALL NOT contain copied rule text or require a hover card to understand a fact.
+Sections SHALL label probabilities, quantities, and conditions in plain language sufficient to interpret the shown values without another page. A short computed sentence MAY explain an entity-specific value; rule prose SHALL instead live in the relevant guide section linked by a quiet How it works action. Labels and explanatory hints SHALL work on hover, focus, and tap, but SHALL NOT contain copied rule text or require a hover card to understand a fact.
 
 #### Scenario: NPC drops
 - **WHEN** an NPC's loot table rolls on 5% of kills
@@ -318,7 +318,7 @@ Class, creature, place, item, and other detail pages SHALL list only their rende
 
 ### Requirement: Recipe items and recipes link each other
 
-A recipe item with a captured Recipe RankUp action SHALL show Teaches as a recipe equation with linked product, materials, station, required skill and level, plus an entity-specific experience sentence and guide-step link when supported. It SHALL not duplicate the product's game tooltip. A product's Crafting section SHALL link each known teaching item. An unknown teacher SHALL not be described as nonexistent.
+A recipe item with a captured Recipe RankUp action SHALL show Teaches as a recipe equation with linked product, materials, station, required skill and level, plus an entity-specific experience sentence and guide-section link when supported. It SHALL not duplicate the product's game tooltip. A product's Crafting section SHALL link each known teaching item. An unknown teacher SHALL not be described as nonexistent.
 
 #### Scenario: Recipe item teaches a recipe
 - **WHEN** Recipe: Runeweave Regalia teaches Runeweave Regalia
@@ -332,23 +332,27 @@ A recipe item with a captured Recipe RankUp action SHALL show Teaches as a recip
 
 ### Requirement: Pages show the rules placed on them
 
-Reviewed rules SHALL remain available on their mechanics guide with their evidence in the guide's closed rule list. An entity page SHALL show only supported computed values relevant to its fact or section, in plain language, with a link to the corresponding guide step. It SHALL NOT reproduce rule prose in sections, label hints, or hover cards. A linked placement SHALL affect only entities named by that placement. Missing verified operands SHALL not produce a fabricated computed result.
+Reviewed rules SHALL remain available in their section of their mechanics guide. An entity page SHALL show only supported computed values relevant to its fact or section, in plain language, with a link to the corresponding guide section. Each section that receives a placed rule SHALL show that link. It SHALL NOT reproduce rule prose in sections, label hints, or hover cards. A linked placement SHALL affect only entities named by that placement. Missing verified operands SHALL not produce a fabricated computed result.
 
 #### Scenario: Attunement rule of one node
 - **WHEN** a verified rule names Small Iron Vein but not Silver Vein
-- **THEN** only the named node may show its supported computed effect and guide-step link
+- **THEN** only the named node may show its supported computed effect and guide-section link
 
 #### Scenario: Gathering probability endpoints
 - **WHEN** verified evidence supports a yield bonus at Mining level 1 and its highest level
-- **THEN** the node shows both computed values in a short sentence with a guide-step link, not the rule text
+- **THEN** the node shows both computed values in a short sentence with a guide-section link, not the rule text
 
 #### Scenario: Rule explains a fact
 - **WHEN** a verified kill experience rule applies to a creature's experience fact
-- **THEN** that fact links its applicable guide step and shows a supported computed value without rule prose in the label or its hover card
+- **THEN** that fact links its applicable guide section and shows a supported computed value without rule prose in the label or its hover card
 
 #### Scenario: Computed yield bonus
 - **WHEN** Small Iron Vein has no Mining gate and verified gathering yield bonus operands
-- **THEN** its Gives answer shows the bonus at Mining level 1 and at the highest Mining level, with a guide-step link rather than a How it works rules section
+- **THEN** its Gives answer shows the bonus at Mining level 1 and at the highest Mining level, with a guide-section link rather than a How it works rules section
+
+#### Scenario: Items found in object chests
+- **WHEN** the rules record places the object chest rule on the Found in objects section of Human Skull
+- **THEN** that section links the World objects section of the Loot guide
 
 ### Requirement: Currency Purchases on Item Detail Pages
 

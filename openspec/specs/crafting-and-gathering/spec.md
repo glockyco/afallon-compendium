@@ -7,7 +7,7 @@ Give readers linked gathering node facts and a clear explanation of the captured
 
 ### Requirement: Gathering nodes have reachable reference pages
 
-Every gathering node SHALL remain reachable from its list, search, skills, and item yields, and the Crafting and Gathering guide SHALL link the list. A node's title SHALL name its skill, gate, and tool; its strip SHALL show supported skill experience, character experience, respawn, and spot count. Its Gives answer SHALL list linked yields with conditional chance and one sentence with verified computed yield bonuses and a guide-step link. Its side SHALL show spawner share at the lowest and highest supported skill level without assuming an attunement. Where to find SHALL group distinct spots by place, show counts and proportional bars sorted by count, and offer a map action for all known spots. A closed final disclosure SHALL retain spawn odds, source distinctions, timers, and ranges. It SHALL not copy rule prose or suggest an authored weight is a drop chance. Missing placements SHALL remain explicitly unknown.
+Every gathering node SHALL remain reachable from its list, search, skills, and item yields, and the Crafting and Gathering guide SHALL link the list. A node's title SHALL name its skill, gate, and tool; its strip SHALL show supported skill experience, character experience, respawn, and spot count. Its Gives answer SHALL list linked yields with conditional chance and one sentence with verified computed yield bonuses and a guide-section link. Its side SHALL show spawner share at the lowest and highest supported skill level without assuming an attunement. Where to find SHALL group distinct spots by place, show counts and proportional bars sorted by count, and offer a map action for all known spots. A closed final disclosure SHALL retain spawn odds, source distinctions, timers, and ranges. It SHALL not copy rule prose or suggest an authored weight is a drop chance. Missing placements SHALL remain explicitly unknown.
 
 #### Scenario: Node is spawned and placed
 - **WHEN** spawners and a scene directly place Small Iron Vein
@@ -24,11 +24,11 @@ Every gathering node SHALL remain reachable from its list, search, skills, and i
 
 #### Scenario: Attunement names two nodes
 - **WHEN** a verified Prospecting attunement names Small Iron Vein and Large Iron Vein
-- **THEN** their pages may show its verified computed effect and guide-step link, but Silver Vein does not
+- **THEN** their pages may show its verified computed effect and guide-section link, but Silver Vein does not
 
 ### Requirement: Crafting rules name their evidence and boundaries
 
-A crafted item's Crafting section SHALL show its verified skill gate, base experience, computed full and half experience breakpoints, and level where base experience stops, with a link to the applicable step of `/mechanics/crafting-and-gathering`. It SHALL NOT include the rule prose. The guide SHALL explain these rules as craft steps and retain each rule and its evidence in a closed disclosure. Both SHALL distinguish base experience from the award after modifiers and use captured values rather than site constants. Neither SHALL rank a recipe as best.
+A crafted item's Crafting section SHALL show its verified skill gate, base experience, computed full and half experience breakpoints, and level where base experience stops, with a link to the applicable section of `/mechanics/crafting-and-gathering`. It SHALL NOT include the rule prose. The guide SHALL state these rules in its Crafting and Crafting experience sections, and the rules record and the catalog SHALL keep their evidence. Both SHALL distinguish base experience from the award after modifiers and use captured values rather than site constants. Neither SHALL rank a recipe as best.
 
 #### Scenario: Recipe sits at the half-experience band
 - **WHEN** a recipe has a recorded amount and the skill is in its verified half-experience band
