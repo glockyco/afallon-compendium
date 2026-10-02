@@ -1,18 +1,29 @@
 import { expect, test } from 'bun:test';
 import { columnShape, columnWidths } from './list-layout';
 
-test('spare width goes to the last column that is not a number, so numbers sit at the right edge', () => {
-  // Name, a type label, item power, and level, in a table wider than they need.
-  expect(columnWidths([{ shape: 'name', natural: 200 }, { shape: 'label', natural: 120 }, { shape: 'number', natural: 90 }, { shape: 'number', natural: 60 }], 800)).toEqual([200, 450, 90, 60]);
+test('spare width spreads evenly between neighbouring columns, after left-aligned values and before numbers', () => {
+  // A name, a type label, item power, and level, in a table 330 px wider than they need: three equal parts of 110 px.
+  // The name and the label show theirs after their values, and the level shows its part before its number.
+  expect(columnWidths([{ shape: 'name', natural: 200 }, { shape: 'label', natural: 120 }, { shape: 'number', natural: 90 }, { shape: 'number', natural: 60 }], 800)).toEqual([310, 230, 90, 170]);
 });
 
-test('a text in the last non-numeric column shows in full when the table has room, beyond its cap', () => {
+test('a list without numbers also leaves an equal part after its last column', () => {
+  // The recipe list: recipe, station, and skill, with 300 px to spare.
+  expect(columnWidths([{ shape: 'name', natural: 280 }, { shape: 'label', natural: 90 }, { shape: 'label', natural: 130 }], 800)).toEqual([380, 190, 230]);
+});
+
+test('a cut text shows in full before the rest of the spare width spreads', () => {
   // An ability source longer than the text cap, in a wide table.
-  expect(columnWidths([{ shape: 'name', natural: 200 }, { shape: 'text', natural: 400 }], 800)).toEqual([200, 600]);
+  expect(columnWidths([{ shape: 'name', natural: 200 }, { shape: 'text', natural: 400 }], 800)).toEqual([300, 500]);
 });
 
-test('a long name is cut at its cap instead of widening its column', () => {
-  expect(columnWidths([{ shape: 'name', natural: 900 }, { shape: 'label', natural: 100 }, { shape: 'number', natural: 60 }], 1200)).toEqual([22 * 16, 1200 - 22 * 16 - 60, 60]);
+test('a long name keeps its cap and gains only its even part of the spare width', () => {
+  expect(columnWidths([{ shape: 'name', natural: 900 }, { shape: 'label', natural: 100 }, { shape: 'number', natural: 60 }], 1200)).toEqual([22 * 16 + 344, 100 + 344, 60]);
+});
+
+test('a number followed by a left-aligned column gets no part between them', () => {
+  // The NPC list: name, level, role badges, place, and faction, with 200 px to spare in four parts.
+  expect(columnWidths([{ shape: 'name', natural: 200 }, { shape: 'number', natural: 60 }, { shape: 'badges', natural: 150 }, { shape: 'text', natural: 100 }, { shape: 'label', natural: 90 }], 800)).toEqual([250, 60, 200, 150, 140]);
 });
 
 test('names and texts shrink toward their floors when the columns do not fit, and labels and numbers keep their width', () => {

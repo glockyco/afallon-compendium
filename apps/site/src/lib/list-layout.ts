@@ -1,8 +1,8 @@
 /**
  * Column widths of a list table. A browser's automatic table layout gives spare width to the columns with the longest
  * content, so one long name pushes every other column away and leaves gaps between short values. The list instead
- * sizes each column to its widest value and gives the spare width to one column, so values sit next to each other and
- * the table still fills its card.
+ * sizes each column to its widest value and spreads the spare width evenly between the columns, so the space between
+ * neighbouring values is the same and the table still fills its card.
  *
  * - `name` is the entry's own link and `text` names other things (a place, a chain, a quest giver). Both stay on one
  *   line, end in an ellipsis past their cap, and shrink toward their floor when the columns do not fit.
@@ -38,18 +38,34 @@ const limits = (shape: ColumnShape) => shape === 'name' || shape === 'text' || s
 
 /**
  * The width of each column, in pixels, from its natural width (its widest value or heading, with padding) and the
- * width available to the table. When the columns fit, the last non-numeric column takes the spare width, so names and
- * labels read one after another, numbers sit at the right edge, and that column shows its values in full. When they do
- * not fit, names and texts shrink toward their floors in proportion to the width they can give, and then labels do. If
- * even the floors do not fit, the table is as wide as its floors and the page scrolls it.
+ * width available to the table. When the columns fit, the spare width first shows cut texts in full. The rest is spread
+ * in equal parts between neighbouring columns, and after the last column when its values are left-aligned, so the space
+ * between values is the same everywhere. A part goes to the column where it shows: after a left-aligned value, or before
+ * a number, which is right-aligned. A number followed by a left-aligned column has no such room between them, so that
+ * pair gets no part. A name keeps its cap and gains only its part, so one rare long name does not push the other columns
+ * away. When the columns do not fit, names and texts shrink toward their floors in proportion to the width they can give,
+ * and then labels do. If even the floors do not fit, the table is as wide as its floors and the page scrolls it.
  */
 export function columnWidths(columns: ReadonlyArray<{ shape: ColumnShape; natural: number }>, available: number): number[] {
   const widths = columns.map(({ shape, natural }) => Math.min(natural, limits(shape)?.cap ?? natural));
   const total = widths.reduce((sum, width) => sum + width, 0);
   if (total <= available) {
-    let absorber = -1;
-    columns.forEach((column, index) => { if (column.shape !== 'number') absorber = index; });
-    if (absorber >= 0) widths[absorber]! += available - total;
+    let spare = available - total;
+    const needs = columns.map(({ shape, natural }, index) => shape === 'text' ? natural - widths[index]! : 0);
+    const need = needs.reduce((sum, width) => sum + width, 0);
+    if (need > 0) {
+      const given = Math.min(spare, need);
+      needs.forEach((width, index) => { widths[index]! += given * (width / need); });
+      spare -= given;
+    }
+    const right = (index: number) => columns[index]!.shape === 'number';
+    const receivers: number[] = [];
+    for (let index = 0; index + 1 < columns.length; index += 1) {
+      if (!right(index)) receivers.push(index);
+      else if (right(index + 1)) receivers.push(index + 1);
+    }
+    if (columns.length > 0 && !right(columns.length - 1)) receivers.push(columns.length - 1);
+    for (const index of receivers) widths[index]! += spare / receivers.length;
     return widths.map(Math.floor);
   }
   let deficit = total - available;
