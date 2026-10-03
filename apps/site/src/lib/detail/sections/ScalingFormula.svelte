@@ -24,7 +24,7 @@
 {#if rows.length}
   <RelationTable {columns} {rows} {label}>
     <svelte:fragment slot="cell" let:row let:column>
-      {#if column === 'part'}{#if row.part.ref}<EntityLink ref={row.part.ref} {registry} />{:else}{row.part.label}{/if}
+      {#if column === 'part'}{row.part.label}{#if row.part.ref}<EntityLink ref={row.part.ref} {registry} />{/if}
       {:else}{row.amounts[Number(column.slice(5))] || '–'}{/if}
     </svelte:fragment>
   </RelationTable>

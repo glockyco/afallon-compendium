@@ -49,8 +49,8 @@ export function scalingBreakdown(scaling: EffectScaling): ScalingBreakdown {
   }
   for (const row of scaling.stats) {
     if (row.coefficientPercent === 0) continue;
-    parts.push({ id: `stat-${row.stat.key}`, label: '', ref: row.stat,
-      amount: signed(row.coefficientPercent, `${formatNumber(Math.abs(row.coefficientPercent))}% of yours`) });
+    parts.push({ id: `stat-${row.stat.key}`, label: "Caster's ", ref: row.stat,
+      amount: signed(row.coefficientPercent, `${formatNumber(Math.abs(row.coefficientPercent))}%`) });
   }
   return {
     healing: scaling.healing, parts,
@@ -73,8 +73,8 @@ export function scalingRows(ranks: readonly EffectScaling[]): { part: ScalingPar
 }
 
 /**
- * The game's tooltip text is printed for a caster without stats. This line names the stats that add to the amount in
- * play. A rank gets one only when it applies exactly one damage or one healing calculation, so no stat is credited to
+ * The game's tooltip text is printed for a caster without stats. This line names the caster's stats that add to the
+ * amount in play. A rank gets one only when it applies exactly one damage or one healing calculation, so no stat is credited to
  * the wrong effect.
  */
 export function rankStatNote(rows: readonly AbilityAppliedEffect[], rankIndex: number): string | undefined {
@@ -85,10 +85,10 @@ export function rankStatNote(rows: readonly AbilityAppliedEffect[], rankIndex: n
     if (matching.length !== 1) return [];
     const scaling = matching[0]!;
     const terms = scaling.stats.filter((row) => row.coefficientPercent !== 0)
-      .map((row, index) => `${index ? (row.coefficientPercent < 0 ? ' − ' : ' + ') : row.coefficientPercent < 0 ? '−' : ''}${formatNumber(Math.abs(row.coefficientPercent))}% of your ${'name' in row.stat ? row.stat.name : row.stat.label}`);
+      .map((row, index) => `${index ? (row.coefficientPercent < 0 ? ' − ' : ' + ') : row.coefficientPercent < 0 ? '−' : ''}${formatNumber(Math.abs(row.coefficientPercent))}% of the caster's ${'name' in row.stat ? row.stat.name : row.stat.label}`);
     if (!terms.length) return [];
     const type = scaling.category && !['Neutral', 'None'].includes(scaling.category) ? scaling.category.replace(/ damage$/i, ' Damage') : 'damage';
-    return [`Your stats add ${terms.join('')} to the ${healing ? 'healing' : type}.`];
+    return [`Adds ${terms.join('')} to the ${healing ? 'healing' : type}.`];
   });
   return notes.length ? notes.join(' ') : undefined;
 }
