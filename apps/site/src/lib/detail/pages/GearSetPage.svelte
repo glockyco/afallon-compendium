@@ -29,7 +29,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} typeLine={document.type ? `${document.type} gear set` : 'Gear set'} {registry} />
+      <TitleBlock name={document.ref.name} typeLine={document.type ? `${document.type} Gear Set` : 'Gear Set'} {registry} />
     </div>
 
     <div slot="answer">

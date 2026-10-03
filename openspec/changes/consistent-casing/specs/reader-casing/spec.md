@@ -8,6 +8,8 @@ Keep the compendium's page titles and explanatory text consistent across gallery
 
 The site and publication SHALL use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links. Inside a title, a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, and vs SHALL remain lowercase unless first or last. Headings, disclosure summaries, and links phrased as sentences SHALL instead use sentence case; a section navigation pill SHALL repeat its heading's casing. Field labels, counts and result lines, card facts, placeholders, hints, chips, published filter values authored by the compendium, units, lead-ins continuing into content, descriptions, empty states, and errors SHALL use sentence case. Game-provided names and abbreviations such as NPCs, XP, and HP SHALL retain their spelling. The counted hidden-entries reveal command SHALL remain sentence case.
 
+The kind line and identity facts immediately beneath a page title SHALL use Title Case for site-authored label words while retaining the game's spelling of linked or authored entity names.
+
 #### Scenario: Classes gallery view
 - **WHEN** a reader opens the Classes gallery
 - **THEN** its placeholder reads “Filter classes by name” and its unfiltered result count reads “6 classes” for a publication with six classes
@@ -40,3 +42,7 @@ The site and publication SHALL use Title Case for title-like noun labels: page a
 - **WHEN** a reader follows an item's explanation of its creature drop rules
 - **THEN** the link reads “How creature drops work”
 - **AND** the navigation pill for the section “Dropped by” also reads “Dropped by”, not “Dropped By”
+
+#### Scenario: Kind line beneath a stat title
+- **WHEN** a reader opens the Stamina stat page
+- **THEN** the kind line reads “Defense Stat,” while an ordinary field label such as “Starting value” remains sentence case

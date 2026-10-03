@@ -43,7 +43,7 @@
 <article class="detail-page">
   <DetailFrame side={Boolean(document.skills.length && recipeLevels.length)}>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting station"
+      <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting Station"
         mapHref={spots ? entityOnMap(document.ref.key) : undefined} {registry} />
     </div>
 

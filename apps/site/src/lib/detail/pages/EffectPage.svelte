@@ -1,6 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PublicEffect, PublicKindEntry, Ref } from '@afallon/contracts/public';
+  import { categoryLabel, type PublicEffect, type PublicKindEntry, type Ref } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
@@ -20,6 +20,19 @@
   export let registry: PublicKindEntry[];
   export let subtitle: string | undefined = undefined;
   const combat = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
+  function subtitleTitle(value: string): string {
+    if (value.startsWith('stacks up to ')) {
+      const suffix = value.slice('stacks up to '.length);
+      const separator = suffix.indexOf(', ');
+      return separator < 0 ? `Stacks Up to ${suffix}` : `Stacks Up to ${suffix.slice(0, separator)}, ${subtitleTitle(suffix.slice(separator + 2))}`;
+    }
+    if (/^\d+ ranks$/.test(value)) return value.replace(' ranks', ' Ranks');
+    if (/^\d/.test(value)) return categoryLabel(value);
+    if (/:\s*\d/u.test(value)) return categoryLabel(value);
+    if (value.startsWith('summons ')) return `Summons ${value.slice('summons '.length)}`;
+    if (value.startsWith('travels to ')) return `Travels to ${value.slice('travels to '.length)}`;
+    return value;
+  }
   type Source = PublicEffect['appliedBy'][number];
   type World = PublicEffect['worldSources'][number];
   type Check = PublicEffect['checkedBy'][number];
@@ -71,7 +84,7 @@
 
 <article class="detail-page">
   <DetailFrame {side}>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} effect${subtitle ? ` · ${subtitle}` : ''}`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} Effect${subtitle ? ` · ${subtitleTitle(subtitle)}` : ''}`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
     <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
       {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
       {:else if document.explainedBy.length}

@@ -92,7 +92,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={[document.facts.skill ? 'node' : 'Gathering node', document.facts.requiredLevel === undefined ? undefined : `Requires level ${formatNumber(document.facts.requiredLevel)}`].filter(Boolean).join(' · ')} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry} />
+      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={[document.facts.skill ? 'Node' : 'Gathering Node', document.facts.requiredLevel === undefined ? undefined : `Requires Level ${formatNumber(document.facts.requiredLevel)}`].filter(Boolean).join(' · ')} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry} />
     </div>
 
     <div slot="answer">

@@ -12,7 +12,7 @@ const abbreviations: Record<string, true> = { NPCs: true, NPC: true, XP: true, H
 // These names are authored by the game, rather than by the site's labels.
 const authoredNames: Record<string, true> = { 'Stargazing interactive': true };
 const reveal = /^Show [\d,]+ (?:items without a known source|NPCs not found in the world|abilities nobody uses)$/;
-const classes = ['title', 'heading', 'nav', 'button', 'tab', 'column', 'label', 'placeholder', 'summary', 'chip', 'legend', 'count', 'fact', 'action'] as const;
+const classes = ['title', 'heading', 'kind', 'nav', 'button', 'tab', 'column', 'label', 'placeholder', 'summary', 'chip', 'legend', 'count', 'fact', 'action'] as const;
 type LabelClass = typeof classes[number];
 type Finding = { route: string; kind: string; class: LabelClass; text: string; excluded?: true };
 const findings: Finding[] = [];
@@ -72,7 +72,7 @@ function casingViolation(value: string, group: LabelClass, route: string): boole
   return words.some((word, index) => {
     if (abbreviations[word] || /[\p{Ll}][\p{Lu}]/u.test(word) || /^\p{Lu}{2,}$/u.test(word)) return false;
     const bare = word.toLocaleLowerCase('en-US');
-    if (minor[bare] && index > 0 && index < words.length - 1) return word !== bare && !(word === 'On' && value.includes('Turning It On and Off'));
+    if (minor[bare] && index > 0 && (index < words.length - 1 || /\d/u.test(value.slice(value.lastIndexOf(word) + word.length)))) return word !== bare && !(word === 'On' && value.includes('Turning It On and Off'));
     return /^\p{Ll}/u.test(word);
   });
 }
@@ -80,7 +80,7 @@ function casingViolation(value: string, group: LabelClass, route: string): boole
 /** Only mechanically identifiable labels gate deployment; contextual game names stay in the review report. */
 function clearFinding(entry: Finding): boolean {
   if (entry.excluded) return false;
-  if (['nav', 'tab', 'column', 'placeholder', 'count', 'button', 'action'].includes(entry.class)) return true;
+  if (['kind', 'nav', 'tab', 'column', 'placeholder', 'count', 'button', 'action'].includes(entry.class)) return true;
   if (entry.class === 'title') return !entry.kind.endsWith('-detail') || entry.kind === 'mechanics-detail';
   if (entry.class === 'fact') return /^\d|^(?:Max |Starts |Every )/u.test(entry.text);
   if (entry.class === 'heading' || entry.class === 'summary') {
@@ -114,9 +114,9 @@ function record(route: string, group: LabelClass, raw: string, excludedComponent
   }
   totals.set(key, row);
 }
-function visit(node: Node, route: string, parent?: Element, excludedAncestor = false): void {
+function visit(node: Node, route: string, parent?: Element, excludedAncestor = false, titleBlockAncestor = false): void {
   if (node.type !== 'tag' && node.type !== 'script' && node.type !== 'style') {
-    if ('children' in node) for (const child of node.children) visit(child, route, parent, excludedAncestor);
+    if ('children' in node) for (const child of node.children) visit(child, route, parent, excludedAncestor, titleBlockAncestor);
     return;
   }
   const element = node as Element;
@@ -124,9 +124,11 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
   if (tag === 'script' || tag === 'style' || tag === 'svg' || element.attribs['aria-hidden'] === 'true' || element.attribs.inert !== undefined) return;
   const css = element.attribs.class ?? '';
   const excluded = excludedAncestor || /(?:^|\s)level-slider(?:\s|$)/.test(css);
+  const inTitleBlock = titleBlockAncestor || /(?:^|\s)title-block(?:\s|$)/.test(css);
   const role = element.attribs.role;
   let group: LabelClass | undefined;
-  if (tag === 'title') group = 'title';
+  if (inTitleBlock && (tag === 'li' && /(?:^|\s)type(?:\s|$)/.test(css) || tag === 'span' && /(?:^|\s)label(?:\s|$)/.test(css))) group = 'kind';
+  else if (tag === 'title') group = 'title';
   else if (/^h[1-6]$/.test(tag)) group = 'heading';
   else if (tag === 'th') group = element.attribs.scope === 'row' ? 'label' : 'column';
   else if (tag === 'button') group = role === 'tab' ? 'tab' : /(?:^|\s)pill(?:\s|$)/.test(css) ? 'summary' : /(?:^|\s)hint(?:\s|$)/.test(parent?.attribs.class ?? '') && /(?:^|\s)term(?:\s|$)/.test(css) ? 'label' : /chip/.test(css) ? 'chip' : 'button';
@@ -139,7 +141,8 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
   else if (/(?:^|\s)count(?:\s|$)/.test(css)) group = 'count';
   if (tag === 'summary' && element.children.some((child) => child.type === 'tag' && /(?:^|\s)summary-note(?:\s|$)/.test((child as Element).attribs.class ?? ''))) {
     for (const child of element.children) record(route, 'summary', text(child), excluded);
-  } else if (group) record(route, group, text(element), excluded);
+  } else if (group) record(route, group, group === 'kind' && tag === 'li'
+    ? element.children.filter((child) => child.type === 'text').map(text).join(' ') : text(element), excluded);
   if (element.attribs.placeholder) record(route, 'placeholder', element.attribs.placeholder, excluded);
   if (['button', 'input', 'select'].includes(tag) && element.attribs['aria-label']
     && clean(element.attribs['aria-label']) !== clean(text(element))
@@ -148,7 +151,7 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
   }
   // Parent controls and headings already own their complete text; do not double count child spans.
   if (group && group !== 'count' && group !== 'fact' && tag !== 'th') return;
-  for (const child of element.children) visit(child, route, element, excluded);
+  for (const child of element.children) visit(child, route, element, excluded, inTitleBlock);
 }
 const roots = readdirSync(output, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith('_') && entry.name !== 'data');
 const routes = ['index.html', '404.html'];

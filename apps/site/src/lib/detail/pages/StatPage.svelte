@@ -63,7 +63,7 @@
 
 <article class="detail-page">
   <DetailFrame side={facts.length > 1}>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.category ?? document.statCategory ?? 'General'} stat${onHit ? ' · On-hit trigger' : ''}`} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {registry} /></div>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.category ?? document.statCategory ?? 'General'} Stat${onHit ? ' · On-Hit Trigger' : ''}`} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {registry} /></div>
     <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if document.note}<p>{document.note}</p>{/if}

@@ -30,7 +30,7 @@
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: titleFacts = [
     ...(facts.levelRange ? [{ label: 'Levels', text: levelText(facts.levelRange) }] : []),
-    ...(facts.chain && step >= 0 && document.chainQuests.length > 1 ? [{ label: 'Chain step', text: `${step + 1} of ${document.chainQuests.length}` }] : []),
+    ...(facts.chain && step >= 0 && document.chainQuests.length > 1 ? [{ label: 'Chain Step', text: `${step + 1} of ${document.chainQuests.length}` }] : []),
     ...(document.dungeon ? [{ label: 'Dungeon', refs: [document.dungeon] }] : []),
   ];
   $: sideFacts = [
@@ -44,7 +44,7 @@
 
 <article class="detail-page">
   <DetailFrame side={hasSide}>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={facts.worldQuest ? 'World quest' : 'Quest'} facts={[...titleFacts, ...(!hasSide && sideFacts.length ? [{ label: sideFacts[0]?.label, text: sideFacts[0]?.value ?? '' }] : [])]} {registry} /></div>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={facts.worldQuest ? 'World Quest' : 'Quest'} facts={[...titleFacts, ...(!hasSide && sideFacts.length ? [{ label: sideFacts[0]?.label === 'Minimum level' ? 'Minimum Level' : sideFacts[0]?.label === 'Active for' ? 'Active For' : sideFacts[0]?.label, text: sideFacts[0]?.value ?? '' }] : [])]} {registry} /></div>
     <div slot="answer" class="answers">
       <AnswerCard id="objectives" title="What to do">
         <QuestObjectivesSection objectives={document.objectives} {registry} />

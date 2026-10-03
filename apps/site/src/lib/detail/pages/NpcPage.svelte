@@ -40,12 +40,12 @@
   $: variantTable = document.variants.length > 1 && (document.variantFields.length > 0 || document.drops.some((row) => row.variants));
   $: portrait = document.art.portrait;
   $: titleArt = portrait ?? (document.adventurer && document.adventurer.class.key !== null ? document.adventurer.class.icon : undefined);
-  $: typeLine = [npcTypeLabel(facts.npcType), ...facts.roles.map(roleLabel), ...(!facts.roles.length && document.locations.length ? [creatureTypeLabel(facts.creatureType)] : [])].filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ');
+  $: typeLine = [npcTypeLabel(facts.npcType), ...facts.roles.map((role) => categoryLabel(roleLabel(role))), ...(!facts.roles.length && document.locations.length ? [creatureTypeLabel(facts.creatureType)] : [])].filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ');
   $: showFactionInTitle = Boolean(facts.faction && (document.flights?.length || !document.locations.length && !document.adventurer));
   $: titleFacts = [
-    ...(document.bossOf.length ? [{ label: 'Boss of', refs: document.bossOf }] : []),
+    ...(document.bossOf.length ? [{ label: 'Boss Of', refs: document.bossOf }] : []),
     ...(showFactionInTitle && facts.faction ? [{ label: 'Faction', refs: [facts.faction] }] : []),
-    ...(facts.tameable ? [{ label: 'Hunter pet', text: 'Can be tamed' }] : []),
+    ...(facts.tameable ? [{ label: 'Hunter Pet', text: 'Can Be Tamed' }] : []),
   ] satisfies TitleFact[];
   const combatOrder = ['Health', 'Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
   const combatRank = (name: string) => { const index = combatOrder.indexOf(name); return index < 0 ? combatOrder.length : index; };
@@ -97,7 +97,7 @@
   // Lead with the NPC's actual service or loot. Empty drops and absent placements are not primary answers.
   $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
   $: hasSide = Boolean(adventurer || combat && (combatStats.length || summaryFacts.length > 1 || kill) || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
-  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [`${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
+  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [`${summaryFacts[0]!.label} ${summaryFacts[0]!.value.replace(', scales with the player', ', Scales with the Player')}`] : [])].filter(Boolean).join(' · ');
   const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type },
