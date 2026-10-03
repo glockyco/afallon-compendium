@@ -13,6 +13,7 @@ Static publication creates facet values in list rows and supplies facet metadata
 - Publish `known` and `unknown` as stable availability facet keys and add a small `valueLabels` dictionary in each facet's registry metadata. Filter matching and URLs continue using keys, while the filter panel and chips display labels from the same registry entry.
 - Publish `null` for an ability's Source and no source-kind facet value when it has no known learner or user. Availability remains the one filter for these rows, while Source filters only by actual class, creature, item, or interaction evidence.
 - Build reveal text from the list kind and the matched count in the shared table. Show the same explanation in an anchored help bubble on hover and focus, and use a tappable help control for touch. The reveal button still directly selects the hidden facet.
+- Present the reveal as a muted text link at the end of the result bar. Hidden entries matter to few readers, so the reveal must not compete with the count and the active filters.
 
 ## Risks / Trade-offs
 

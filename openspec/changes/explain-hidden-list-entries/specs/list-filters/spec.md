@@ -22,3 +22,8 @@ A list SHALL count hidden entries matching its current name search, selected fac
 - **WHEN** an NPC or ability list contains hidden entries
 - **THEN** each reveal button names NPCs not found in the world or abilities nobody uses, with the singular form when exactly one matches
 - **AND** an ability revealed through a name search has an empty Source cell and shows "Nobody Uses It" only in Availability
+
+#### Scenario: Hidden entries stay out of the way
+- **WHEN** a list offers a reveal for hidden entries
+- **THEN** the reveal appears as a muted text link at the end of the result bar, without a border, fill, or accent color
+- **AND** the count, active filter chips, and Clear All remain the most prominent controls in the bar
