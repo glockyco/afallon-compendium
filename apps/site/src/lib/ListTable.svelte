@@ -51,9 +51,11 @@
   // The filter controls include every published numeric column, even after its current result column disappears.
   $: ranges = kind.columns.filter((column) => column.numeric);
   $: rangeIds = ranges.map((column) => column.id);
+  let viewportWidth = 0;
+  $: narrowQuests = kind.kind === 'quests' && viewportWidth >= 960 && viewportWidth <= 1280;
   $: matchingRows = list.rows.filter((row) => matchesFilters(row, filters, kind, rangeIds));
   // Values from the matching rows, not the entire kind, determine whether a column distinguishes these results.
-  $: visibleColumns = visibleListColumns(matchingRows, kind);
+  $: visibleColumns = visibleListColumns(matchingRows, kind).filter((column) => !narrowQuests || column.id !== 'giver');
   $: groups = kind.facets.map((facet) => ({ facet, options: facetOptions(list.rows, filters, kind, rangeIds, facet) })).filter((group) => group.options.length > 0);
   $: stats = statOptions(list.rows);
   // A short list fits on one screen, so filters would only add noise beside it.
@@ -61,7 +63,8 @@
   $: statColumns = filters.stats.map((filter) => ({ id: `${STAT_COLUMN}${filter.key}`, label: statLabel(filter.key), numeric: true, sortable: true }));
   $: columns = <TableColumn[]>[
     { id: 'name', label: kind.label, sortable: true },
-    ...visibleColumns.map((column) => ({ id: column.id, label: column.label, numeric: column.numeric, sortable: column.sortable })),
+    ...visibleColumns.map((column) => ({ id: column.id, label: column.label, numeric: column.numeric, sortable: column.sortable,
+      ...(kind.kind === 'properties' && column.id === 'income' ? { hint: 'Income is paid during active play.' } : {}) })),
     ...statColumns,
   ];
   $: shapes = columns.map((column) => columnShape(column.id, column.numeric === true));
@@ -90,7 +93,7 @@
   $: sampleRows = wide ? widestRows(filteredRows, columns.map((column) => column.id)) : [];
   $: widths = wide && available > 0 && columns.every((column) => natural[column.id] !== undefined)
     ? sameWidths(widths, columnWidths(columns.map((column, index) => ({ shape: shapes[index]!, natural: natural[column.id]! })),
-      kind.kind === 'quests' ? Math.max(available, 1150) : available))
+      kind.kind === 'quests' && !narrowQuests ? Math.max(available, 1150) : available))
     : undefined;
 
   // A table wider than its card, even with every column at its floor, scrolls inside the card instead of moving the
@@ -179,9 +182,10 @@
     restore();
     window.addEventListener('popstate', restore);
     const query = window.matchMedia('(min-width: 641px)');
-    const onMedia = () => { wide = query.matches; measuredFor = []; };
+    const onMedia = () => { wide = query.matches; viewportWidth = window.innerWidth; measuredFor = []; };
     onMedia();
     query.addEventListener('change', onMedia);
+    window.addEventListener('resize', onMedia);
     // The table fills the card, so the width it may take is the results column's, less the card's own frame.
     const column = listElement.parentElement!;
     const observer = new ResizeObserver(() => {
@@ -194,7 +198,7 @@
     void document.fonts?.ready.then(() => { natural = {}; measuredFor = []; });
     mounted = true;
     listElement.addEventListener('pointerover', titleIfCut);
-    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); listElement.removeEventListener('pointerover', titleIfCut); built.stop(); };
+    return () => { window.removeEventListener('popstate', restore); window.removeEventListener('resize', onMedia); query.removeEventListener('change', onMedia); observer.disconnect(); listElement.removeEventListener('pointerover', titleIfCut); built.stop(); };
   });
 
   // The table measures again when its rows or columns change, not when only its widths do.
@@ -325,7 +329,7 @@
     <td data-label={kind.label}><EntityLink ref={kind.kind === 'places' ? { ...row.ref, name: placeListName(row.ref.name, typeof row.values.levelRange === 'string' ? row.values.levelRange : null) } : row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
     {#each visibleColumns as column, index}
       {@const currency = row.relations?.[`${column.id}Currency`]?.[0]}
-      <td data-label={column.label} class:c-num={column.numeric} class:wide-fact={kind.kind === 'mechanics' && column.id === 'description' || kind.kind === 'properties' && column.id === 'income' || kind.kind === 'races' && column.id === 'start'} class:race-start={kind.kind === 'races' && column.id === 'start'} class:description-fact={kind.kind === 'mechanics' && column.id === 'description'}
+      <td data-label={column.label} class:c-num={column.numeric} class:wide-fact={kind.kind === 'mechanics' && column.id === 'description' || kind.kind === 'races' && column.id === 'start'} class:race-start={kind.kind === 'races' && column.id === 'start'} class:description-fact={kind.kind === 'mechanics' && column.id === 'description'}
         class:blank={(row.values[column.id] === null || row.values[column.id] === undefined) && !(kind.kind === 'factions' && column.id === 'members') || redundantCell(row, column.id)}>
         <span class={`cell ${shapes[index + 1]}`}>
         {#if kind.kind === 'factions' && column.id === 'members' && row.values.members == null}
@@ -341,11 +345,11 @@
         {:else if row.relations?.[column.id]?.length}
           {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} plain truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
         {:else if (column.id === 'price' || column.id === 'income') && currency}
-          <Price price={{ amount: row.values[column.id] as number, currency }} showName />{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)} of active play</span>{/if}
+          <Price price={{ amount: row.values[column.id] as number, currency }} showName />{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)}</span>{/if}
         {:else if column.id === 'pieces' && typeof row.values.lastBonus === 'number'}
           {formatNumber(row.values.pieces as number)} (last bonus at {formatNumber(row.values.lastBonus)} pieces)
         {:else if typeof row.values[column.id] === 'number'}
-          <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)} of active play</span>{/if}
+          <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)}</span>{/if}
         {:else}
           {cellValues(row, column.id).map((value) => listValueLabel(column.id, value)).join(', ')}
         {/if}
@@ -387,7 +391,7 @@
       </svelte:fragment>
     </ListSearchCount>
 
-    <div class="list" style={`--bar-height: ${barHeight}px`} bind:this={listElement}>
+    <div class="list" class:property-list={kind.kind === 'properties'} class:quest-balanced={narrowQuests} style={`--bar-height: ${barHeight}px`} bind:this={listElement}>
       <DataTable {columns} {widths} {sort} sticky {flowWide} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
         {#each shownRows as row (row.ref.key)}{@render listRow(row)}{/each}
       </DataTable>
@@ -476,13 +480,19 @@
   @media (min-width: 960px) {
     .sheet { display: none; }
   }
-  /* Above phone widths every value stays on one line. A name, a text, or a label past its column width ends in an ellipsis;
-     the tooltip, the page, or the title of a cut cell shows the whole value. A cell's content is only as wide as its value, which
-     is the width that the table measures. A label is cut only when the names and texts beside it are at their floors. */
+  /* Above phone widths ordinary values stay on one line. A name, text, or label past its column width ends in an ellipsis;
+     the tooltip, page, or title of a cut cell shows the whole value. At mid-width, quests hide Giver and let names wrap
+     instead of cutting several values in the same row. */
   @media (min-width: 641px) {
     .cell { display: inline-block; max-width: 100%; vertical-align: middle; white-space: nowrap; }
     .cell.text, .cell.label { overflow: hidden; text-overflow: ellipsis; }
     .cell .badges { flex-wrap: nowrap; }
+  }
+
+  @media (min-width: 960px) and (max-width: 1280px) {
+    .list.quest-balanced :global(tbody .cell.text) { white-space: normal; overflow: visible; text-overflow: clip; }
+    .list.quest-balanced :global(tbody .entity-link.truncate) { white-space: normal; }
+    .list.quest-balanced :global(tbody .entity-link.truncate .name) { white-space: normal; overflow: visible; text-overflow: clip; }
   }
 
   @media (max-width: 640px) {
@@ -494,6 +504,7 @@
     .list :global(tbody tr) { padding: .6rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
     .list :global(tbody tr:nth-child(even)) { background: var(--c-surface-1); }
     .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+    .list.property-list :global(tbody td) { grid-template-columns: minmax(4rem, .45fr) minmax(0, 1fr); gap: .4rem; }
     .list :global(tbody td.wide-fact) { grid-template-columns: minmax(0, 1fr); }
     .list :global(tbody td.description-fact::before) { display: none; }
     .list :global(tbody td::before) { content: attr(data-label); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; }

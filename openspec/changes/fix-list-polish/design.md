@@ -14,8 +14,8 @@ See proposal.md. Gallery and table consume the same static list rows, but previo
 - A property's amount and optional currency come from its list relations. Only display a currency when present. Income intervals come from its list values. Scene art uses the same cover frame regardless of which image field supplied it.
 - List projections supply available creature/quest counts and node search placement truth. Registry columns and existing row filtering then present those facts. Rebuild a candidate publication for browser verification without accepting an update.
 - A single delegated pointer listener assigns native titles only to cut text under the pointer, avoiding one listener per table cell and the static-element interaction warning.
-- Show invariant starting place and class availability for races. Hide only redundant skill cells, not their filterable projection values. When quest columns do not fit at 1100 px, keep the table inside its own scrollport.
+- Show invariant starting place and class availability for races. Hide only redundant skill cells, not their filterable projection values. At 1100–1280 px, omit Quest Giver and wrap the remaining name columns within the card.
 
 ## Risks / Trade-offs
 
-New projection fields cannot appear on a previously staged publication. The candidate build must validate its graph and stage the new static data before browser review. A wider quest table requires deliberate horizontal scrolling within its card at mid-width rather than unreadable truncation.
+New projection fields cannot appear on a previously staged publication. The candidate build must validate its graph and stage the new static data before browser review. Omitting Giver at mid-width trades one secondary fact for readable primary names; the full Giver column remains available on wider desktops and phone cards.

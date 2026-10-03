@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  export type TableColumn = { id: string; label: string; numeric?: boolean; sortable?: boolean };
+  export type TableColumn = { id: string; label: string; numeric?: boolean; sortable?: boolean; hint?: string };
 </script>
 
 <script lang="ts">
@@ -30,9 +30,9 @@
       <tr>
         {#each columns as column}
           {@const active = Boolean(column.sortable) && sort?.id === column.id}
-          <th scope="col" class:c-num={column.numeric} aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+          <th scope="col" class:c-num={column.numeric} title={column.hint} aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
             {#if column.sortable && onSort}
-              <button type="button" class="c-sort" on:click={() => onSort?.(column.id, column.numeric === true)}>
+              <button type="button" class="c-sort" title={column.hint} on:click={() => onSort?.(column.id, column.numeric === true)}>
                 {column.label}<span class="c-sort-mark" class:c-sort-mark--idle={!active} aria-hidden="true">{active ? (sort?.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
               </button>
             {:else}{column.label}{/if}
