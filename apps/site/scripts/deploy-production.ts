@@ -63,7 +63,7 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
 
   const rootResponse = await freshFetch(`${origin}/`);
   const rootHtml = await rootResponse.text();
-  if (!rootResponse.ok || !rootHtml.includes("<title>Afallon Compendium</title>")) {
+  if (!rootResponse.ok || !rootHtml.includes("<title>Afallon Wiki and Interactive Map · Afallon Compendium</title>")) {
     throw new Error("The production map shell is unavailable.");
   }
   if (!rootHtml.includes('property="og:image" content="https://afallon.compendiums.org/og-default.png"')
@@ -89,7 +89,7 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
   }
 
   const itemsResponse = await freshFetch(`${origin}/items/`);
-  if (!itemsResponse.ok || !(await itemsResponse.text()).includes("<title>Items · Afallon Compendium</title>")) {
+  if (!itemsResponse.ok || !(await itemsResponse.text()).includes("<title>Items · Afallon Wiki</title>")) {
     throw new Error("The production item compendium is unavailable.");
   }
 

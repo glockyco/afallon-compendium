@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Page Not Found · Afallon Compendium</title>
+  <title>Page Not Found · Afallon Wiki</title>
   <meta name="description" content="This address does not match a page in the Afallon Compendium." />
   <meta name="robots" content="noindex" />
 </svelte:head>

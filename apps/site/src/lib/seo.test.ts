@@ -11,7 +11,8 @@ const item = (overrides: Record<string, unknown> = {}): StaticDocument => ({
 }) as unknown as StaticDocument;
 
 test('summarizes item rarity and level-restricted drops without implying every creature drops it', () => {
-  expect(entityDescription(item())).toBe("Footman's Bulwark is an uncommon shield in Afallon. Dropped by level 6–14 Forest Scout.");
+  expect(entityDescription(item())).toContain('uncommon shield in Afallon. Dropped by level 6–14 Forest Scout.');
+  expect(entityDescription(item())).toContain('Afallon Compendium wiki');
 });
 
 test('a world drop from any creature states its actual eligible levels', () => {
@@ -21,7 +22,7 @@ test('a world drop from any creature states its actual eligible levels', () => {
 
 test('uses an available container source before creature drops and never invents absent sources', () => {
   expect(entityDescription(item({ inContainers: [{ label: 'Locked Wooden Treasure Chest' }] }))).toContain('Find it in Locked Wooden Treasure Chest or from level 6–14 Forest Scout.');
-  expect(entityDescription(item({ droppedBy: [] }))).toBe("Footman's Bulwark is an uncommon shield in Afallon.");
+  expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/Dropped by|Sold by|Find it in/);
 });
 
 test('uses only known NPC level and place, without inventing a location for an unplaced NPC', () => {
@@ -29,13 +30,13 @@ test('uses only known NPC level and place, without inventing a location for an u
     ref: { name: 'Training Dummy' }, facts: { npcType: 'Creature', level: { min: 5, max: 5 } },
     locations, places: [],
   } }) as unknown as StaticDocument;
-  expect(entityDescription(npc([{ label: 'Oakwood Training Grounds' }]))).toBe('Training Dummy is a creature, level 5 in Afallon. Find Training Dummy in Oakwood Training Grounds.');
-  expect(entityDescription(npc([]))).toBe('Training Dummy is a creature, level 5 in Afallon.');
+  expect(entityDescription(npc([{ label: 'Oakwood Training Grounds' }]))).toContain('creature, level 5 in Afallon. Find Training Dummy in Oakwood Training Grounds.');
+  expect(entityDescription(npc([]))).not.toContain('Find Training Dummy in');
   const scalingNpc = { kind: 'npcs', document: {
     ref: { name: 'Training Dummy' }, facts: { npcType: 'MOB', creatureType: 'MECHANICAL', level: { min: 15, max: 30, scales: true }, roles: [] },
     locations: [{ label: 'Oakenvale' }], places: [],
   } } as unknown as StaticDocument;
-  expect(entityDescription(scalingNpc)).toBe('Training Dummy is a mechanical creature in Afallon. Find Training Dummy in Oakenvale. Levels 15–30 scale with the player.');
+  expect(entityDescription(scalingNpc)).toContain('mechanical creature in Afallon. Find Training Dummy in Oakenvale. Levels 15–30 scale with the player.');
 });
 
 test('keeps the boundary intact and omits a partial final word', () => {

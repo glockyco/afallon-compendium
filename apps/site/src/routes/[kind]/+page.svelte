@@ -23,7 +23,7 @@
   $: placesPath = `${base}/${data.kind.kind}/`;
 </script>
 
-<SeoHead title={`${data.kind.plural} · Afallon Compendium`} description={`Browse ${readerNoun(data.kind.plural)} in Afallon. Find names, game details, and related locations in the compendium.`} />
+<SeoHead title={`${data.kind.plural} · Afallon Wiki`} description={`Browse ${readerNoun(data.kind.plural)} in the Afallon Compendium wiki. Find game details and related locations.`} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <header class="head">

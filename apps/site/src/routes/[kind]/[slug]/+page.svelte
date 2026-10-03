@@ -16,7 +16,7 @@
   ];
 </script>
 
-<SeoHead title={`${document.ref.name} · Afallon Compendium`} description={summary} type="article" />
+<SeoHead title={`${document.ref.name} · Afallon Wiki`} description={summary} type="article" />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} />

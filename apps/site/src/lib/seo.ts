@@ -44,7 +44,7 @@ export function entityDescription(page: StaticDocument): string {
       : worldDrop ? ` Dropped by ${worldDrop}.`
       : item.soldBy[0] ? ` Sold by ${'name' in item.soldBy[0].counterpart ? item.soldBy[0].counterpart.name : item.soldBy[0].counterpart.label}.`
       : item.crafting ? ' Find its crafting recipe here.' : '';
-    return briefDescription(identity + next);
+    return briefDescription(`${identity}${next} Read more in the Afallon Compendium wiki.`);
   }
   if (page.kind === 'npcs') {
     const npc = page.document;
@@ -56,8 +56,8 @@ export function entityDescription(page: StaticDocument): string {
     const level = npc.facts.level && !npc.facts.level.scales ? `, level ${levelText(npc.facts.level)}` : '';
     const place = npc.locations[0]?.label ?? npc.places[0]?.label;
     const scaling = npc.facts.level?.scales ? ` Levels ${levelText(npc.facts.level)} scale with the player.` : '';
-    return briefDescription(`${name} is ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}${level} in Afallon.${place ? ` Find ${name} in ${place}.` : ''}${scaling}`);
+    return briefDescription(`${name} is ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}${level} in Afallon.${place ? ` Find ${name} in ${place}.` : ''}${scaling} Read more in the Afallon Compendium wiki.`);
   }
   const description = document.description?.replace(/\s+/g, ' ').trim();
-  return briefDescription(description || `Explore ${name} in Afallon. Find its details and related game information in the Afallon Compendium.`);
+  return briefDescription(`${description ? `${description} ` : `Explore ${name} in Afallon. `}Read more in the Afallon Compendium wiki.`);
 }

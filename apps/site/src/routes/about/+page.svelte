@@ -10,13 +10,13 @@
   const crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'About' }];
 </script>
 
-<SeoHead title="About · Afallon Compendium" description="About Afallon, the unofficial Afallon Compendium, its game-data reference, coverage, and update dates." />
+<SeoHead title="About · Afallon Wiki" description="Learn how the Afallon Compendium wiki and interactive map are made, what they cover, and when the data was last updated." />
 
 <PageShell registry={data.registry} release={data.release} {crumbs}>
   <article class="about">
     <header>
       <h1>About Afallon Compendium</h1>
-      <p class="lead">Afallon Compendium is a fan-made map and game reference for Afallon. Find items, creatures, quests, classes, places, crafting, and game mechanics in one place.</p>
+      <p class="lead">Afallon Compendium is a fan-made map and game reference for Afallon. It works like a wiki, but every page is generated from the game's files rather than edited by hand.</p>
     </header>
     <div class="columns">
       <div class="sections">

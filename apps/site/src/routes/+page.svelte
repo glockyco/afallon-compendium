@@ -58,14 +58,14 @@
   }
 </script>
 
-<SeoHead title="Afallon Compendium" description="Explore Afallon's map, items, quests, classes, and crafting in this unofficial game reference." website />
+<SeoHead title="Afallon Wiki and Interactive Map · Afallon Compendium" description="Explore the Afallon Compendium wiki and interactive map for items, quests, classes, crafting, and places in this unofficial game reference." website />
 
 <PageShell registry={data.registry} release={data.release} search={false}>
   <section slot="hero" class="hero" aria-labelledby="hub-title">
     {#if data.world?.artwork}<img class="hero-art" src={artUrl(data.world.artwork)} width={data.world.artwork.width} height={data.world.artwork.height} alt="" fetchpriority="high" />{/if}
     <div class="hero-inner">
       <h1 id="hub-title">Afallon Compendium</h1>
-      <p class="hero-intro">Explore the map, items, quests, and classes in Afallon, a single-player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers.</p>
+      <p class="hero-intro">The Afallon wiki and interactive map are generated from the game's files. Afallon is a single‑player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers.</p>
       <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the Map</a>

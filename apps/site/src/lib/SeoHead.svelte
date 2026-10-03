@@ -27,5 +27,5 @@
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <meta name="twitter:image" content={image} />
-  {#if website}{@html jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Afallon Compendium', url: `${SITE_ORIGIN}${base}/` })}{/if}
+  {#if website}{@html jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Afallon Compendium', alternateName: ['Afallon Wiki'], url: `${SITE_ORIGIN}${base}/` })}{/if}
 </svelte:head>
