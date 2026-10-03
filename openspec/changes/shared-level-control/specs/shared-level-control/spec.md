@@ -6,7 +6,7 @@ Let readers adjust comparable numeric values directly without relying on small b
 
 ### Requirement: Numeric comparison controls share one interaction
 
-Character, skill, corruption, and gear-score adjustments, and creature levels in the kill calculator, SHALL use a labelled number field between decrement and increment buttons. The Heroic creature-level picker MAY remain a select alongside the creature-and-place picker. A slider SHALL accompany the stepper wherever the layout has room and on mechanics pages. On phones, both buttons SHALL offer at least 44-pixel tap targets. Holding either button SHALL repeat after a short delay. Native spinner arrows SHALL not appear. Controls SHALL use the site's border, radius, surface, and accent colors without lifting on hover.
+Character, skill, corruption, and gear-score adjustments, and creature levels in the kill calculator, SHALL use a labelled number field between decrement and increment buttons. The Heroic creature-level picker MAY remain a select alongside the creature-and-place picker. A slider SHALL accompany the stepper wherever the layout has room and on mechanics pages, except a short bounded setting such as living followers where the stepper alone is sufficient. On phones, both buttons SHALL offer at least 44-pixel tap targets. Holding either button SHALL repeat after a short delay. Native spinner arrows SHALL not appear. Controls SHALL use the site's border, radius, surface, and accent colors without lifting on hover.
 
 #### Scenario: Stepping and holding
 - **WHEN** a reader clicks Raise level once, then holds Lower level
@@ -21,6 +21,14 @@ Character, skill, corruption, and gear-score adjustments, and creature levels in
 - **WHEN** the reader focuses the number or its slider and uses Up or Right, Down or Left, Page Up or Page Down, Home, or End
 - **THEN** these keys select plus one, minus one, plus ten, minus ten, the minimum, or the maximum respectively, clamped to the range
 - **AND** both the field and slider have meaningful accessible labels
+
+#### Scenario: Focused slider
+- **WHEN** the reader focuses a slider with the keyboard
+- **THEN** its focus indicator stays near the thumb rather than outlining the full track, and disappears after focus leaves
+
+#### Scenario: Short follower range
+- **WHEN** the reader adjusts the number of living followers between zero and ten
+- **THEN** the stepper remains available without an additional slider
 
 #### Scenario: Remembered character and skill values
 - **WHEN** a reader chooses a character or skill level and visits another page or reloads

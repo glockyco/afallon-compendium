@@ -84,7 +84,7 @@
         <LevelControl id="kill-creature-level" label="Creature level" min={levels[0]!} max={levels[levels.length - 1]!} bind:level={creatureLevel} />
       {/if}
       <div class="numbers">
-        <LevelControl id="kill-followers" label="Living followers" min={0} max={10} bind:level={followers} />
+        <LevelControl id="kill-followers" label="Living followers" min={0} max={10} bind:level={followers} slider={false} />
         <LevelControl id="kill-bonus" label="Experience bonus" min={0} max={Number.MAX_SAFE_INTEGER} sliderMax={100} bind:level={experienceBonus} allowFraction suffix="%" />
       </div>
       {#if guide.killCalculator.heroicMultiplier !== undefined}

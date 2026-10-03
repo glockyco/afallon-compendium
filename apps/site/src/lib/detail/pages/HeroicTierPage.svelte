@@ -135,7 +135,7 @@
               <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>
                 <svelte:fragment slot="corner">Your gear score</svelte:fragment>
                 <svelte:fragment slot="head" let:item><span class="score">{formatNumber(item.score)}{item.score === capScore ? '+' : ''}</span></svelte:fragment>
-                <svelte:fragment slot="cell" let:item let:fact>{exact.format(fact === 'health' ? item.health : item.damage)}×</svelte:fragment>
+                <svelte:fragment slot="cell" let:item let:fact>{formatNumber(fact === 'health' ? item.health : item.damage)}×</svelte:fragment>
               </CompareTable>
             {:else if section.id === 'essence' && document.example}
               <RelationTable columns={essenceColumns} rows={document.example.rows} label="Essence per kill by creature rank and affixes">

@@ -121,7 +121,7 @@
   button { display: grid; place-items: center; flex: none; width: 2rem; min-height: 2rem; padding: 0; border: 0; background: transparent; color: var(--c-accent-strong); font: 600 1.2rem/1 var(--c-sans); cursor: pointer; touch-action: none; }
   button:hover:not(:disabled) { background: var(--c-accent-surface); }
   button:disabled { color: var(--c-text-mute); cursor: default; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; position: relative; z-index: 1; }
+  button:focus-visible, input[type='number']:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; position: relative; z-index: 1; }
   input[type='number'] { box-sizing: border-box; width: 4.2rem; min-width: 0; padding: .3rem .2rem; border: 0; border-right: 1px solid var(--c-frame); border-left: 1px solid var(--c-frame); border-radius: 0; background: transparent; color: var(--c-text); font: inherit; font-variant-numeric: tabular-nums; text-align: center; appearance: textfield; -moz-appearance: textfield; }
   input[type='number'].suffixed { border-right: 0; }
   .suffix { display: grid; place-items: center; padding: 0 .3rem; border-right: 1px solid var(--c-frame); color: var(--c-text-dim); }
@@ -129,6 +129,9 @@
   .prefix + input[type='number'] { width: 3.15rem; padding-left: 0; border-left: 0; text-align: left; }
   input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { appearance: none; margin: 0; }
   .slider { box-sizing: border-box; width: 100%; min-width: 0; height: 1.5rem; margin: 0; accent-color: var(--c-accent); cursor: pointer; }
+  .slider:focus-visible { outline: none; }
+  .slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .slider:focus-visible::-moz-range-thumb { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .compact { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: var(--c-text-small); }
   @media (max-width: 600px) { button { width: 2.75rem; min-height: 2.75rem; } }
 </style>

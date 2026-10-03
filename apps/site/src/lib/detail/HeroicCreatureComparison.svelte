@@ -88,8 +88,8 @@
             <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if normal}<span class="no-break">{xp(normal)}</span>{:else}Unavailable{/if}</td>
             <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if empowered}<span class="no-break">{xp(empowered)}</span> <span class="no-break">({exact.format(settings.killExperienceMultiplier)}×)</span>{:else}Unavailable{/if}</td>
           </tr>
-          <tr><th scope="row">Maximum health</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.health)}×</td></tr>
-          <tr><th scope="row">Damage</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.damage)}×</td></tr>
+          <tr><th scope="row">Maximum health</th><td class="c-num">—</td><td class="c-num">{formatNumber(strength.health)}×</td></tr>
+          <tr><th scope="row">Damage</th><td class="c-num">—</td><td class="c-num">{formatNumber(strength.damage)}×</td></tr>
         </tbody>
       </table></div>
       <p>Heroic health and damage are relative to the normal creature. <a class="c-link" href="#affixes">Affixes</a> may further change combat. Rare and Boss creatures always get at least one. With Essence points, Heroic kills add <a class="c-link" href="#essence">Heroic Essence</a> toward your Heroic Ascension talents. If this creature drops eligible equipment, it may be <a class="c-link" href="#heroic-gear">Heroic gear</a>. No particular item is guaranteed.</p>
