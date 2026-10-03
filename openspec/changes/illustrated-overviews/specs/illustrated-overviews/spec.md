@@ -32,6 +32,10 @@ The Classes, Skills, Races, Factions, and Properties lists SHALL show linked til
 - **WHEN** a reader opens Races, Factions, or Mechanics
 - **THEN** race and faction portraits stay recognizable above their names, each published count includes its unit, and linked facts or topic descriptions reflect published data without inventing missing facts
 
+#### Scenario: Distinguishing Races
+- **WHEN** every published race offers the same number of classes
+- **THEN** the gallery omits that repeated count while showing each race's adventurer count and its starting place with any qualifier needed to distinguish places of the same name
+
 #### Scenario: Finding Creature Loot
 - **WHEN** a reader scans the Loot topic in the Mechanics index or menu
 - **THEN** the description identifies creature drops as a source covered by the topic

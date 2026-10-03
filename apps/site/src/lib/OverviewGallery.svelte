@@ -9,6 +9,7 @@
   let query = '';
 
   const number = (row: ListRow, key: string): number | null => typeof row.values[key] === 'number' ? row.values[key] as number : null;
+  $: raceClassesVary = list.rows.some((row) => row.values.classes !== list.rows[0]?.values.classes);
   const text = (row: ListRow, key: string): string | null => typeof row.values[key] === 'string' ? row.values[key] as string : null;
   const count = (value: number | null, singular: string, plural: string) => value === null ? null : `${formatNumber(value)} ${value === 1 ? singular : plural}`;
   const present = (values: Array<string | null>): string[] => values.filter((value): value is string => value !== null);
@@ -18,7 +19,7 @@
       case 'classes': return present([count(number(row, 'talentTrees'), 'Talent Tree', 'Talent Trees'), count(number(row, 'abilities'), 'Ability', 'Abilities')]);
       case 'skills': return present([number(row, 'highestLevel') === null ? null : `Max Level ${formatNumber(number(row, 'highestLevel')!)}`,
         count(number(row, 'recipes'), 'Recipe', 'Recipes') ?? count(number(row, 'gatheringNodes'), 'Node', 'Nodes') ?? (text(row, 'automatic') ? 'Starts Learned' : null)]);
-      case 'races': return present([text(row, 'start') && `Starts In ${text(row, 'start')}`, count(number(row, 'classes'), 'Class', 'Classes'), count(number(row, 'adventurers'), 'Adventurer', 'Adventurers')]);
+      case 'races': return present([text(row, 'start') && `Starts in ${text(row, 'start')}`, raceClassesVary ? count(number(row, 'classes'), 'Class', 'Classes') : null, count(number(row, 'adventurers'), 'Adventurer', 'Adventurers')]);
       case 'factions': return present([text(row, 'startingStance') && `Starts ${text(row, 'startingStance')}`, count(number(row, 'members'), 'NPC', 'NPCs'), text(row, 'shownInReputation')]);
       case 'properties': return present([text(row, 'place') && `In ${text(row, 'place')}`]);
       default: return [];

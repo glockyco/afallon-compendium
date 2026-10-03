@@ -17,3 +17,4 @@
 - [x] 3.4 Confirm class facts align at the bottom and hyphenated playstyle words stay together; compare race, faction, and property rows at 1440, 1100, and 390 pixels in Firefox and Chromium, then validate and commit.
 - [x] 3.5 Review viewport screenshots of Properties, Races, and Factions at 1440, 1100, and 390 pixels in Firefox and Chromium for alignment, artwork, currency units, title case, and no overflow.
 - [x] 3.6 Validate the change, run production build and deployment assertion and staged repository verification, then commit.
+- [x] 3.7 Verify the race lead-in, two distinct Abandoned Quarry variants, and removal of the shared class count in Firefox and Chromium; run the production build, deployment assertion, and staged repository verification, then commit.
