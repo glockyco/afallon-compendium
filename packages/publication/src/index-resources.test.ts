@@ -153,7 +153,7 @@ test("item rows name the classes that can use them, what they are, their craftin
     facts: { itemType: "ARMOR", stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false,
       corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [], ...facts },
     sourceSpotCount: 0, sourceAvailabilities: [], droppedBy: [], soldBy: [], buys: [], gatheredFrom: [], inContainers: [],
-    collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes, usedInQuests: [], startingGearOf: [], fromItems: [],
+    collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes, usedInQuests: [], startingGearOf: [], startingGearOfAdventurers: [], fromItems: [], gainedFromItems: [], lootTables: [],
     questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
   });
   const shieldmaster = { ref: { ...ref("classes:0", "Shieldmaster"), kind: "classes" }, facts: { weapons: ["Shield", "One Handed Sword"] }, trees: [] } as unknown as PublicClass;
