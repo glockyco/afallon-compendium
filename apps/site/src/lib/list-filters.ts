@@ -27,6 +27,11 @@ export function listValueLabel(id: string, value: string): string {
   return ENUM_FIELDS[id] ? categoryLabel(value) : value;
 }
 
+/** Published facet keys stay stable in filters and URLs; the registry owns their reader-facing words. */
+export function facetValueLabel(facet: Facet, value: string): string {
+  return facet.valueLabels?.[value] ?? listValueLabel(facet.id, value);
+}
+
 export const emptyFilters = (): ListFilterState => ({ q: '', facets: {}, minimums: {}, maximums: {}, stats: [] });
 
 /** A flat stat and a percentage stat with the same name are different stats. */

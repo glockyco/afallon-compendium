@@ -101,7 +101,7 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
       damage: facts.weaponType && facts.minDamage !== undefined && facts.maxDamage !== undefined
         ? `${facts.minDamage}–${facts.maxDamage}` : null },
     facets: { class: usableBy, weapon: facetValue(facts.weaponType), armor: facetValue(facts.armorType), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
-      material: [String(document.usedInRecipes.length > 0)], knownWay: [itemHasKnownWay(document) ? "Known Way" : "No Known Way"] },
+      material: [String(document.usedInRecipes.length > 0)], knownWay: [itemHasKnownWay(document) ? "known" : "unknown"] },
     ...(stats.length ? { stats } : {}),
   };
 }
@@ -122,7 +122,7 @@ function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef
     // The column names one place or counts them. The filter offers each place, so an NPC in several places matches each.
     facets: { role: roles, places: [...places].sort(), faction: facetValue(faction), class: facetValue(className),
       partyRole: document.adventurer ? [document.adventurer.role] : [],
-      knownWay: [npcHasKnownWay(document, referencedByOtherPage) ? "Known Way" : "No Known Way"] },
+      knownWay: [npcHasKnownWay(document, referencedByOtherPage) ? "known" : "unknown"] },
     relations: { ...(place && places.size === 1 ? { place: namedRelation([place], placesByName) } : {}),
       ...(document.facts.faction ? { faction: [document.facts.faction] } : {}),
       ...(document.adventurer ? { class: [document.adventurer.class] } : {}) },
@@ -168,17 +168,17 @@ function abilityRow(document: PublicAbility): ListRow {
   const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
   const actions = (document as AbilitySources).versions.flatMap((version) => version.unlockedByActions ?? []);
   const interactionNames = [...new Set(actions.map((action) => refName(action.owner) ?? action.label))].sort();
-  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : actions.length ? "Interaction" : "No Known Use";
+  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : actions.length ? "Interaction" : "Nobody Uses It";
   const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ")
     : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ")
-      : items.length ? items.join(", ") : interactionNames.join(", ") || "No Known Use";
+      : items.length ? items.join(", ") : interactionNames.join(", ") || "Nobody Uses It";
   const shownNames = classes.length ? classes : creatures.length ? creatures : items;
   const sourceRefs = classes.length ? learners.map((learner) => learner.class)
     : creatures.length ? document.versions.flatMap((version) => version.usedBy)
       : document.versions.flatMap((version) => version.usedByItems);
   const linked = shownNames.length <= 2 ? shownNames.map((name) => sourceRefs.find((ref) => refName(ref) === name)!) : [];
   return { ref: document.ref, values: { source },
-    facets: { sourceKind: [sourceKind], class: classes, knownWay: [abilityHasKnownWay(document) ? "Known Way" : "No Known Way"] },
+    facets: { sourceKind: [sourceKind], class: classes, knownWay: [abilityHasKnownWay(document) ? "known" : "unknown"] },
     ...(linked.length ? { relations: { source: linked },
       ...(classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) } : {}) };
 }

@@ -783,7 +783,7 @@ test("ability list sources prefer classes, summarize many creatures, and retain 
     ["Assassin · Shadowcraft", ["Class"], ["Assassin"]],
     ["3 creatures", ["Creature"], []],
     ["Brown Horse", ["Item"], []],
-    ["No Known Use", ["No Known Use"], []],
+    ["Nobody Uses It", ["Nobody Uses It"], []],
   ]);
   expect(rows[0]?.relations?.source).toEqual([classRef]);
   expect(rows[0]?.relationSuffixes?.source).toEqual([" · Shadowcraft"]);

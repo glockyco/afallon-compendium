@@ -1187,7 +1187,11 @@ export type DocumentReference = Static<typeof documentReference>;
 // from the registry is not routed.
 export const ListColumnSchema = Type.Object({ id: text, label: text, sortable: Type.Boolean(), numeric: Type.Boolean() }, { additionalProperties: false });
 export type ListColumn = Static<typeof ListColumnSchema>;
-export const ListFacetSchema = Type.Object({ id: text, label: text, defaultHiddenValues: optional(Type.Array(text, { minItems: 1, uniqueItems: true })) }, { additionalProperties: false });
+export const ListFacetSchema = Type.Object({
+  id: text, label: text,
+  defaultHiddenValues: optional(Type.Array(text, { minItems: 1, uniqueItems: true })),
+  valueLabels: optional(Type.Record(Type.String(), text)),
+}, { additionalProperties: false });
 export type ListFacet = Static<typeof ListFacetSchema>;
 
 export const PublicKindEntrySchema = Type.Object({

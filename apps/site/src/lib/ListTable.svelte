@@ -9,7 +9,7 @@
   import { formatNumber, nameOf, rarityTone, readerNoun } from './format';
   import { growingCount } from './growing-count';
   import {
-    activeFilterCount, emptyFilters, facetOptions, hiddenFacetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
+    activeFilterCount, emptyFilters, facetOptions, facetValueLabel, hiddenFacetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
     statSortValue, writeFilters, type ListFilterState,
   } from './list-filters';
   import { columnShape, columnWidths, visibleListColumns, type ColumnShape } from './list-layout';
@@ -32,6 +32,14 @@
   // The result bar stays at the top of the screen, and the table header sticks just below it.
   let barHeight = 0;
   const PANEL_MIN_ROWS = 20;
+  const HIDDEN_EXPLANATION = "These are in the game's files, but we found no way to get, meet, or use them in this version.";
+  let explanationOpen = false;
+  function hiddenLabel(count: number): string {
+    const subject = kind.kind === 'items' ? `${count === 1 ? 'item' : 'items'} without a known source`
+      : kind.kind === 'npcs' ? `${count === 1 ? 'NPC' : 'NPCs'} not found in the world`
+        : `${count === 1 ? 'ability' : 'abilities'} nobody uses`;
+    return `Show ${formatNumber(count)} ${subject}`;
+  }
 
   let filters: ListFilterState = emptyFilters();
   let sort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
@@ -249,7 +257,7 @@
   function filterChips(state: ListFilterState): Array<{ label: string; remove: () => void }> {
     const result: Array<{ label: string; remove: () => void }> = [];
     for (const facet of kind.facets) {
-      for (const value of state.facets[facet.id] ?? []) result.push({ label: `${facet.label}: ${listValueLabel(facet.id, value)}`, remove: () => setFacet(facet.id, value, false) });
+      for (const value of state.facets[facet.id] ?? []) result.push({ label: `${facet.label}: ${facetValueLabel(facet, value)}`, remove: () => setFacet(facet.id, value, false) });
     }
     for (const range of ranges) {
       const min = state.minimums[range.id] ?? '', max = state.maximums[range.id] ?? '';
@@ -342,7 +350,11 @@
       {/if}
       {#if chips.length || filters.q.trim()}<button type="button" class="clear" on:click={clearFilters}>Clear all</button>{/if}
       {#each hiddenOptions as option}
-        <button type="button" class="reveal" on:click={() => setFacet(option.facet.id, option.value, true)}>Show {formatNumber(option.count)} Hidden ({listValueLabel(option.facet.id, option.value)})</button>
+        <span class="reveal-wrap" class:open={explanationOpen} on:focusout={() => (explanationOpen = false)}>
+          <button type="button" class="reveal" aria-describedby="hidden-explanation" on:click={() => { explanationOpen = false; setFacet(option.facet.id, option.value, true); }}>{hiddenLabel(option.count)}</button>
+          <button type="button" class="reveal-help" aria-label="Why are these entries hidden?" aria-describedby="hidden-explanation" on:click={(event) => { explanationOpen = !explanationOpen; if (!explanationOpen) event.currentTarget.blur(); }}>?</button>
+          <span class="reveal-explanation" id="hidden-explanation" role="tooltip">{HIDDEN_EXPLANATION}</span>
+        </span>
       {/each}
     </div>
 
@@ -404,8 +416,12 @@
   .chip:hover span { color: var(--c-text); }
   .clear { min-height: 1.75rem; padding: .2rem .6rem; border: 0; background: transparent; color: var(--c-accent); font-size: var(--c-text-small); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
   .clear:disabled { color: var(--c-text-mute); cursor: default; }
-  .reveal { min-height: 1.75rem; padding: .25rem .6rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); color: var(--c-accent-strong); background: var(--c-surface-2); cursor: pointer; font-size: var(--c-text-small); }
-  .search:focus-visible, .filters-button:focus-visible, .chip:focus-visible, .clear:focus-visible, .reveal:focus-visible, .close:focus-visible, .show:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .reveal-wrap { position: relative; display: inline-flex; align-items: center; gap: .25rem; max-width: 100%; }
+  .reveal { min-height: 1.75rem; padding: .25rem .6rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); color: var(--c-accent-strong); background: var(--c-surface-2); cursor: pointer; font-size: var(--c-text-small); text-align: left; }
+  .reveal-help { width: 1.5rem; height: 1.5rem; flex: none; padding: 0; border: 1px solid var(--c-accent-line); border-radius: 50%; background: var(--c-surface-2); color: var(--c-accent-strong); cursor: pointer; font-size: var(--c-text-small); }
+  .reveal-explanation { display: none; position: absolute; z-index: 5; top: calc(100% + .35rem); left: 0; width: min(19rem, 80vw); padding: .6rem .75rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); box-shadow: 0 .3rem .8rem rgb(0 0 0 / .18); font-size: var(--c-text-small); line-height: 1.4; pointer-events: none; }
+  .reveal-wrap:hover .reveal-explanation, .reveal-wrap:focus-within .reveal-explanation, .reveal-wrap.open .reveal-explanation { display: block; }
+  .search:focus-visible, .filters-button:focus-visible, .chip:focus-visible, .clear:focus-visible, .reveal:focus-visible, .reveal-help:focus-visible, .close:focus-visible, .show:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }

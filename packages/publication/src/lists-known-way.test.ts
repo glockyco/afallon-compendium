@@ -40,7 +40,7 @@ test('item acquisition excludes unbound loot and self-consumption but admits bou
   expect(itemHasKnownWay(dungeonToken)).toBe(true);
   const projected = rows([alone, { ...item('Known Sword'), startingGearOf: [{ class: { key: 'classes:1', kind: 'classes', name: 'Warrior', slug: 'warrior' } }] }]);
   expect(projected.get('items')?.map((row) => [row.ref.name, row.facets.knownWay, row.values.damage])).toEqual([
-    ['Unbound Candy', ['No Known Way'], '8–13'], ['Known Sword', ['Known Way'], '8–13'],
+    ['Unbound Candy', ['unknown'], '8–13'], ['Known Sword', ['known'], '8–13'],
   ]);
 });
 
@@ -57,8 +57,8 @@ test('an unplaced NPC is visible through adventurer, summon, spawn, recruitment 
     rewards: [], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [] };
   const list = rows([hidden, summoned, spawned, recruited, adventurer, referenced, witness]).get('npcs')!;
   expect(list.map((row) => [row.ref.name, row.facets.knownWay])).toEqual([
-    ['Unmet Shade', ['No Known Way']], ['Summoned Shade', ['Known Way']], ['Spawned Shade', ['Known Way']],
-    ['Recruited Shade', ['Known Way']], ['Eldeth Goldvein', ['Known Way']], ['Quest Giver', ['Known Way']],
+    ['Unmet Shade', ['unknown']], ['Summoned Shade', ['known']], ['Spawned Shade', ['known']],
+    ['Recruited Shade', ['known']], ['Eldeth Goldvein', ['known']], ['Quest Giver', ['known']],
   ]);
   expect(list.find((row) => row.ref.name === 'Eldeth Goldvein')).toMatchObject({ values: { level: '7', role: 'Adventurer, Tank', class: 'Druid', partyRole: 'Tank', place: null }, facets: { role: ['Adventurer', 'Tank'] } });
 });
@@ -71,7 +71,7 @@ test('boss role omits redundant enemy and an action unlock is a known ability us
   const result = rows([boss, shout, unlocked]);
   expect(result.get('npcs')?.[0]).toMatchObject({ values: { role: 'boss', level: '21' }, facets: { role: ['boss'] } });
   expect(result.get('abilities')?.map((row) => [row.ref.name, row.facets.knownWay, row.values.source])).toEqual([
-    ['Shout', ['No Known Way'], 'No Known Use'], ['Summon Ally', ['Known Way'], 'Dialogue'],
+    ['Shout', ['unknown'], 'Nobody Uses It'], ['Summon Ally', ['known'], 'Dialogue'],
   ]);
 });
 

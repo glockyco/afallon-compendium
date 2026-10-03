@@ -11,7 +11,7 @@ The published site covers Afallon 0.16.3 (Steam build 25653798).
 ## What it offers
 
 - **Map** (`/map/`). The game's own drawn maps of the overworld and its interiors, with every creature, merchant, quest giver, resource, container, and doorway that the scans place on them, plus category filters and search.
-- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. World Quest pages show their zones and timing. Each kind has a filterable list at `/<kind>/`, and the quest list can filter World Quests. Recipes have a list whose crafts show on the pages of their products.
+- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. World Quest pages show their zones and timing. Each kind has a filterable list at `/<kind>/`, and the quest list can filter World Quests. Recipes have a list whose crafts show on the pages of their products. The Items, NPCs, and Abilities lists keep entries without a known source, world encounter, or use behind a counted reveal with a plain explanation.
 - **Mechanics** (`/mechanics/`). Character Progression, Heroic Tier, Crafting and Gathering, Corruption, Loot, Adventurers, and World Quests explain how the game works. World Quests covers zone rotation, automatic participation, rewards, and Heroic Cache currency. Entity pages link the section that explains their numbers.
 - **Coverage** (`/coverage/`). What the data covers and which pages have known gaps.
 

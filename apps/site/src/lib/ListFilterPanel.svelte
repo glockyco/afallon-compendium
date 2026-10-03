@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import { formatNumber, readerNoun } from './format';
-  import { listValueLabel, statLabel, type FacetOption, type ListFilterState } from './list-filters';
+  import { facetValueLabel, statLabel, type FacetOption, type ListFilterState } from './list-filters';
 
   type Facet = PublicKindEntry['facets'][number];
   export let groups: Array<{ facet: Facet; options: FacetOption[] }>;
@@ -30,7 +30,7 @@
   let searches: Record<string, string> = {};
   const shown = (facet: Facet, options: FacetOption[], search: string | undefined) => {
     const needle = (search ?? '').trim().toLocaleLowerCase();
-    return needle ? options.filter((option) => listValueLabel(facet.id, option.value).toLocaleLowerCase().includes(needle)) : options;
+    return needle ? options.filter((option) => facetValueLabel(facet, option.value).toLocaleLowerCase().includes(needle)) : options;
   };
   $: addable = stats.filter((option) => !state.stats.some((filter) => filter.key === option.key));
 </script>
@@ -53,7 +53,7 @@
             <label class:none={option.count === 0 && !checked}>
               <input type="checkbox" {checked} disabled={option.count === 0 && !checked}
                 on:change={(event) => onFacet(group.facet.id, option.value, event.currentTarget.checked)} />
-              <span class="name">{listValueLabel(group.facet.id, option.value)}</span>
+              <span class="name">{facetValueLabel(group.facet, option.value)}</span>
               <span class="count">{formatNumber(option.count)}</span>
             </label>
           </li>
