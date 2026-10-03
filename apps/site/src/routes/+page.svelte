@@ -8,6 +8,7 @@
   import { iconNodeToSvg } from '$lib/icon-svg';
   import { kindGlyphSvg } from '$lib/kind-icon';
   import { markerRegistry, type MarkerId } from '$lib/map/marker-registry';
+  import OverviewTile from '$lib/OverviewTile.svelte';
   import PageShell from '$lib/PageShell.svelte';
   import SeoHead from '$lib/SeoHead.svelte';
   import { STEAM_URL, STEAM_GUIDE_URL } from '$lib/seo';
@@ -158,11 +159,7 @@
       <ul class="classes">
         {#each data.classes as entry (entry.ref.key)}
           <li>
-            <div class="class-tile">
-              {#if entry.ref.icon}<img class="class-art" src={artUrl(entry.ref.icon)} width="72" height="72" alt="" loading="lazy" decoding="async" />{:else}<span class="class-art fallback" aria-hidden="true">{@html kindGlyph(entry.ref.kind)}</span>{/if}
-              <span class="tile-name"><EntityLink ref={entry.ref} registry={data.registry} tooltip={false} plain /></span>
-              <span class="tile-meta">{[entry.talentTrees === null ? null : countText(entry.talentTrees, 'talent tree', 'talent trees'), entry.abilities === null ? null : countText(entry.abilities, 'ability', 'abilities')].filter(Boolean).join(' · ')}</span>
-            </div>
+            <OverviewTile ref={entry.ref} registry={data.registry} variant="class" home facts={[entry.talentTrees === null ? '' : countText(entry.talentTrees, 'talent tree', 'talent trees'), entry.abilities === null ? '' : countText(entry.abilities, 'ability', 'abilities')].filter(Boolean)} />
           </li>
         {/each}
       </ul>
@@ -181,10 +178,7 @@
       <ul class="skills">
         {#each data.craftingSkills as skill (skill.ref.key)}
           <li>
-            <div class="skill-tile">
-              {#if skill.ref.icon}<img class="skill-art" src={artUrl(skill.ref.icon)} width="44" height="44" alt="" loading="lazy" decoding="async" />{:else}<span class="skill-art fallback" aria-hidden="true">{@html kindGlyph(skill.ref.kind)}</span>{/if}
-              <span class="skill-copy"><span class="tile-name"><EntityLink ref={skill.ref} registry={data.registry} tooltip={false} plain /></span><span class="tile-meta">{countText(skill.recipes, 'recipe', 'recipes')}</span></span>
-            </div>
+            <OverviewTile ref={skill.ref} registry={data.registry} home facts={[countText(skill.recipes, 'recipe', 'recipes')]} />
           </li>
         {/each}
       </ul>
@@ -310,18 +304,8 @@
   .your-level input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
-  .class-tile { position: relative; display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; transition: border-color .15s ease; }
-  .class-tile:hover { border-color: var(--c-frame-hover); }
-  .class-art { width: 4.5rem; height: 4.5rem; margin-bottom: .5rem; border: 1px solid var(--c-frame); border-radius: 14px; background: var(--c-surface-sunken); box-shadow: 0 8px 20px var(--c-shadow); }
 
   .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
-  .skill-tile { position: relative; display: flex; align-items: center; gap: .75rem; height: 100%; padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); transition: border-color .15s ease; }
-  .skill-tile:hover { border-color: var(--c-frame-hover); }
-  .skill-art { flex: none; width: 2.75rem; height: 2.75rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); }
-  .fallback { display: grid; place-items: center; color: var(--c-text-mute); }
-  .fallback :global(svg) { width: 45%; height: 45%; }
-  .skill-copy { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
-  .skill-copy .tile-name { font-size: var(--c-text-lead); }
   .gathering { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: 1.1rem; }
   .gathering h3 { margin: 0; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .gathering ul { display: flex; flex-wrap: wrap; gap: .45rem; }
@@ -333,14 +317,9 @@
   .guide-tile { display: grid; align-content: start; gap: .35rem; height: 100%; padding: .95rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease; }
   .guide-tile:hover { border-color: var(--c-frame-hover); }
   .guide-text { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.45; }
-  .class-tile :global(.entity-link), .skill-tile :global(.entity-link) { color: var(--c-text-strong); }
-  .class-tile :global(.entity-link::after), .skill-tile :global(.entity-link::after) { content: ''; position: absolute; inset: 0; }
-  .class-tile:has(:global(.entity-link:focus-visible)), .skill-tile:has(:global(.entity-link:focus-visible)) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-  .class-tile :global(.plain .name), .skill-tile :global(.plain .name), .dungeon-link :global(.plain .name), .boss-link :global(.plain .name), .band :global(.plain .name), .hero-caption :global(.plain .name) { text-decoration: none; }
-  /* A card's own highlight shows that it links, so the names that link dungeon, class, and skill cards gain no underline
-     on hover either. The stretched link is hovered anywhere on its card, so an underline would also flicker whenever the
-     pointer crossed a boss name. The repeated class outweighs the hover underline of a plain link. */
-  .dungeon-link.dungeon-link :global(.plain.entity-link:hover .name), .class-tile.class-tile :global(.plain.entity-link:hover .name), .skill-tile.skill-tile :global(.plain.entity-link:hover .name) { text-decoration: none; }
+  .dungeon-link :global(.plain .name), .boss-link :global(.plain .name), .hero-caption :global(.plain .name) { text-decoration: none; }
+  /* The dungeon and its boss links never underline as the pointer crosses the card. */
+  .dungeon-link.dungeon-link :global(.plain.entity-link:hover .name) { text-decoration: none; }
 
   /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
   .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .4rem; }
@@ -375,13 +354,9 @@
     .item-group { flex-direction: column; gap: .55rem; padding: .9rem .6rem .8rem; text-align: center; }
     .item-group img, .item-art { width: 3rem; height: 3rem; }
     .classes, .guides { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
-    .class-tile { grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; column-gap: .9rem; row-gap: .1rem; padding: .75rem .9rem; text-align: left; }
-    .class-art { grid-row: 1 / span 2; width: 3.25rem; height: 3.25rem; margin: 0; }
-    .class-tile .tile-name { grid-column: 2; align-self: end; }
-    .class-tile .tile-meta { grid-column: 2; align-self: start; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dungeon, .place, .class-tile, .item-group, .guide-tile { transition: none; }
+    .dungeon, .place, .item-group, .guide-tile { transition: none; }
   }
 </style>

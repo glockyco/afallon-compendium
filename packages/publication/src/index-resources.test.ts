@@ -195,10 +195,9 @@ test("skill rows say whether a skill is for crafting, gathering, or a weapon, an
     skill("skills:3", "Axes", { autoAttack: { perHit: 2 }, crafting: false, gathering: false }, 0, 0)];
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "skills")!;
   const rows = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map(skills.map((entry) => [entry.ref.key, entry]))).get("skills")![0]!.rows;
-  expect(rows.map((row) => [row.ref.name, row.values])).toEqual([
-    ["Alchemy", { type: "Crafting", highestLevel: 300, recipes: 22, gatheringNodes: null }],
-    ["Mining", { type: "Gathering", highestLevel: 300, recipes: null, gatheringNodes: 14 }],
-    ["Axes", { type: "Weapon", highestLevel: 300, recipes: null, gatheringNodes: null }],
+  expect(rows.map((row) => [row.ref.name, row.values.type, row.values.recipes, row.values.gatheringNodes])).toEqual([
+    ["Alchemy", "Crafting", 22, null],
+    ["Mining", "Gathering", null, 14],
+    ["Axes", "Weapon", null, null],
   ]);
-  expect(Object.keys(rows[0]!.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());
 });

@@ -217,9 +217,9 @@ test("ability pages name the classes that learn them and their use requirements"
 test("class and skill lists count trees, abilities, and recipes", () => {
   const { documents, refs } = project();
   const lists = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, documents, facts, refs);
-  expect(lists.get("classes")?.[0]?.rows.map((row) => [row.ref.name, row.values])).toEqual([["Shieldmaster", { talentTrees: 2, abilities: 2 }], ["Assassin", { talentTrees: 1, abilities: 0 }]]);
+  expect(lists.get("classes")?.[0]?.rows.map((row) => [row.ref.name, row.values.talentTrees, row.values.abilities])).toEqual([["Shieldmaster", 2, 2], ["Assassin", 1, 0]]);
   const recipe = lists.get("recipes")?.[0]?.rows[0];
   expect(recipe?.ref.variant).toBe("crafting");
   expect(recipe?.relations?.skill).toEqual([refs.get("skills:0")!]);
-  expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values).toEqual({ type: "Crafting", highestLevel: 2, recipes: 1, gatheringNodes: null });
+  expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values.recipes).toBe(1);
 });

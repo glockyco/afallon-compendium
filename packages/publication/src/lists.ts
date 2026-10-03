@@ -151,7 +151,8 @@ function placeRow(document: PublicPlace): ListRow {
 
 function propertyRow(document: PublicProperty): ListRow {
   const place = refName(document.place), type = document.facts.propertyType ?? null;
-  return { ref: document.ref, values: { type, place, price: document.facts.price?.amount ?? null, income: document.facts.income?.amount ?? null },
+  return { ref: document.ref, values: { type, place, price: document.facts.price?.amount ?? null, priceCurrency: refName(document.facts.price?.currency),
+    income: document.facts.income?.amount ?? null, incomeCurrency: refName(document.facts.income?.currency), incomeInterval: document.facts.incomeInterval ?? null },
     facets: { type: facetValue(type), place: facetValue(place) },
     ...(document.place ? { relations: { place: [document.place] } } : {}) };
 }
@@ -195,7 +196,7 @@ function isSkill(document: PublicDocument): document is PublicSkill { return doc
 
 function classRow(document: PublicClass): ListRow {
   const abilities = document.trees.reduce((sum, tree) => sum + tree.rows.filter((row) => row.ability !== undefined).length, document.facts.autoAttack ? 1 : 0);
-  return { ref: document.ref, values: { talentTrees: document.trees.length, abilities }, facets: {} };
+  return { ref: document.ref, values: { talentTrees: document.trees.length, abilities, description: document.description ?? null }, facets: {} };
 }
 
 // A skill's experience sources say what kind of skill it is. A count that does not apply to the skill stays blank.
@@ -203,7 +204,7 @@ function skillRow(document: PublicSkill): ListRow {
   const { experience } = document;
   const type = experience.crafting ? "Crafting" : experience.gathering ? "Gathering" : experience.autoAttack ? "Weapon" : null;
   return { ref: document.ref, values: { type, highestLevel: document.facts.highestLevel ?? null,
-    recipes: document.recipes.length || null, gatheringNodes: document.gatheringNodes.length || null }, facets: {} };
+    recipes: document.recipes.length || null, gatheringNodes: document.gatheringNodes.length || null, automatic: document.facts.automatic ? "Starts learned" : null }, facets: {} };
 }
 
 function gatheringNodeRow(document: PublicGatheringNode): ListRow {
@@ -237,7 +238,7 @@ function raceRow(document: PublicRace): ListRow {
 }
 
 function factionRow(document: PublicFaction): ListRow {
-  return { ref: document.ref, values: { members: document.members || null }, facets: {} };
+  return { ref: document.ref, values: { members: document.members, startingStance: document.newCharacter?.stance ?? null, shownInReputation: document.shownInReputation ? "Reputation" : null }, facets: {} };
 }
 
 function statRow(document: PublicStat): ListRow {
