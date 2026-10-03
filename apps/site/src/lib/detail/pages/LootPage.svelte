@@ -13,9 +13,10 @@
   const creatureGroups = [
     { title: 'How tables choose items', ids: ['creature-loot-entry-rolls', 'creature-loot-minimum'] },
     { title: 'World Loot and level limits', ids: ['creature-world-loot-gates', 'creature-loot-level-band'] },
-    { title: 'Loot bonuses and party size', ids: ['creature-loot-chance-inversion', 'creature-loot-player-reward'] },
+    { title: 'Party size', ids: ['creature-loot-player-reward'] },
   ];
-  const groupedCreatureRules = new Set(creatureGroups.flatMap((group) => group.ids));
+  const lootChanceRuleId = 'creature-loot-chance-inversion';
+  const groupedCreatureRules = new Set([...creatureGroups.flatMap((group) => group.ids), lootChanceRuleId]);
 </script>
 
 <article class="detail-page">
@@ -25,6 +26,9 @@
     {#each document.sections as section (section.id)}
       {@const detailRules = section.id === 'supply-packs' ? section.rules.filter((rule) => pickDetails.has(rule.id)) : []}
       {@const creatureDetails = section.id === 'creature-drops'}
+      {@const lootChanceRule = creatureDetails
+        ? section.rules.find((rule) => rule.id === lootChanceRuleId && rule.status === 'verified')
+        : undefined}
       {@const otherCreatureRules = creatureDetails
         ? section.rules.filter((rule) => rule.status === 'verified' && rule.id !== 'creature-loot-table-gate' && !groupedCreatureRules.has(rule.id))
         : []}
@@ -50,6 +54,13 @@
               </div>
             {/if}
           </details>
+          {#if lootChanceRule}
+            <section id="loot-chance" class="loot-chance" aria-labelledby="loot-chance-title">
+              <h3 id="loot-chance-title">Loot Chance and Luck</h3>
+              <p>Loot Chance is a stat that affects ordinary creature drops. Item pages show drop chances without Loot Chance bonuses.</p>
+              <p><RulePhrase rule={lootChanceRule} {registry} /></p>
+            </section>
+          {/if}
         {/if}
         {#if detailRules.length}
           <details class="pick-details"><summary>How supply pack picks work</summary>
@@ -67,4 +78,7 @@
   .pick-details p, .rule-details p { margin: .6rem 0 0; line-height: 1.55; }
   .rule-group { margin-top: 1rem; }
   .rule-group h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
+  .loot-chance { display: grid; gap: .55rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); scroll-margin-top: 7rem; }
+  .loot-chance h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
+  .loot-chance p { margin: 0; line-height: 1.55; }
 </style>
