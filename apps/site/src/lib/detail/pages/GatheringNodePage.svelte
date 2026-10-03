@@ -148,8 +148,8 @@
     {#if document.spawners.length || document.placed.length}
     <div class="c-disclosures">
     {#if document.spawners.length}
-      <DetailsDisclosure title="Spawn Odds" id="spawn-odds" summary="Chance Ratios and Chances by Skill Level">
-        <p class="intro">Each spawner picks one of its options. The chance ratios and chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance ratios appear{/if}.</p>
+      <DetailsDisclosure title="Spawn Odds" id="spawn-odds" summary="Relative and Exact Chances by Skill Level">
+        <p class="intro">Each spawner picks one of its options. The relative and exact chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance appears{/if}.</p>
         {#if oddsGroups.length}<ReaderLevel id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} />{/if}
         <AttunementToggles attunements={document.attunements} {registry} bind:active />
         {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}

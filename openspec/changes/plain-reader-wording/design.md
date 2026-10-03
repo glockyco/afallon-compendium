@@ -11,9 +11,9 @@ The site renders both component-owned copy and immutable, previously generated d
 ## Decisions
 
 - Rewrite messages at the component where they render. For generated text, change the producer in `packages/publication` and its direct consumers where needed.
-- Call relative spawner weights a chance ratio, preserving their numeric values and distinguishing them from a verified percentage chance.
+- Call relative spawner weights Relative Chance, preserving their numeric values and distinguishing them from verified exact percentages.
 - Call grouped NPC distinctions versions. Keep underlying `variant` schema keys and anchors stable so links and existing documents remain compatible.
-- Explicitly identify data still coming from the staged candidate during HTML checks. Generate no replacement publication as part of this change.
+- Reword the reviewed mechanics rules in a new rules fragment and register a merged candidate. Project rule phrases without substitution. The already-staged publication remains unchanged.
 
 ## Risks / Trade-offs
 

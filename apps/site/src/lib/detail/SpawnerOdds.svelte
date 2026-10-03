@@ -23,7 +23,7 @@
   type Row = (typeof rows)[number];
   $: columns = [
     { id: 'node', label: 'Node', value: (row: Row) => nameOf(row.option.node), sort: (row: Row) => nameOf(row.option.node) },
-    { id: 'weight', label: 'Chance Ratio', numeric: true, value: (row: Row) => row.weight, sort: (row: Row) => row.weight },
+    { id: 'weight', label: 'Relative Chance', numeric: true, value: (row: Row) => row.weight, sort: (row: Row) => row.weight },
     ...(oddsVerified ? [{ id: 'chance', label: 'Chance', numeric: true, value: (row: Row) => row.percent, sort: (row: Row) => row.percent }] : []),
   ] satisfies RelationColumn<Row>[];
 </script>
