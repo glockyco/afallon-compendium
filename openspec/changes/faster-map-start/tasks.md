@@ -9,6 +9,6 @@
 ## Verification
 
 - [x] Cover deferred search and offscreen imagery with focused controller tests.
-- [ ] Verify search focus, inbound selection, and camera navigation in production browser runs.
+- [x] Verify search focus, inbound selection, and camera navigation in production browser runs.
 - [x] Compare Firefox and Chromium screenshots at phone and desktop widths.
-- [ ] Run three production measurements per browser configuration before and after and record startup stalls, bytes, and marker timing.
+- [x] Run three production measurements per browser configuration before and after and record startup stalls, bytes, and marker timing.

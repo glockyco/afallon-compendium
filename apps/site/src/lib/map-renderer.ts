@@ -149,7 +149,7 @@ export async function createMapAdapter(
   let layers: Layer[] = [];
   let startupPasses: Layer[][] = [];
   let startupStage = 0;
-  let softwareRenderer = false;
+  let parallelShaderCompilation = false;
   let allConnections: TravelConnection[] = [];
   const iconSheet = await createIconSheet();
 
@@ -348,12 +348,12 @@ export async function createMapAdapter(
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2, next.markerSize);
     const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2, next.markerSize, true);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6, next.markerSize);
-    // Compile independent shader families across frames while the loading surface hides the canvas.
-    // The reader only sees the complete composition after the final pass has rendered.
+    // Drivers without parallel shader linking cannot benefit from extra compile passes.
+    // Where available, split shader families across hidden frames and expose only the final composition.
     const terrainLayers = [backgroundLayer, ...imageLayers];
     const shapeLayers = [boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, ...(baseAreas.length ? [areaLayer] : [])];
     layers = [...terrainLayers, ...shapeLayers, markerLayer, stackCounts, ...groupHighlightLayers, ...primaryHighlightLayers, ...hoverHighlightLayers].filter((layer): layer is Layer => layer !== null);
-    if (!readyReported) startupPasses = softwareRenderer ? [layers] : [terrainLayers, [...terrainLayers, ...shapeLayers], layers];
+    if (!readyReported) startupPasses = parallelShaderCompilation ? [terrainLayers, [...terrainLayers, ...shapeLayers], layers] : [layers];
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;
@@ -396,9 +396,8 @@ export async function createMapAdapter(
       return controlledView;
     },
     onWebGLInitialized: gl => {
-      const debug = gl.getExtension("WEBGL_debug_renderer_info");
-      softwareRenderer = Boolean(debug && /SwiftShader/i.test(String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))));
-      if (softwareRenderer && current && startupPasses.length > 1) {
+      parallelShaderCompilation = Boolean(gl.getExtension("KHR_parallel_shader_compile"));
+      if (!parallelShaderCompilation && current && startupPasses.length > 1) {
         startupPasses = [layers];
         startupStage = 0;
         queueMicrotask(() => { if (!destroyed) deck.setProps({ layers }); });

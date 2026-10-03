@@ -8,7 +8,7 @@
 - If the URL has an explicit camera and no individually named imagery layer, the controller intersects a conservative startup camera rectangle with published map bounds before loading imagery. It still fetches all map parts and geometry. The canvas reports its actual viewport through `ensureImagery`, which requests newly visible map manifests and composes their layers without resetting the camera. Default world-fit startup retains all visible map imagery. Individually named imagery layer links load all manifests so their layer IDs can be validated without erasing the saved choice.
 - A checked-in PNG atlas and generated JSON mapping are rendered by a browser-driven generator using exactly the former canvas drawing instructions. Runtime decodes the PNG and copies it to the atlas canvas. The generator is invoked only when registry pixels change, not at every page load.
 - Both logo placements use a 72-pixel lossless WebP image for their 32- and 36-pixel display sizes. Existing 512-pixel PNG is no longer downloaded on map entry.
-- Graphics changes must preserve marker glyphs and layers. Compare three cold loads per browser on production builds and inspect desktop and phone screenshots before accepting shader changes.
+- Graphics changes must preserve marker glyphs and layers. Stage shader families across hidden frames only when `KHR_parallel_shader_compile` is present. Firefox and software GL lack that extension and use one pass, avoiding redundant draws without delaying their final appearance. Compare three cold loads per browser on production builds and inspect desktop and phone screenshots before accepting shader changes.
 
 ## Risks and Validation
 
