@@ -6,13 +6,17 @@
   export let answer = true;
   /** Suppress the side when a page has no distinct facts to place there. */
   export let side = true;
+  /** On narrow screens, show the side's identity facts before long primary detail. */
+  export let mobileSideFirst = false;
+  /** On narrow screens, show the main sections before supporting side content. */
+  export let mobileRestFirst = false;
   // A navigation to another page returns the side column to its place at the top.
   let navigation = 0;
   afterNavigate(() => { navigation += 1; });
 </script>
 
 <!-- A page without side content gives its main column the full width instead of an empty column beside it. -->
-<div class="detail-frame" class:no-answer={!answer} class:no-side={!side || !$$slots.side}>
+<div class="detail-frame" class:no-answer={!answer} class:no-side={!side || !$$slots.side} class:mobile-side-first={mobileSideFirst} class:mobile-rest-first={mobileRestFirst}>
   <div class="head"><slot name="head" /></div>
   {#if answer}<div class="answer"><slot name="answer" /></div>{/if}
   {#if side && $$slots.side}<aside class="side" aria-label="Additional details"><div class="side-column" use:followPageScroll={navigation}><slot name="side" /></div></aside>{/if}
@@ -49,6 +53,9 @@
     .detail-frame.no-answer { grid-template-areas: 'head' 'side' 'rest'; }
     .detail-frame.no-side { grid-template-areas: 'head' 'answer' 'rest'; }
     .detail-frame.no-side.no-answer { grid-template-areas: 'head' 'rest'; }
+    .detail-frame.mobile-side-first:not(.no-side) { grid-template-areas: 'head' 'side' 'answer' 'rest'; }
+    .detail-frame.mobile-side-first.no-answer:not(.no-side) { grid-template-areas: 'head' 'side' 'rest'; }
+    .detail-frame.mobile-rest-first:not(.no-side) { grid-template-areas: 'head' 'answer' 'rest' 'side'; }
     .side-column { position: static; }
   }
 </style>

@@ -40,7 +40,7 @@
   ];
 </script>
 
-<!-- The answer shows the place as the game pictures it, its own description, and then what a player finds there. -->
+<!-- On phones the playable contents follow the artwork; desktop keeps the description before the contents. -->
 <DetailFrame side={hasSide} answer={Boolean(artwork || document.description || summary.length || document.variantOf || !document.space)}>
   <svelte:fragment slot="head"><TitleBlock name={document.ref.name} typeLine={categoryLabel(facts.placeType)} facts={identity} mapHref={document.space ? placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined) : undefined} {registry} /></svelte:fragment>
   <svelte:fragment slot="answer">
@@ -48,17 +48,20 @@
       <AnswerCard title="Explore this place">
         {#if artwork}<img class="artwork" src={`${base}/data/${artwork.url}`} width={artwork.width} height={artwork.height} alt={`${document.ref.name} artwork`} />{/if}
         {#if document.variantOf}<p>A challenge version of <EntityLink ref={document.variantOf} {registry} />. It also contains copies of overworld content.</p>{/if}
-        {#if document.description}<p class="description">{document.description}</p>{/if}
         {#if summary.length}
-          <p>Find {listText(summary)} here.</p>
-          <nav class="answer-links" aria-label="Explore this place">
-            {#if document.placesToEnter.length}<a class="c-link" href="#places-to-enter">Places to Enter</a>{/if}
-            {#if inhabitants.bosses.length}<a class="c-link" href="#bosses">Bosses</a>{/if}
-            {#if inhabitants.creatures.length}<a class="c-link" href="#creatures">Creatures</a>{/if}
-            {#if quests.length}<a class="c-link" href="#quests">Quests</a>{/if}
-            {#if document.resources.length || document.containers.length}<a class="c-link" href="#points-of-interest">Gathering and Objects</a>{/if}
-          </nav>
-        {:else if !document.space}<p class="unmapped">This place has no mapped location or known points of interest.</p>{/if}
+          <div class="place-contents">
+            <p>Find {listText(summary)} here.</p>
+            <nav class="answer-links" aria-label="Explore this place">
+              {#if document.placesToEnter.length}<a class="c-link" href="#places-to-enter">Places to Enter</a>{/if}
+              {#if inhabitants.bosses.length}<a class="c-link" href="#bosses">Bosses</a>{/if}
+              {#if inhabitants.creatures.length}<a class="c-link" href="#creatures">Creatures</a>{/if}
+              {#if quests.length}<a class="c-link" href="#quests">Quests</a>{/if}
+              {#if document.resources.length || document.containers.length}<a class="c-link" href="#points-of-interest">Gathering and Objects</a>{/if}
+            </nav>
+          </div>
+        {/if}
+        {#if document.description}<p class="description">{document.description}</p>{/if}
+        {#if !summary.length && !document.space}<p class="unmapped">This place has no mapped location or known points of interest.</p>{/if}
       </AnswerCard>
     {:else}<p class="unmapped">No location or points of interest are available for this place.</p>{/if}
   </svelte:fragment>
@@ -79,7 +82,11 @@
 <style>
   /* The artwork keeps its wide shape at every width and stops at a banner's height, so the place's contents stay near. */
   .artwork { display: block; width: 100%; height: auto; max-height: 15rem; object-fit: cover; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
-  .description { white-space: pre-line; }
+  .description { white-space: pre-line; order: 1; }
+  .place-contents { display: grid; gap: .5rem; order: 2; }
   .unmapped { margin: 0; color: var(--c-text-dim); }
   .answer-links { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: var(--c-text-small); }
+  @media (max-width: 1023px) {
+    .place-contents, .description { order: 0; }
+  }
 </style>

@@ -71,7 +71,7 @@
       {#if document.recovery.length}<p>Recovers {#each document.recovery as recovery, index}{index ? ', and ' : ''}{formatNumber(recovery.amount)} every {formatNumber(recovery.interval)} {recovery.interval === 1 ? 'second' : 'seconds'} {recovery.when === 'in-combat' ? 'in combat' : 'out of combat'}{/each}.</p>{/if}
       {#if onHit}<p>On an eligible hit, this stat's current value is its trigger chance. When it triggers, {#each document.onHit as hit, index}{index ? ', ' : ''}<EntityLink ref={hit.effect} {registry} /> applies {formatNumber(hit.chance)}% of the time{/each}.</p>{/if}
       {#if !document.description && !document.note && !document.recovery.length && !onHit}<p>{document.ref.name} is a {document.category?.toLowerCase() ?? document.statCategory?.toLowerCase() ?? 'character'} stat.</p>{/if}
-      {#if itemCount > 0}<p><a class="c-link" href={itemsHref}>Browse {formatNumber(itemCount)} {itemCount === 1 ? 'item' : 'items'} with {document.ref.name}</a>.{#if !document.itemListColumn}{' '}Fixed bonuses and possible rolls are listed below.{/if}</p>
+      {#if itemCount > 0}<p><a class="c-link" href={itemsHref}>Browse items with {document.ref.name}</a>.{#if !document.itemListColumn}{' '}Fixed bonuses and possible rolls are listed below.{/if}</p>
       {:else if totalSources > 0}<p>See the sources below for ways to gain this stat.</p>{/if}
       <HowItWorks guide={combat} section={guideSection} label="How combat stats work" />
     </AnswerCard></div>

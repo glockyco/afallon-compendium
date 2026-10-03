@@ -66,13 +66,14 @@
   let statLevel = 1;
   $: statLevel = Math.min(statMax, Math.max(statMin, statLevel));
   $: statGroups = groupStats(combatStats, statSource ? statLevel : undefined);
+  $: health = statGroups.effective.find((stat) => nameOf(stat.stat).toLowerCase() === 'health');
   $: hours = adventurer?.joinAfterHours ?? 0;
   $: summaryFacts = adventurer ? [
     ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),
     { label: 'Party role', value: adventurer.role, ...(adventurer.defaultRole ? { note: 'By default' } : {}), ...(rosterGuide ? { guide: rosterGuide } : {}) },
   ] : [
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
-    ...(combat && document.locations.length && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
+    ...(combat && document.locations.length && !kill && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(combat && document.locations.length && !document.adventurerGear && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ];
   // An adventurer's gear preference: the armor type and weapon types it takes, and the stat it values most in gear. With
@@ -104,9 +105,14 @@
   ];
 </script>
 
-<DetailFrame answer={answer !== undefined} side={hasSide}>
+<DetailFrame answer={answer !== undefined} side={hasSide} mobileSideFirst={Boolean(adventurer)}>
   <svelte:fragment slot="head">
     <TitleBlock name={document.ref.name} typeLine={identityLine} facts={titleFacts} imageUrl={titleArt ? `${base}/data/${titleArt.url}` : undefined} portrait={Boolean(portrait)} mapHref={document.spotCount ? entityOnMap(document.ref.key) : undefined} {registry} />
+    {#if !adventurer && answer === 'drops' && combat && facts.level?.min && health}
+      <div class="mobile-combat" aria-label="Level and health">
+        <FactList><FactRow label="Level">{npcLevelText(facts.level)}</FactRow><FactRow label="Health">{npcStatDisplay(health, statLevel)}</FactRow></FactList>
+      </div>
+    {/if}
   </svelte:fragment>
 
   <svelte:fragment slot="answer">
@@ -137,6 +143,7 @@
 
   <svelte:fragment slot="side">
     {#if hasSide}
+      <div class:boss-facts={!adventurer && answer === 'drops' && combat && Boolean(facts.level?.min && health)}>
       <FactsCard facts={summaryFacts} title={adventurer ? 'Adventurer' : undefined}>
         {#if adventurer}<FactRow label="Class"><EntityLink ref={adventurer.class} {registry} /></FactRow>{/if}
           {#if facts.faction && !showFactionInTitle}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
@@ -150,35 +157,7 @@
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
         <svelte:fragment slot="after">{#if document.description && !document.flights?.length && !adventurer}<p class="description">{document.description}</p>{/if}</svelte:fragment>
       </FactsCard>
-      {#if combat && combatStats.length}
-        <SideCard title="Creature Stats">
-          {#if statSource?.level}
-            <p class="stat-source">In {statSource.label}, level {npcLevelText({ ...statSource.level, scales: false })}.</p>
-            {#if statMax > statMin}
-              <LevelControl id="npc-creature-level" readerId={`npc-level:${document.ref.key}:${statSource.label}`} label="Creature level" min={statMin} max={statMax} fallback={statMin} bind:level={statLevel} />
-            {/if}
-          {/if}
-          <FactList>
-            {#each statGroups.effective as stat}
-              <FactRow label={statLabel(stat)}>{npcStatDisplay(stat, statLevel)}</FactRow>
-            {/each}
-          </FactList>
-          {#if statGroups.effective.length}<p class="stat-formula">Each stat is a shared starting value plus this creature's bonus plus a gain per level.</p>{/if}
-          {#if statGroups.other.length}<p class="stat-extra">Also changes: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
-          <details class="stat-method">
-            <summary>How these are calculated</summary>
-            <div class="c-table-scroll"><table class="c-table c-table--calculator">
-              <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per Level</th></tr></thead>
-              <tbody>{#each combatStats as stat}
-                <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{stat.startingValue === undefined ? 'Unknown' : formatNumber(stat.startingValue)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{stat.perLevel === undefined ? 'Unknown' : npcStatAmount(stat.perLevel, stat.isPercent)}</td></tr>
-              {/each}</tbody>
-            </table></div>
-          </details>
-          {#if combatStats.some((stat) => nameOf(stat.stat) === 'Strength')}
-            <p class="stat-source">A physical move that uses Strength adds it to that move's damage before defenses. The actual hit depends on the move and its target.</p>
-          {/if}
-        </SideCard>
-      {/if}
+      </div>
     {/if}
     {#if adventurer}
       <SideCard title="Arrival">
@@ -256,4 +235,11 @@
   .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
+  .mobile-combat { display: none; }
+  @media (max-width: 1023px) {
+    .mobile-combat { display: block; margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: var(--c-surface-1); }
+    .mobile-combat :global(.fact-list dl) { grid-template-columns: max-content minmax(0, 1fr); }
+    .mobile-combat :global(dd) { text-align: right; }
+    .boss-facts :global(.fact-list dl > .fact-row:first-child) { display: none; }
+  }
 </style>

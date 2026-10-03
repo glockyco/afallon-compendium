@@ -33,7 +33,7 @@
 <div class="starters">
   {#each people as person}
     <div><h3>{person.ends ? 'Starts and ends with' : 'Starts with'}</h3>
-      <p><EntityLink ref={person.npc} {registry} />{#if person.areas.length}{' · '}{person.areas.join(', ')}{/if}{#if person.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(person.npc.key)}>Show on Map</a>{/if}</p>
+      <p class="location-line"><EntityLink ref={person.npc} {registry} />{#if person.areas.length}<span class="location-place">in {person.areas.join(', ')}</span>{/if}{#if person.npc.key !== null}<span class="map-action"><a class="c-link" href={entityOnMap(person.npc.key)}>Show on Map</a></span>{/if}</p>
     </div>
   {/each}
   {#if zones.length || objects.length}<div><h3>Starts with</h3>
@@ -48,7 +48,7 @@
   </div>{/if}
   {#if remainingTurnIns.length || (!document.turnIns.length && (document.facts.turnInWithoutNpc || document.facts.worldQuest))}
     <div><h3>{document.facts.worldQuest && !document.turnIns.length ? 'Completion' : 'Turn in to'}</h3>
-      {#each remainingTurnIns as turnIn}<p><EntityLink ref={turnIn.npc} {registry} />{#if turnIn.areas.length}{' · '}{turnIn.areas.join(', ')}{/if}{#if turnIn.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(turnIn.npc.key)}>Show on Map</a>{/if}</p>{/each}
+      {#each remainingTurnIns as turnIn}<p class="location-line"><EntityLink ref={turnIn.npc} {registry} />{#if turnIn.areas.length}<span class="location-place">in {turnIn.areas.join(', ')}</span>{/if}{#if turnIn.npc.key !== null}<span class="map-action"><a class="c-link" href={entityOnMap(turnIn.npc.key)}>Show on Map</a></span>{/if}</p>{/each}
       {#if !document.turnIns.length}<p>{document.facts.worldQuest ? 'Completes automatically when its objectives are finished.' : document.facts.turnInWithoutNpc ? 'Completes without a turn-in character.' : 'No turn-in character is named.'}</p>{/if}
     </div>
   {/if}
@@ -58,4 +58,7 @@
   .starters { display: grid; gap: .85rem; padding-top: var(--c-space-block); border-top: 1px solid var(--c-line-soft); }
   h3 { margin-bottom: .25rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; }
   .source + .source { margin-top: .65rem; }
+  .location-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .65rem; }
+  .location-place { white-space: nowrap; max-width: 100%; }
+  .map-action { display: inline-block; white-space: nowrap; }
 </style>

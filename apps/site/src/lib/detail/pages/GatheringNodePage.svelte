@@ -99,7 +99,7 @@
       <AnswerCard title="Gives" id="yields">
         {#if document.yields.length}
           <p class="intro">Each item has its own chance per use. Quantity is the count before any yield bonus.</p>
-          <RelationTable columns={yieldPlan.columns} rows={document.yields} label="Items gathered" sort={{ id: 'chance', dir: 'desc' }}>
+          <RelationTable columns={yieldPlan.columns} rows={document.yields} label="Items gathered" mobileLabelNumbers sort={{ id: 'chance', dir: 'desc' }}>
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'item'}<EntityLink ref={row.counterpart} {registry} />
               {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
@@ -108,7 +108,7 @@
           </RelationTable>
         {:else}<p>No known yields for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
+          <p class="bonus">{#if document.facts.requiredLevel !== undefined}You need {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)} to gather this node.{' '}{/if}{#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}At your selected {skillName ?? 'skill'} level {formatNumber(level)}, you cannot gather from it yet. Once you can gather, each item can yield one extra:{' '}{#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}.{:else}At your selected {skillName ?? 'skill'} level {formatNumber(level)}, each item has a <strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> chance to yield one extra.{/if}{' '}<HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
       </AnswerCard>
     </div>
@@ -140,7 +140,7 @@
     </div>
 
     <Sections>
-    <Section id="locations" title="Where to Find" count={document.places.length}>
+    <Section id="locations" title="Where to Find" count={document.places.length} countUnit={document.places.length === 1 ? 'place' : 'places'}>
       {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No known location for this node.</p>{/if}
       {#if document.spawners.some((group) => group.unplaced) || document.placed.some((group) => group.unplaced)}<p class="footnote">Some spawners or placed nodes have no known location.</p>{/if}
     </Section>

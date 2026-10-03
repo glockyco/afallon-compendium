@@ -25,10 +25,16 @@
   $: attackSpeed = damage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
   $: gearType = facts.weaponType ?? facts.armorType;
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
+  $: slotLabel = slot ? categoryLabel(slot) : undefined;
+  $: typeLabel = gearType ? categoryLabel(gearType) : facts.itemType ? categoryLabel(facts.itemType) : undefined;
+  $: slotDescribedByType = Boolean(slotLabel && typeLabel && (
+    slotLabel === 'One Hand' && /^One Handed\b/i.test(typeLabel) ||
+    slotLabel === 'Two Hands' && /^Two Handed\b/i.test(typeLabel)
+  ));
   $: headerFacts = [
     ...(facts.rarity ? [{ value: facts.rarity }] : []),
-    ...(slot ? [{ value: categoryLabel(slot) }] : []),
-    ...(gearType ? [{ value: categoryLabel(gearType) }] : facts.itemType ? [{ value: categoryLabel(facts.itemType) }] : []),
+    ...(slotLabel && !slotDescribedByType ? [{ value: slotLabel }] : []),
+    ...(typeLabel ? [{ value: typeLabel }] : []),
   ] satisfies HeaderFact[];
   $: set = facts.gearSet;
 </script>
@@ -68,7 +74,7 @@
     {#if set}
       <section class="gear-set" aria-label={nameOf(set.set)}>
         <h4><slot name="ref" ref={set.set} rankIndex={undefined} plain={true}><EntityReference ref={set.set} {registry} plain /></slot> <span class="dim">({set.members.length} pieces)</span></h4>
-        <ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined} plain={true}><EntityReference ref={member} {registry} plain /></slot></li>{/each}</ul>
+        <details class="set-roster"><summary>See all pieces</summary><ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined} plain={true}><EntityReference ref={member} {registry} plain /></slot></li>{/each}</ul></details>
         <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot>{/each}</li>{/each}</ul>
       </section>
     {/if}
@@ -98,6 +104,8 @@
   .group { display: grid; gap: .2rem; }
   .plain { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
   .gear-set { display: grid; gap: .28rem; margin-top: .18rem; }
+  .set-roster summary { width: fit-content; cursor: pointer; color: var(--c-accent); }
+  .set-roster .plain { margin-top: .3rem; }
   h4 { margin: 0; color: var(--c-rarity-gold); font: 600 var(--c-text-body)/1.3 var(--c-serif); }
   /* Only the name dims. Opacity on the row would also dim the hover tooltip that the row holds, and a descendant rule
      would reach into that tooltip, so the rule takes the row's direct child only. */

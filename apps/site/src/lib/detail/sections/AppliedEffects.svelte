@@ -29,7 +29,7 @@
 {#if rows.length}
   <div class="applied-effects">
     {#if heading}<h3>Applies Effects</h3>{/if}
-    <p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>
+    {#if rows.some((row) => row.chance !== undefined)}<p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>{/if}
     <ul>
       {#each rows.slice(0, shown) as row, index (index)}
         {@const details = context(row)}

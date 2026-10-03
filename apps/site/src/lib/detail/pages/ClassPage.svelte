@@ -49,6 +49,11 @@
     <div slot="answer"><AnswerCard title="Playstyle">
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.autoAttack}<p>Auto attack: <EntityLink ref={facts.autoAttack} {registry} /></p>{/if}
+      {#if document.trees.length}
+        <nav class="mobile-trees" aria-label="Talent trees"><strong>Talent trees</strong>
+          {#each document.trees as tree}<a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a>{/each}
+        </nav>
+      {/if}
     </AnswerCard></div>
     <!-- The side stays in view beside the trees: the points that the class earns, what learning each tree in full costs,
          and the gear that it can use. -->
@@ -112,4 +117,9 @@
   .weapons { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; list-style: none; }
   .gear { display: inline-block; margin-top: .65rem; }
   .weapons li { padding: .25rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); color: var(--c-text-dim); font-size: .875rem; }
+  .mobile-trees { display: none; }
+  @media (max-width: 1023px) {
+    .mobile-trees { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .8rem; }
+    .mobile-trees strong { flex-basis: 100%; color: var(--c-text-strong); }
+  }
 </style>

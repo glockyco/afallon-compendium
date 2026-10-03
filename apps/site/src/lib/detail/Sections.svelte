@@ -4,8 +4,7 @@
   import SectionLens from './SectionLens.svelte';
   import { fragmentId } from './tab-state';
 
-  // The sections below register themselves as they render. The section lens follows them and floats over the page, so
-  // the section column keeps its full width at every screen size.
+  // The section control precedes the sections in reading order. On wide screens it can float in the page margin.
   const navigation = provideDetailNavigation();
   const sections = navigation.sections;
   onMount(() => {
@@ -22,5 +21,5 @@
   });
 </script>
 
-<div class="c-sections"><slot /></div>
 <SectionLens sections={$sections} />
+<div class="c-sections"><slot /></div>

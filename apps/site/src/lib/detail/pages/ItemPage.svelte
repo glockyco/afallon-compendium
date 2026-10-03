@@ -63,13 +63,14 @@
   $: heroicGuide = document.placedRules.find((rule) => rule.target === 'heroic-gear');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
   $: questUses = itemQuestUseRows(document.usedInQuests);
+  $: questSourceRows = itemQuestSourceRows(document.rewardedBy, document.givenBy);
   $: hasSources = itemSourceLines(document).length > 0 || document.adventurers.length > 0;
   $: unboundLootTables = unboundLootTableNames(document, hasSources);
   $: itemChanges = document.whenUsed.itemChanges.filter((change) => change.item.key !== document.ref.key);
   $: useEffects = document.appliesEffects.filter((row) => row.trigger === 'Use');
   $: hitEffects = document.appliesEffects.filter((row) => row.trigger !== 'Use');
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
-  $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
+  $: singleDropInAnswer = Boolean(onlyDrop && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && (onlyDrop.chance !== undefined || onlyDrop.killChance !== undefined));
   $: onMap = document.sourceSpotCount > 0;
   const chestColumns: RelationColumn<PublicItem['whenUsed']['chests'][number]['rows'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
@@ -244,7 +245,7 @@
       </Section>
     {/if}
     {#if hitEffects.length}
-      <Section id="on-hit-effects" title="On-Hit Effects" count={hitEffects.length} line="When you hit, the linked stat's value is its chance to trigger. Each chance below is rolled only after it triggers.">
+      <Section id="on-hit-effects" title="On-Hit Effects" count={hitEffects.length} line={hitEffectPlan.columns.some((column) => column.id === 'chance') ? "When you hit, the linked stat's value is its chance to trigger. Each chance in the table is rolled only after the stat triggers." : "When you hit, the linked stat's value is its chance to trigger."}>
         <RelationTable columns={hitEffectPlan.columns} rows={hitEffects} label="Effects on hit">
           <svelte:fragment slot="cell" let:row let:column>
             {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />
@@ -309,7 +310,7 @@
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
     <ContainerSection id="collected-from" title="Found in objects" guide={objectGuide} guideLabel="How world object loot works" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
-    <QuestRowsSection id="from-quests" title="Quest Rewards" roleLabel="Given As" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
+    {#if questSourceRows.length > 1}<QuestRowsSection id="from-quests" title="Quest Rewards" roleLabel="Given As" rows={questSourceRows} {registry} />{/if}
     {#if document.questPickups.length}
       <Section id="quest-pickups" title="Quest Pickups" count={document.questPickups.length}>
         <div class="c-stack">

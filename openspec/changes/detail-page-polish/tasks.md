@@ -1,0 +1,21 @@
+## 1. Shared Facts and Item Detail
+
+- [x] 1.1 Repair identity and tooltip separator wrapping, redundant handedness, and acquisition metadata; inspect boss, place, sword, and chest at 390 px.
+- [x] 1.2 Deduplicate item source routes and reward tables without losing distinct conditions; inspect sword and cleaver at 1440 px.
+- [x] 1.3 Reduce set roster prominence and correct the on-hit explanation; inspect chest and sword at 1440 and 390 px.
+
+## 2. Mobile Answer Priority
+
+- [x] 2.1 Show boss difficulty and adventurer identity before long loot or gear on phones and remove duplicate static boss XP; inspect Kraath and Agra at 390 and 1440 px.
+- [x] 2.2 Put quest rewards and class talent access before secondary chain and gear on phones, keep map control together; inspect Bite in the Brew and Shieldmaster at 390 and 1440 px.
+- [x] 2.3 Put zone contents before long lore on phones and make the ability's effect the primary answer; inspect Coalway Swamp and Ambush at 390 and 1440 px.
+
+## 3. Remaining Detail Clarity
+
+- [x] 3.1 Remove repeated gear-set and stat counts, associate phone yield headings with their values, label location counts and clarify Mining yield; inspect gear set, item-power and Aetherium Vein at 390 and 1440 px.
+- [x] 3.2 Keep section navigation reachable without covering text throughout scrolling; inspect Kraath at 390 and 1100 px.
+
+## 4. Verification
+
+- [x] 4.1 Inspect warm viewport captures in Firefox and Chromium at 1440, 1100, and 390 px for every changed page and exercise section links.
+- [x] 4.2 Run production build, deployment assertion, strict OpenSpec validation, and staged repository verification.

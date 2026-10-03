@@ -98,9 +98,8 @@
 {/if}
 
 <style>
-  /* The pill floats over the page end, so the page keeps room below its last line. */
-  :global(body:has(.lens)) { padding-bottom: 4.5rem; }
-  .lens { position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; max-width: calc(100vw - 2.2rem); }
+  /* Within the content width the control occupies its own row, so no scrolling text passes beneath it. */
+  .lens { position: relative; z-index: 40; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: .5rem; width: max-content; max-width: 100%; margin-bottom: var(--c-space-section); }
   .pill { display: inline-flex; align-items: center; gap: .6rem; max-width: 100%; margin: 0; padding: .45rem .7rem; border: 1px solid var(--c-line); border-radius: 999px; background: color-mix(in oklab, var(--c-surface-2) 88%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--c-shadow); color: var(--c-text); font: inherit; font-size: var(--c-text-small); line-height: 1.2; cursor: pointer; transition: border-color .15s, background-color .15s; }
   .pill:hover, .pill[aria-expanded='true'] { border-color: var(--c-accent-line); }
   .pill:focus-visible, .row:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
@@ -111,7 +110,7 @@
   .chevron :global(svg) { width: .9rem; height: .9rem; }
   .chevron.open { transform: rotate(180deg); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .menu { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: .75rem; width: max-content; max-width: 100%; max-height: min(70vh, 32rem); overflow-y: auto; padding: .4rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: color-mix(in oklab, var(--c-surface-2) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 14px 38px rgb(0 0 0 / .5); }
+  .menu { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: .75rem; width: max-content; min-width: min(18rem, 100%); max-width: min(22rem, 100%); max-height: min(70vh, 32rem); overflow-y: auto; padding: .4rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: color-mix(in oklab, var(--c-surface-2) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 14px 38px rgb(0 0 0 / .5); }
   .row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; margin: 0; padding: .6rem .75rem; border: 0; border-radius: var(--c-radius-sm); background: none; color: var(--c-text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
   .row:hover { background: var(--c-tint-hover); }
   .top { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
@@ -131,6 +130,11 @@
   }
   @media (prefers-reduced-motion: reduce) { .pill, .chevron { transition: none; } }
   @media (max-width: 520px) { .current { max-width: 11rem; } }
+  @media (min-width: 1800px) {
+    :global(body:has(.lens)) { padding-bottom: 4.5rem; }
+    .lens { position: fixed; right: 1.1rem; bottom: 1.1rem; flex-direction: column; align-items: flex-end; width: auto; max-width: 18rem; margin: 0; }
+    .menu { max-width: 18rem; }
+  }
   @keyframes lens-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @keyframes row-in { from { opacity: 0; transform: translateX(7px); } to { opacity: 1; transform: none; } }
 </style>

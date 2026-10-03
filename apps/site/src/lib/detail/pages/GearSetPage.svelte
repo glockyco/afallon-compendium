@@ -15,10 +15,7 @@
   export let registry: PublicKindEntry[];
 
   $: pieceCount = document.pieces.length;
-  $: sideFacts = [
-    { label: 'Pieces', value: formatNumber(pieceCount), href: '#pieces' },
-    ...(document.tiers.length ? [{ label: 'Bonus tiers', value: formatNumber(document.tiers.length), href: '#set-bonuses' }] : []),
-  ];
+  $: sideFacts = document.tiers.length ? [{ label: 'Bonus tiers', value: formatNumber(document.tiers.length), href: '#set-bonuses' }] : [];
   const columns: RelationColumn<GearSetPiece>[] = [
     { id: 'item', label: 'Piece', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type ?? '' },

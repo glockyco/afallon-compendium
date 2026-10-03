@@ -75,10 +75,12 @@
   .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
   .facts .type { display: inline; color: var(--c-text-dim); }
-  .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
+  .facts li:not(:last-child)::after { content: ' ·'; white-space: nowrap; margin-right: .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
   .value { color: var(--c-text-strong); }
   @media (max-width: 640px) {
+    .facts { column-gap: 1rem; }
+    .facts li:not(:last-child)::after { display: none; }
     .heading { grid-template-columns: auto minmax(0, 1fr); gap: .8rem; }
     .heading .identity-art:not(.portrait) { width: 3rem; height: 3rem; padding: .25rem; }
     .heading:has(.identity-art:not(.portrait)) h1 { font-size: 1.5rem; }

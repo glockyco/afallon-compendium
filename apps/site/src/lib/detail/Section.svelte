@@ -8,6 +8,8 @@
   export let title: string;
   /** The number of rows. A section of prose or facts has no count. */
   export let count: number | undefined = undefined;
+  /** A noun beside a count when the number alone could describe different things on the same page. */
+  export let countUnit: string | undefined = undefined;
   /** One sentence that explains the values or states the values that all rows share. */
   export let line: string | undefined = undefined;
   /** One optional action alongside the section heading. */
@@ -26,7 +28,7 @@
 <section class="section" {id} aria-labelledby={`${id}-title`} bind:this={element}>
   <header>
     <div class="heading">
-      <svelte:element this={`h${level}`} class="title" id={`${id}-title`}>{title}{#if count !== undefined}<span class="count">{count}</span>{/if}</svelte:element>
+      <svelte:element this={`h${level}`} class="title" id={`${id}-title`}>{title}{#if count !== undefined}<span class="count">{count}{countUnit ? ` ${countUnit}` : ''}</span>{/if}</svelte:element>
       {#if showAllHref}<a class="c-link" href={showAllHref}>Show All</a>{/if}
     </div>
     {#if line}<p class="line">{line}</p>{/if}

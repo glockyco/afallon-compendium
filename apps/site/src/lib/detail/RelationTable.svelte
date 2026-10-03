@@ -14,6 +14,8 @@
   export let rows: Row[];
   /** The accessible name of the table. */
   export let label: string;
+  /** Show labels beside each numeric value on phones when two adjacent numbers need different units. */
+  export let mobileLabelNumbers = false;
   /** The first sort order. Without it, rows keep their published order until a reader sorts them. */
   export let sort: SortState | undefined = undefined;
   /** The anchors that a row holds, such as the variants of an NPC that stand at a location. */
@@ -96,7 +98,7 @@
   }
 </script>
 
-<div class="relation-table">
+<div class="relation-table" class:labeled-numbers={mobileLabelNumbers}>
   <!-- A phone restyles the table as blocks, and some browsers then drop the table semantics. The explicit roles keep them. -->
   <!-- svelte-ignore a11y_no_redundant_roles -->
   <table role="table" aria-label={label}>
@@ -125,7 +127,7 @@
           {#each columns as column, columnIndex}
             <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && !besideName[columnIndex]}>
               {#if columnIndex === 0}{#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
-              {#if columnIndex > 0}<span class="cell-label" aria-hidden="true">{column.label}</span>{/if}
+              {#if columnIndex > 0}<span class="cell-label" aria-hidden={!mobileLabelNumbers}>{column.label}</span>{/if}
               <span class="cell-value"><slot name="cell" {row} column={column.id} /></span>
             </td>
           {/each}
@@ -191,5 +193,13 @@
     td.detail .cell-label { display: block; color: var(--c-text-mute); }
     .cell-value { min-width: 0; }
     td.num .cell-value { font-variant-numeric: tabular-nums; }
+  }
+  @media (max-width: 640px) {
+    .labeled-numbers thead { display: none; }
+    .labeled-numbers tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .2rem .6rem; }
+    .labeled-numbers tbody td.name { grid-column: 1 / -1; }
+    .labeled-numbers tbody td.num { display: grid; align-content: start; gap: .15rem; text-align: left; white-space: normal; }
+    .labeled-numbers tbody td.num .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
+    .labeled-numbers tbody td.num .cell-value { white-space: nowrap; }
   }
 </style>
