@@ -222,7 +222,12 @@
      fades into the page. The hero does not clip its content, so search results open over the sections below, and its
      stacking level keeps them above the cards. */
   .hero { position: relative; z-index: 2; display: flex; align-items: flex-end; min-height: clamp(24rem, 34vw, 31rem); background: var(--c-surface-deep); }
+  /* The artwork is 1,600 pixels wide. Wider screens show it at that width, centred, with its sides fading into the band,
+     instead of enlarging and cropping it to a sliver of the scene. */
   .hero-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
+  @media (min-width: 100rem) {
+    .hero-art { left: 50%; width: 100rem; transform: translateX(-50%); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+  }
   .hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, color-mix(in srgb, var(--c-surface-deep) 95%, transparent) 0%, color-mix(in srgb, var(--c-surface-deep) 82%, transparent) 30%, color-mix(in srgb, var(--c-surface-deep) 30%, transparent) 60%, color-mix(in srgb, var(--c-surface-deep) 5%, transparent) 82%), linear-gradient(0deg, var(--c-surface-0) 0%, transparent 32%); }
   .hero-inner { width: min(72rem, 100%); margin: 0 auto; padding: 5rem 1.5rem 3.5rem; }
   h1 { max-width: 12ch; margin: 0 0 1.4rem; color: var(--c-text-strong); font: 600 clamp(2.5rem, 4.6vw, 3.75rem)/1.02 var(--c-serif); letter-spacing: -.01em; text-shadow: 0 2px 24px var(--c-shadow-strong); }
