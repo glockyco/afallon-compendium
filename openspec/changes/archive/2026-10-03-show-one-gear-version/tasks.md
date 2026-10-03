@@ -7,4 +7,4 @@
 
 - [x] 2.1 Show one gear version at a time, with one line and one link for the chosen version
 - [x] 2.2 Show the game's Heroic tag in the tooltip
-- [ ] 2.3 Check the card and tooltip in each version at 1440, 1100, and 390 px after publication
+- [x] 2.3 Check the card and tooltip in each version at 1440, 1100, and 390 px after publication

@@ -23,7 +23,7 @@ The route `/` SHALL show compendium search at the top of its main content. It SH
 
 #### Scenario: Guides on the home page
 - **WHEN** a reader opens the home page of a publication with ten mechanics pages
-- **THEN** the Mechanics section lists Adventurers, Character Progression, Corruption, Crafting and Gathering, Factions and Reputation, and Loot, each linking its page with a sentence on what it explains
+- **THEN** the Mechanics section lists Adventurers, Character Progression, Corruption, Crafting and Gathering, Heroic Tier, and Loot, each linking its page with a sentence on what it explains
 - **AND** an "All 10 mechanics" link beside the heading opens the mechanics list
 
 ### Requirement: Level entry uses published place facts
@@ -47,8 +47,22 @@ The hub SHALL show a place's level range only when the publication records that 
 
 ### Requirement: Featured entities share reference previews
 
-A featured place, boss, zone, class, skill, or mechanics page on the hub SHALL use the site's entity link when that page is published. Its visual card or tile layout SHALL remain a navigable group without adding a second bespoke hover surface. Merchants SHALL NOT be among the earliest or most prominent hub sections.
+A featured place, boss, zone, class, skill, or mechanics page on the hub SHALL use the site's entity link when that page is published. Its visual card or tile layout SHALL remain a navigable group without adding a second bespoke hover surface. A dungeon card, class tile, or skill tile SHALL open its page from a click anywhere on it, SHALL NOT open a hover card, and SHALL show that it links by its own highlight, without an underline on its name. The boss links inside a dungeon card SHALL open their own pages and keep their hover cards, and each boss name SHALL stay on one line, ending in an ellipsis when it is too long. Merchants SHALL NOT be among the earliest or most prominent hub sections.
 
 #### Scenario: Hover a featured dungeon boss
 - **WHEN** a desktop reader hovers the published boss name on the home page
 - **THEN** the same hover card available in catalog rows opens beside the name
+
+#### Scenario: Click the empty part of a card
+- **WHEN** a reader clicks the artwork of a dungeon card, the empty space of a class tile, or the recipe count of a skill tile
+- **THEN** the page of that dungeon, class, or skill opens
+- **AND** a click on a boss name inside a dungeon card opens that boss's page, while a click beside it opens the dungeon
+
+#### Scenario: Point at a card
+- **WHEN** a desktop reader points at a dungeon card, class tile, or skill tile outside its boss names
+- **THEN** the card is highlighted, no hover card opens, and its name gains no underline
+
+#### Scenario: Long boss name
+- **WHEN** a dungeon card names Vhorast the Grave-Caller in a narrow column
+- **THEN** the name stays on one line beside its portrait and ends in an ellipsis
+- **AND** its hover card shows the whole name

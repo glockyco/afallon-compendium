@@ -16,5 +16,5 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Measure cold loads and client navigations of the heaviest pages in Chromium and Firefox before and after
-- [ ] 4.2 Check the changed lists and relation tables at 1440, 1100, and 390 px
+- [x] 4.1 Measure cold loads and client navigations of the heaviest pages in Chromium and Firefox before and after
+- [x] 4.2 Check the changed lists and relation tables at 1440, 1100, and 390 px
