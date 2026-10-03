@@ -25,7 +25,8 @@
           <p><a class="c-link" href={STEAM_URL} rel="external">Play Afallon on Steam</a></p>
         </section>
         <section aria-labelledby="reference"><h2 id="reference">How This Reference Is Made</h2>
-          <p>The reference is built from the game's data and checks of how its rules work. It follows Afallon {data.release.version}, patched {formatCalendarDate(data.release.patchNotes.date)}, with data from {formatCalendarDate(data.release.dataDate)}. Some entries and locations are incomplete. Check <a class="c-link" href={`${base}/coverage/`}>Coverage</a> for known gaps and the <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch Notes</a> for the game's changes.</p>
+          <p>Every page is generated from the game's own files. Where a number depends on how the game calculates it, such as drop chances or experience, the calculation was checked against the game's code and, where needed, in the running game.</p>
+          <p>This version covers Afallon {data.release.version}, the patch from {formatCalendarDate(data.release.patchNotes.date)}. The game data was read on {formatCalendarDate(data.release.dataDate)}. A few entries and locations are still incomplete. <a class="c-link" href={`${base}/coverage/`}>Coverage</a> lists the known gaps, and the <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch Notes</a> describe what changed in the game.</p>
         </section>
         <section aria-labelledby="disclaimer"><h2 id="disclaimer">Unofficial Fan Project</h2>
           <p>Afallon Compendium is an unofficial fan project and is not affiliated with the developer or publisher of Afallon. Afallon and its related names, artwork, and assets belong to their respective owners.</p>
