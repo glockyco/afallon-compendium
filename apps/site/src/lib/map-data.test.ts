@@ -188,6 +188,54 @@ test('an explicit camera loads imagery only for maps in view, then fetches newly
   } finally { controller.dispose(); }
 });
 
+test('a saved empty camera keeps game imagery enabled when the reader pans to a map', async () => {
+  const data = fixture();
+  const { controller, until } = observe(data.loader);
+  try {
+    controller.start({ ...readMapUrl(''), view: { target: [3000, 3000, 0], zoom: 0 } });
+    const emptyView = await until((snapshot) => snapshot.map.status === 'loaded');
+    expect(emptyView.publication?.tileLayers).toEqual([]);
+    expect(emptyView.state.layerIds).toEqual(['game-maps']);
+    controller.ensureImagery([0, 0, 256, 256]);
+    const mapView = await until((snapshot) => snapshot.publication?.tileLayers.length === 1);
+    expect(mapView.state.layerIds).toEqual(['game-maps']);
+    expect(mapView.publication?.tileLayers[0]?.id).toBe('game');
+  } finally { controller.dispose(); }
+});
+
+test('an offscreen imagery failure is visible and retries without reloading placements', async () => {
+  const data = fixture();
+  const imagery = data.root.maps[0]!.imagery.path;
+  const mapPart = data.root.maps[0]!.parts[0]!.path;
+  const { controller, until } = observe(data.loader);
+  try {
+    controller.start({ ...readMapUrl(''), view: { target: [3000, 3000, 0], zoom: 0 } });
+    await until((snapshot) => snapshot.map.status === 'loaded');
+    data.overrides.set(imagery, async () => new Response('unavailable', { status: 503 }));
+    controller.ensureImagery([0, 0, 256, 256]);
+    expect((await until((snapshot) => snapshot.map.status === 'error')).map).toMatchObject({ message: expect.stringContaining('503') });
+    data.overrides.delete(imagery);
+    controller.retry('map');
+    const recovered = await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.publication?.tileLayers.length === 1);
+    expect(recovered.publication?.placements.map((placement) => placement.placementId)).toEqual(['place:a', 'place:b']);
+    expect(data.counts.get(imagery)).toBe(2);
+    expect(data.counts.get(mapPart)).toBe(1);
+  } finally { controller.dispose(); }
+});
+
+test('selecting a loot source does not fetch every item it may give', async () => {
+  const data = fixture();
+  const { controller, until } = observe(data.loader);
+  try {
+    controller.start(readMapUrl('?selected=place%3Aa'));
+    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    expect(data.counts.get(data.documents.get('item:a')!.path)).toBeUndefined();
+    controller.navigate(readMapUrl('?selected=place%3Aa&item=item%3Aa'));
+    await until((snapshot) => snapshot.detail.status === 'loaded');
+    expect(data.counts.get(data.documents.get('item:a')!.path)).toBe(1);
+  } finally { controller.dispose(); }
+});
+
 test('verified requests deduplicate failures and allow explicit retry without refetching successful resources', async () => {
   const data = fixture();
   const path = data.documents.get('item:a')!.path;

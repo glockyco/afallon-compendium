@@ -178,7 +178,8 @@ export class MapController {
       this.#snapshot = {
         ...this.#snapshot,
         map: { status: 'loaded' },
-        state: transitionMapState(this.#snapshot.state, { type: 'select-layers', layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }),
+        state: transitionMapState(this.#snapshot.state, { type: 'select-layers', layerIds: this.#snapshot.state.layerIds.length === 0 && this.#base.tileLayers.length === 0 && maps.some((map) => !map.imagery)
+          ? ['game-maps'] : resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }),
       };
       this.#compose();
       this.#selectionKey = '';
@@ -245,7 +246,7 @@ export class MapController {
     if (this.#search && state.itemKey && !this.#search.entriesByKey.has(state.itemKey)) staleSelection = `This link refers to an item that is not in the loaded publication: ${state.itemKey}.`;
     if (this.#search && state.placeKey && this.#search.entriesByKey.get(state.placeKey)?.ref.kind !== 'places') staleSelection = `This link refers to a place that is not in the loaded publication: ${state.placeKey}.`;
 
-    const entryKeys = new Set([...(placement?.entityKeys ?? []), ...(placement?.itemKeys ?? [])]);
+    const entryKeys = new Set(placement?.entityKeys ?? []);
     if (state.entityKey) entryKeys.add(state.entityKey);
     if (state.itemKey) entryKeys.add(state.itemKey);
     if (state.placeKey) entryKeys.add(state.placeKey);
