@@ -503,7 +503,10 @@
     .list :global(tbody) { display: grid; gap: .6rem; }
     .list :global(tbody tr) { padding: .6rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
     .list :global(tbody tr:nth-child(even)) { background: var(--c-surface-1); }
-    .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+    /* A phone card stacks label and value in a narrow column, so a value may wrap between its parts. The price and the
+       interval each stay whole, and a numeric cell drops the one-line rule that suits table columns. */
+    .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+    .list :global(tbody .income-interval) { white-space: nowrap; }
     .list.property-list :global(tbody td) { grid-template-columns: minmax(4rem, .45fr) minmax(0, 1fr); gap: .4rem; }
     .list :global(tbody td.wide-fact) { grid-template-columns: minmax(0, 1fr); }
     .list :global(tbody td.description-fact::before) { display: none; }
