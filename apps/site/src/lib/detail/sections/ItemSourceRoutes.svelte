@@ -3,9 +3,10 @@
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Hint from '../../Hint.svelte';
-  import { creatureLevelText, dropRateText, formatNumber, itemDropText, KILL_CHANCE_HINT, LISTED_RATE_HINT } from '../../format';
+  import { dropRateText, formatNumber, itemDropText, LISTED_RATE_HINT } from '../../format';
   import CraftExperience from '../CraftExperience.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import LootChanceHint from '../LootChanceHint.svelte';
   import { itemSourceLines, lineHref, type SummaryLine } from '../item-sources';
   import MaterialsList from '../MaterialsList.svelte';
   import SummaryValue from '../SummaryValue.svelte';
@@ -67,18 +68,21 @@
           {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How dungeon rewards work" />{/if}
         {:else}
           <p>
-            {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} stackPrice={entry.id === 'sold-by'} />{/if}
+            {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} stackPrice={entry.id === 'sold-by'} suffix={entry.id === 'dropped-by' && !entry.text && (rate || entry.detail) ? ':' : undefined} />{/if}
             {#if entry.id === 'from-quests' && onlyQuest}<span class="source-separator">{' · '}</span><span class="source-meta">{onlyQuest.roles.join(' and ')}{#if onlyQuest.count && onlyQuest.count > 1}{', '}{formatNumber(onlyQuest.count)} items{/if}</span>{/if}
-            {#if entry.id === 'dropped-by' && singleDropInAnswer && onlyDrop?.creatureLevel && !entry.text}{' · '}{creatureLevelText(onlyDrop.creatureLevel)}{/if}
-            {#if entry.id === 'dropped-by' && (rate || entry.detail)}{entry.text?.endsWith('.') ? ' ' : '. '}{/if}
+            {#if entry.id === 'dropped-by' && (rate || entry.detail)}
+              {entry.text && !entry.text.endsWith('.') ? ': ' : ' '}
+            {/if}
             {#if rate && entry.drop}
-              {#if entry.drop.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>Listed rate:</Hint>
-              {:else}<Hint text={KILL_CHANCE_HINT}>Chance per kill:</Hint>{/if}
-              {' '}{rate}{#if entry.drop.killChance !== undefined}{entry.drop.chanceLevel !== undefined ? ` at creature level ${formatNumber(entry.drop.chanceLevel)} with 0 Loot Chance` : ' with 0 Loot Chance'}{/if}.
+              {#if entry.drop.killChance === undefined}
+                {rate} <Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>listed rate</Hint>.
+              {:else}
+                {rate.startsWith('About ') ? rate : `${rate} per kill`}. <LootChanceHint />
+              {/if}
             {/if}
             {#if entry.detail}
               {#if entry.id === 'from-items'}<span class="source-separator">{' · '}</span><span class="source-meta">{entry.detail.replace(' · ', ', ')}</span>
-              {:else}{#if entry.id === 'dropped-by'}{rate ? ' ' : ''}
+              {:else}{#if entry.id === 'dropped-by'}{rate || entry.text?.endsWith('.') ? ' ' : ''}
                 {:else if entry.id === 'cloth-loot'}{' '}
                 {:else if entry.id === 'gathered-from'}{'. '}
                 {:else}{' · '}{/if}{entry.detail}{/if}

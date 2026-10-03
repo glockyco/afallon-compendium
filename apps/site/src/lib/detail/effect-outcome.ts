@@ -1,7 +1,12 @@
-import type { PublicEffect } from '@afallon/contracts/public';
+import type { AbilityAppliedEffect, PublicEffect } from '@afallon/contracts/public';
 import { formatNumber, nameOf, signedAmount } from '../format';
 
 type Action = PublicEffect['ranks'][number]['actions'][number];
+/** Publication gives effects without authored names the title "Unnamed <effect type> Effect". */
+export function isNamedAppliedEffect(row: AbilityAppliedEffect): boolean {
+  return !/^Unnamed\b.*\bEffect(?: \(\d+\))?$/i.test(row.effect.name);
+}
+
 export function durationWords(seconds: number): string {
   if (seconds >= 3600 && seconds % 3600 === 0) return `${formatNumber(seconds / 3600)} ${seconds === 3600 ? 'hour' : 'hours'}`;
   if (seconds >= 60 && seconds % 60 === 0) return `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`;

@@ -25,3 +25,10 @@
 - [x] 5.1 Move projected combat values and their explanation into a main-column Combat Stats section after Drops with a compact inline level control only for variable-level non-boss creatures; verify Fangchill, Bandit, and Aquarius at 1440, 1100, and 390 px.
 - [x] 5.2 Move kill experience beside or below combat stats, keep short side facts and scaling qualifiers readable, and retain adventurer identity without NPC combat stats; verify the four NPCs in Firefox and Chromium at each width.
 - [x] 5.3 Rebuild and assert deployment, validate OpenSpec strict, exercise level transitions and section links, and pass staged repository verification.
+
+## 6. Detail Integration Review
+
+- [x] 6.1 Make item kill chance lines grammatical and move baseline context into linked, shared help across source routes and drop tables; inspect cleaver at 390 and 1440 px.
+- [x] 6.2 Align item tooltip handedness with the title and hide fallback unnamed ability effects without hiding named outcomes; inspect sword, cleaver, Ambush, and a named-effect ability.
+- [x] 6.3 Give in-flow section navigation a distinct purpose label and put calculation prose inside disclosure; inspect Fangchill, Kraath, Aquarius, and the old-data fallback at 390 and 1100 px.
+- [x] 6.4 Stage the fresh merged publication, build and assert deployment, validate OpenSpec, pass staged verification, and capture affected pages in Firefox and Chromium at 1440, 1100, and 390 px.

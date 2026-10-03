@@ -2,6 +2,7 @@
   import type { AbilityAppliedEffect, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
+  import { isNamedAppliedEffect } from '../effect-outcome';
   import { shownRowCount } from '../relation-table';
   import StaticMore from '../StaticMore.svelte';
 
@@ -9,7 +10,8 @@
   export let registry: PublicKindEntry[];
   export let heading = true;
   let showAll = false;
-  $: shown = shownRowCount(rows.length, showAll);
+  $: visibleRows = rows.filter(isNamedAppliedEffect);
+  $: shown = shownRowCount(visibleRows.length, showAll);
 
   const duration = (seconds: number) => {
     if (seconds < 60) return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
@@ -26,21 +28,21 @@
   ].filter(Boolean).join(' · ');
 </script>
 
-{#if rows.length}
+{#if visibleRows.length}
   <div class="applied-effects">
     {#if heading}<h3>Applies Effects</h3>{/if}
-    {#if rows.some((row) => row.chance !== undefined)}<p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>{/if}
+    {#if visibleRows.some((row) => row.chance !== undefined)}<p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>{/if}
     <ul>
-      {#each rows.slice(0, shown) as row, index (index)}
+      {#each visibleRows.slice(0, shown) as row, index (index)}
         {@const details = context(row)}
         <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
       {/each}
     </ul>
-    {#if shown < rows.length}
-      <StaticMore count={rows.length - shown}>
-        <button slot="control" class="c-action" type="button" on:click={() => (showAll = true)}>Show {rows.length - shown} More</button>
+    {#if shown < visibleRows.length}
+      <StaticMore count={visibleRows.length - shown}>
+        <button slot="control" class="c-action" type="button" on:click={() => (showAll = true)}>Show {visibleRows.length - shown} More</button>
         <ul>
-          {#each rows.slice(shown) as row}
+          {#each visibleRows.slice(shown) as row}
             {@const details = context(row)}
             <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
           {/each}

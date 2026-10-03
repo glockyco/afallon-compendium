@@ -88,9 +88,9 @@
         {/each}
       </nav>
     {/if}
-    <button type="button" class="pill" bind:this={pill} aria-expanded={open} aria-controls="section-lens-menu" on:click={() => { if (!open) select(); open = !open; }}>
+    <button type="button" class="pill" bind:this={pill} aria-label={`On this page: ${active.title}`} aria-expanded={open} aria-controls="section-lens-menu" on:click={() => { if (!open) select(); open = !open; }}>
       <span class="glyph" aria-hidden="true">{@html glyph}</span>
-      <span class="visually-hidden">On this page:</span>
+      <span class="inline-label">On this page</span>
       <span class="current">{active.title}</span>
       <span class="chevron" class:open aria-hidden="true">{@html chevron}</span>
     </button>
@@ -105,11 +105,11 @@
   .pill:focus-visible, .row:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .glyph { display: flex; color: var(--c-accent); }
   .glyph :global(svg) { width: 1rem; height: 1rem; }
-  .current { min-width: 0; max-width: 16rem; overflow: hidden; color: var(--c-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+  .inline-label, .current { min-width: 0; max-width: 16rem; overflow: hidden; color: var(--c-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+  .current { display: none; }
   .chevron { display: flex; color: var(--c-text-mute); transition: transform .18s; }
   .chevron :global(svg) { width: .9rem; height: .9rem; }
   .chevron.open { transform: rotate(180deg); }
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .menu { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: .75rem; width: max-content; min-width: min(18rem, 100%); max-width: min(22rem, 100%); max-height: min(70vh, 32rem); overflow-y: auto; padding: .4rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: color-mix(in oklab, var(--c-surface-2) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 14px 38px rgb(0 0 0 / .5); }
   .row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; margin: 0; padding: .6rem .75rem; border: 0; border-radius: var(--c-radius-sm); background: none; color: var(--c-text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
   .row:hover { background: var(--c-tint-hover); }
@@ -132,6 +132,8 @@
   @media (max-width: 520px) { .current { max-width: 11rem; } }
   @media (min-width: 1800px) {
     :global(body:has(.lens)) { padding-bottom: 4.5rem; }
+    .inline-label { display: none; }
+    .current { display: inline; }
     .lens { position: fixed; right: 1.1rem; bottom: 1.1rem; flex-direction: column; align-items: flex-end; width: auto; max-width: 18rem; margin: 0; }
     .menu { max-width: 18rem; }
   }

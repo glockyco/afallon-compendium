@@ -98,7 +98,7 @@ export function creatureLevelText(level: CreatureLevel): string {
 type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'> & Partial<Pick<DropRow, 'killChance'>>;
 
 export const LISTED_RATE_HINT = 'The game lists this rate before loot-list limits and minimum picks. It is not your chance per kill.';
-export const KILL_CHANCE_HINT = 'Shown with 0 Loot Chance, neutral loot bonuses, no active drop modifiers, and a qualifying kill after your first gear drop. Luck raises Loot Chance, which makes ordinary item rolls rarer in this version, though minimum drops can still include the item.';
+export const KILL_CHANCE_HINT = 'Assumes no Loot Chance. Loot Chance comes from Luck and other bonuses, and in this version it makes ordinary creature drops rarer.';
 export const OPEN_CHANCE_HINT = 'Shown for a qualifying open after your first gear drop, at the player level shown when levels affect the loot list. Object loot does not use Luck.';
 const precisePercent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 

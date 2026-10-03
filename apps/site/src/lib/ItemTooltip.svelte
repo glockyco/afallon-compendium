@@ -9,7 +9,7 @@
   import RequirementList from './RequirementList.svelte';
   import { formatNumber, nameOf, rangeText, rarityTone, signedAmount } from './format';
 
-  // The item as the game's own tooltip shows it. A page links the entities that it names through the `ref` slot.
+  // The item's game facts use tooltip styling, with redundant type metadata omitted. Pages link the entities named through the `ref` slot.
   // A hover tooltip names them with EntityReference, because a link opens a tooltip of its own.
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
@@ -23,19 +23,10 @@
   $: maxDamage = calculated?.maxDamage ?? facts.maxDamage;
   $: damage = facts.weaponDamageLabel && minDamage !== undefined && maxDamage !== undefined ? `${minDamage} - ${maxDamage} ${facts.weaponDamageLabel}` : undefined;
   $: attackSpeed = damage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
-  $: gearType = facts.weaponType ?? facts.armorType;
-  $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
-  $: slotLabel = slot ? categoryLabel(slot) : undefined;
-  $: typeLabel = gearType ? categoryLabel(gearType) : facts.itemType ? categoryLabel(facts.itemType) : undefined;
-  $: slotDescribedByType = Boolean(slotLabel && typeLabel && (
-    slotLabel === 'One Hand' && /^One Handed\b/i.test(typeLabel) ||
-    slotLabel === 'Two Hands' && /^Two Handed\b/i.test(typeLabel)
-  ));
-  $: headerFacts = [
-    ...(facts.rarity ? [{ value: facts.rarity }] : []),
-    ...(slotLabel && !slotDescribedByType ? [{ value: slotLabel }] : []),
-    ...(typeLabel ? [{ value: typeLabel }] : []),
-  ] satisfies HeaderFact[];
+  $: gearType = facts.armorType ?? facts.weaponType ?? facts.itemType;
+  $: headerFacts = [facts.rarity, gearType, facts.slot]
+    .filter((entry): entry is string => Boolean(entry))
+    .map((entry) => ({ value: categoryLabel(entry) })) satisfies HeaderFact[];
   $: set = facts.gearSet;
 </script>
 

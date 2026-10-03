@@ -67,14 +67,13 @@
   let statLevel = 1;
   $: statLevel = Math.min(statMax, Math.max(statMin, statLevel));
   $: statGroups = groupStats(combatStats, statSource ? statLevel : undefined);
-  $: primaryStats = primaryStatNames.map((name) => {
+  $: primaryStats = primaryStatNames.flatMap((name) => {
     const stat = statGroups.effective.find((row) => nameOf(row.stat) === name);
-    const available = name !== 'Health' || !stat || (projectNpcStat(stat, statLevel) ?? 0) > 0;
-    return { label: name === 'Magic Armor' ? 'Magic armor' : name, stat: available ? stat : undefined };
+    return stat && (name !== 'Health' || (projectNpcStat(stat, statLevel) ?? 0) > 0) ? [stat] : [];
   });
-  $: health = primaryStats[0]?.stat;
+  $: health = primaryStats.find((stat) => nameOf(stat.stat) === 'Health');
   $: boss = document.bossOf.length > 0 || facts.roles.some((role) => roleLabel(role) === 'Boss');
-  $: hasCombatStats = combat && !adventurer && document.locations.length > 0 && combatStats.length > 0;
+  $: hasCombatStats = combat && !adventurer && document.locations.length > 0 && primaryStats.length > 0;
   $: variableStatLevel = statSource?.level && statMax > statMin && !boss;
   $: hours = adventurer?.joinAfterHours ?? 0;
   $: summaryFacts = adventurer ? [
@@ -117,9 +116,9 @@
 <DetailFrame answer={answer !== undefined} side={hasSide} mobileSideFirst={Boolean(adventurer)}>
   <svelte:fragment slot="head">
     <TitleBlock name={document.ref.name} typeLine={identityLine} facts={titleFacts} imageUrl={titleArt ? `${base}/data/${titleArt.url}` : undefined} portrait={Boolean(portrait)} mapHref={document.spotCount ? entityOnMap(document.ref.key) : undefined} {registry} />
-    {#if !adventurer && answer === 'drops' && combat && facts.level?.min && health}
-      <div class="mobile-combat" aria-label="Level and health">
-        <FactList><FactRow label="Level" note={facts.level.scales ? 'Scales with the player' : undefined}>{levelText(facts.level)}</FactRow><FactRow label="Health">{npcStatDisplay(health, statLevel)}</FactRow></FactList>
+    {#if !adventurer && answer === 'drops' && combat && facts.level?.min}
+      <div class="mobile-combat" aria-label={health ? 'Level and health' : 'Level'}>
+        <FactList><FactRow label="Level" note={facts.level.scales ? 'Scales with the player' : undefined}>{levelText(facts.level)}</FactRow>{#if health}<FactRow label="Health">{npcStatDisplay(health, statLevel)}</FactRow>{/if}</FactList>
       </div>
     {/if}
   </svelte:fragment>
@@ -187,25 +186,25 @@
             <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={`npc-level:${document.ref.key}:${statSource.label}`} label="Creature level" min={statMin} max={statMax} fallback={statMin} compact slider={false} bind:level={statLevel} /></span>
           {/if}
         </svelte:fragment>
-        <dl class="combat-tiles">
-          {#each primaryStats as entry}
-            <div class="combat-tile"><dt>{entry.label}</dt><dd class:unknown={!entry.stat}>{entry.stat ? npcStatDisplay(entry.stat, statLevel) : 'Unknown'}</dd></div>
+        <dl class="combat-tiles" style={`--stat-columns: ${Math.min(4, primaryStats.length)}`}>
+          {#each primaryStats as stat}
+            <div class="combat-tile"><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
           {/each}
         </dl>
-        {#if primaryStats.some((entry) => entry.stat)}<p class="stat-formula">Shown values use a shared starting value plus this creature's bonus and a gain per level.</p>{/if}
         <details class="stat-method">
           <summary>How these are calculated</summary>
+          <p class="stat-formula">Shown values use a shared starting value plus this creature's bonus and a gain per level.</p>
+          {#if statGroups.other.length}<p class="stat-extra">Other known bonuses, not complete stats: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
           <div class="c-table-scroll"><table class="c-table c-table--calculator">
             <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per level</th></tr></thead>
-            <tbody>{#each combatStats as stat}
-              <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{stat.startingValue === undefined ? 'Unknown' : formatNumber(stat.startingValue)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{stat.perLevel === undefined ? 'Unknown' : npcStatAmount(stat.perLevel, stat.isPercent)}</td></tr>
+            <tbody>{#each primaryStats as stat}
+              <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{formatNumber(stat.startingValue!)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{npcStatAmount(stat.perLevel!, stat.isPercent)}</td></tr>
             {/each}</tbody>
           </table></div>
         </details>
-        {#if combatStats.some((stat) => nameOf(stat.stat) === 'Strength')}
+        {#if primaryStats.some((stat) => nameOf(stat.stat) === 'Strength')}
           <p class="stat-attack">A physical move that uses Strength adds it to that move's damage before defenses. The actual hit depends on the move and its target.</p>
         {/if}
-        {#if statGroups.other.length}<p class="stat-extra">Also changes: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
       </Section>
     {/if}
     {#if kill && award && creatureLevel !== undefined}
@@ -268,7 +267,7 @@
   .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   .combat-control { display: inline-flex; align-items: center; gap: .35rem; }
   .mobile-level-label { display: none; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .combat-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin: 0; }
+  .combat-tiles { display: grid; grid-template-columns: repeat(var(--stat-columns), minmax(0, 1fr)); gap: .65rem; margin: 0; }
   .combat-tile { display: flex; flex-direction: column-reverse; gap: .25rem; min-width: 0; padding: .85rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
   .combat-tile dt { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .combat-tile dd { margin: 0; color: var(--c-text-strong); font: 700 clamp(1.35rem, 2vw, 1.7rem)/1.15 var(--c-serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -277,8 +276,10 @@
   .experience-details { display: grid; justify-items: start; gap: .75rem; }
   .experience-details p { margin: 0; }
   .stat-method summary { color: var(--c-accent); cursor: pointer; }
+  .stat-method .stat-formula, .stat-method .stat-extra { margin-top: .65rem; }
   .stat-method .c-table-scroll { margin-top: .6rem; }
   .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
+  .stat-method :global(.c-table th) { white-space: nowrap; overflow-wrap: normal; }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
   .mobile-combat { display: none; }

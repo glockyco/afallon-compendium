@@ -1,8 +1,10 @@
 <script lang="ts" generics="Row">
   import { onMount, tick } from 'svelte';
   import Hint from '../Hint.svelte';
+  import { KILL_CHANCE_HINT } from '../format';
   import { growingCount } from '../growing-count';
   import HowItWorks from './HowItWorks.svelte';
+  import LootChanceHint from './LootChanceHint.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
   import { detailNavigation } from './detail-navigation';
@@ -109,9 +111,12 @@
         {#each columns as column}
           <th scope="col" role="columnheader" class:num={column.numeric} aria-sort={ariaSort(column)}>
             {#if column.sort && sortable}
-              {#if column.hint}
+              {#if column.hint === KILL_CHANCE_HINT}
+                <LootChanceHint wrapsControl let:control><button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></LootChanceHint>
+              {:else if column.hint}
                 <Hint text={column.hint} wrapsControl let:control><button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></Hint>
               {:else}<button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>{/if}
+            {:else if column.hint === KILL_CHANCE_HINT}<LootChanceHint>{column.label}</LootChanceHint>
             {:else if column.hint}<Hint text={column.hint}>{column.label}</Hint>
             {:else}{column.label}{/if}
             {#each column.rules ?? [] as entry}<HowItWorks guide={entry.guide} section={entry.section} />{/each}

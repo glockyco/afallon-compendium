@@ -8,6 +8,7 @@
   import { creatureLevelText, dropRateText, dropsPerKillText, KILL_CHANCE_HINT, LISTED_RATE_HINT, itemDropText, nameOf, rangeText } from '../../format';
   import { omitWhenShared, planColumns, stateInHeading, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
+  import LootChanceHint from '../LootChanceHint.svelte';
   import Section from '../Section.svelte';
 
   /** The sources of an item page that drop it: creatures, and world loot of creatures by level. */
@@ -50,9 +51,9 @@
             {#if rows.length === 1 || known > 0 && known < rows.length}
               <span class:single-rate-label={rows.length === 1}>
                 {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed rate:</Hint>
-                {:else}<Hint text={KILL_CHANCE_HINT}>Chance per kill:</Hint>{/if}{' '}
+                {:else}Chance per kill:{/if}{' '}
               </span>
-            {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}{#if row.killChance !== undefined && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel}, with 0 Loot Chance</small>{/if}
+            {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}{#if row.killChance !== undefined && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel} <LootChanceHint /></small>{/if}
           {/if}
         {:else if column === 'perKill'}{dropsPerKillText(row)}
         {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}

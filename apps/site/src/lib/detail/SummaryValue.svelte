@@ -10,6 +10,8 @@
   /** Where the line's links lead when they open another page, such as an item's section from its currency's page. */
   export let href: string | undefined = undefined;
   export let stackPrice = false;
+  /** Punctuation that must stay with a single linked source name. */
+  export let suffix: string | undefined = undefined;
 
   $: target = href ?? lineHref(entry, registry, base);
 
@@ -20,15 +22,16 @@
   }
 </script>
 
-<span class="summary">
+<span class="summary" class:anchoredSuffix={Boolean(suffix && entry.names.length === 1)}>
   {#if entry.text}{#if target}<a class="c-link" href={target}>{entry.text}</a>{:else}{entry.text}{/if}
   {:else}
     {#each entry.names as name, index}{separator(index)}{#if 'ref' in name}<EntityLink ref={name.ref} {registry} />{:else}{name.text}{/if}{/each}{#if entry.more > 0}{' and '}{#if target}<a class="c-link more" href={target}>{entry.more} more</a>{:else}<span class="more">{entry.more} more</span>{/if}{/if}{#if entry.lowestPrice}<span class="price" class:stacked={stackPrice}><span class="comma">, </span>from <Price price={entry.lowestPrice} showName /></span>{/if}
-  {/if}
+  {/if}{suffix}
 </span>
 
 <style>
   .summary { display: inline; }
+  .anchoredSuffix { display: inline-block; max-width: 100%; white-space: nowrap; vertical-align: baseline; }
   .more, .price { white-space: nowrap; }
   .comma { margin-right: .25em; }
   @media (max-width: 640px) {

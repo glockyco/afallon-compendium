@@ -8,6 +8,7 @@ Entity pages repeat facts, bury the useful answer on phones, and allow controls 
 - Deduplicate acquisition routes, item and set facts, and repeated counts while preserving access to full detail.
 - Keep metadata, table headings, units, controls, and section navigation readable at phone widths without disturbing desktop layouts.
 - Move projected creature combat stats and kill experience into the NPC main column, with a compact level control and readable stat tiles instead of a crowded side card.
+- Keep loot chance assumptions in linked help, suppress unnamed internal effect links, and omit creature stat panels that cannot calculate a complete value.
 
 ## Capabilities
 

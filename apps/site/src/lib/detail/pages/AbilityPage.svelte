@@ -4,6 +4,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import NativeText from '../../NativeText.svelte';
   import Requirements from '../../Requirements.svelte';
+  import { isNamedAppliedEffect } from '../effect-outcome';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -36,7 +37,7 @@
         {#if main.ranks.length > 1}<h3>Rank {firstRank.rankIndex + 1}</h3>{/if}
         <NativeText lines={firstRank.lines} />
       {/if}
-      {#if main.appliedEffects.length}<AppliedEffects rows={main.appliedEffects} {registry} heading={false} />{/if}
+      {#if main.appliedEffects.some(isNamedAppliedEffect)}<AppliedEffects rows={main.appliedEffects} {registry} heading={false} />{/if}
       {#if !hasSources}<p class="source-note">No learner or user is listed for this ability.</p>{/if}
     </AnswerCard></div>
     <div slot="side"><SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard></div>

@@ -5,6 +5,7 @@
   import { formatNumber } from '../../format';
   import NativeText from '../../NativeText.svelte';
   import Requirements from '../../Requirements.svelte';
+  import { isNamedAppliedEffect } from '../effect-outcome';
   import CompareTable from '../CompareTable.svelte';
   import LinkGrid from '../LinkGrid.svelte';
   import Section from '../Section.svelte';
@@ -27,7 +28,7 @@
   $: rows = versions.map((version, index): Version => ({ version, index }));
   $: facts = [
     { id: 'text', label: 'What It Does' },
-    ...(versions.some((version) => version.appliedEffects.length) ? [{ id: 'effects', label: 'Applies' }] : []),
+    ...(versions.some((version) => version.appliedEffects.some(isNamedAppliedEffect)) ? [{ id: 'effects', label: 'Applies' }] : []),
     ...(differ(versions.map((version) => JSON.stringify(version.useRequirements))) ? [{ id: 'requirements', label: 'Requirements' }] : []),
     ...(differ(versions.map((version) => version.learnedBy.map((entry) => entry.class.key).join())) ? [{ id: 'learnedBy', label: 'Learned By' }] : []),
     ...(versions.some((version) => users(version).length) ? [{ id: 'users', label: 'Used By' }] : []),
@@ -51,7 +52,7 @@
             {/each}
           </div>
         {:else if fact === 'effects'}
-          {#if version.appliedEffects.length}<AppliedEffects rows={version.appliedEffects} {registry} heading={false} />{:else}<span class="none">None</span>{/if}
+          {#if version.appliedEffects.some(isNamedAppliedEffect)}<AppliedEffects rows={version.appliedEffects} {registry} heading={false} />{:else}<span class="none">None</span>{/if}
         {:else if fact === 'requirements'}
           {#if version.useRequirements.length}<Requirements requirements={version.useRequirements} {registry} kindLabels={false} />{:else}<span class="none">None</span>{/if}
         {:else if fact === 'learnedBy'}
