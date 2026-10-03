@@ -67,12 +67,16 @@
       <p class="hero-intro">Explore the map, items, quests, and classes in Afallon, a single-player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers.</p>
       <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
-        <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the map</a>
-        {#if listHref('items')}<a class="items-action" href={listHref('items')}>Browse items</a>{/if}
-        <a class="steam-action" href={STEAM_URL} rel="external">Play Afallon on Steam</a>
+        <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the Map</a>
+        {#if listHref('items')}<a class="items-action" href={listHref('items')}>Browse Items</a>{/if}
       </div>
-      <p class="hero-resource">See the <a href={STEAM_GUIDE_URL} rel="external">Interactive Map on Steam</a> for an overview of map locations and filters.</p>
-      <p class="release">Afallon {data.release.version} · Patched {formatCalendarDate(data.release.patchNotes.date)} · Data from {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
+      <p class="steam-links"><a href={STEAM_URL} rel="external">Play Afallon on Steam</a><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></p>
+      <p class="release">
+        <span>Afallon {data.release.version}</span>
+        <span>Patched {formatCalendarDate(data.release.patchNotes.date)}</span>
+        <span>Data from {formatCalendarDate(data.release.dataDate)}</span>
+        <a href={data.release.patchNotes.url} rel="external">Patch Notes</a>
+      </p>
     </div>
     {#if data.world}
       <span class="hero-caption"><EntityLink ref={data.world.ref} registry={data.registry} plain />{#if data.world.range}, levels {data.world.range.min}–{data.world.range.max}{/if}</span>
@@ -83,7 +87,7 @@
     <section class="section" aria-labelledby="hub-items">
       <div class="section-head">
         <h2 id="hub-items">Items</h2>
-        <a class="section-link" href={listHref('items')}>All {countText(counts.get('items') ?? 0, 'item', 'items')}</a>
+        <a class="section-link" href={listHref('items')}>All {countText(counts.get('items') ?? 0, 'Item', 'Items')}</a>
       </div>
       <ul class="item-groups">
         {#each data.itemGroups as group (group.type)}
@@ -125,10 +129,10 @@
   {#if data.placeTiles.length}
     <section class="section" aria-labelledby="hub-places">
       <div class="section-head">
-        <h2 id="hub-places">Places by level</h2>
+        <h2 id="hub-places">Places by Level</h2>
         <div class="section-links">
-          <label class="your-level">Your level <input type="number" inputmode="numeric" min="1" max={data.levelScale} value={yourLevel ?? ''} placeholder="Any" on:input={chooseLevel} /></label>
-          {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'place', 'places')}</a>{/if}
+          <label class="your-level">Your Level <input type="number" inputmode="numeric" min="1" max={data.levelScale} value={yourLevel ?? ''} placeholder="Any" on:input={chooseLevel} /></label>
+          {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'Place', 'Places')}</a>{/if}
         </div>
       </div>
       <ul class="places">
@@ -137,14 +141,14 @@
             <div class="place-art">
               {#if place.artwork}<img src={artUrl(place.artwork)} width={place.artwork.width} height={place.artwork.height} alt="" loading="lazy" decoding="async" />{/if}
               <span class="levels">Levels {place.min}–{place.max}</span>
-              {#if fits(place)}<span class="fits">Your level</span>{/if}
+              {#if fits(place)}<span class="fits">Your Level</span>{/if}
             </div>
             <h3><a class="place-link" href={pageHref(place.ref)}>{place.ref.name}</a></h3>
             {#if placeContents(place)}<p class="place-meta">{placeContents(place)}</p>{/if}
           </li>
         {/each}
       </ul>
-      {#if shownPlaces.length < orderedPlaces.length}<button type="button" class="c-action show-more" on:click={() => (showAllPlaces = true)}>Show {orderedPlaces.length - shownPlaces.length} more</button>{/if}
+      {#if shownPlaces.length < orderedPlaces.length}<button type="button" class="c-action show-more" on:click={() => (showAllPlaces = true)}>Show {orderedPlaces.length - shownPlaces.length} More</button>{/if}
     </section>
   {/if}
 
@@ -167,10 +171,10 @@
 
   <section class="section" aria-labelledby="hub-crafting">
     <div class="section-head">
-      <h2 id="hub-crafting">Crafting and gathering</h2>
+      <h2 id="hub-crafting">Crafting and Gathering</h2>
       <div class="section-links">
-        {#if listHref('recipes')}<a class="section-link" href={listHref('recipes')}>All {countText(counts.get('recipes') ?? 0, 'recipe', 'recipes')}</a>{/if}
-        {#if listHref('skills')}<a class="section-link" href={listHref('skills')}>All {countText(counts.get('skills') ?? 0, 'skill', 'skills')}</a>{/if}
+        {#if listHref('recipes')}<a class="section-link" href={listHref('recipes')}>All {countText(counts.get('recipes') ?? 0, 'Recipe', 'Recipes')}</a>{/if}
+        {#if listHref('skills')}<a class="section-link" href={listHref('skills')}>All {countText(counts.get('skills') ?? 0, 'Skill', 'Skills')}</a>{/if}
       </div>
     </div>
     {#if data.craftingSkills.length}
@@ -186,7 +190,7 @@
       </ul>
     {/if}
     <div class="gathering">
-      <h3>Gathering on the map</h3>
+      <h3>Gathering on the Map</h3>
       <ul>
         {#each GATHERING as shortcut (shortcut.id)}<li><a href={shortcut.href}><span class="glyph" aria-hidden="true">{@html shortcut.glyph}</span>{shortcut.label}</a></li>{/each}
       </ul>
@@ -197,7 +201,7 @@
     <section class="section" aria-labelledby="hub-guides">
       <div class="section-head">
         <h2 id="hub-guides">Mechanics</h2>
-        {#if listHref('mechanics')}<a class="section-link" href={listHref('mechanics')}>All {countText(counts.get('mechanics') ?? 0, 'mechanic', 'mechanics')}</a>{/if}
+        {#if listHref('mechanics')}<a class="section-link" href={listHref('mechanics')}>All {countText(counts.get('mechanics') ?? 0, 'Mechanic', 'Mechanics')}</a>{/if}
       </div>
       <ul class="guides">
         {#each data.guides as guide (guide.ref.key)}
@@ -208,7 +212,7 @@
   {/if}
 
   <section class="section" aria-labelledby="hub-browse">
-    <div class="section-head"><h2 id="hub-browse">Browse the compendium</h2></div>
+    <div class="section-head"><h2 id="hub-browse">Browse the Compendium</h2></div>
     <ul class="browse">
       {#each browse as entry (entry.href)}
         <li><a href={entry.href}><span class="kind-glyph" aria-hidden="true">{@html entry.glyph ?? ''}</span><span class="browse-copy"><span class="browse-label">{entry.label}</span><span class="tile-meta">{formatNumber(entry.count)}</span></span></a></li>
@@ -235,14 +239,14 @@
   .map-action:hover { background: var(--c-accent-strong); }
   .items-action { display: inline-flex; align-items: center; padding: .62rem 1.05rem; border: 1px solid color-mix(in srgb, var(--c-accent) 60%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--c-surface-deep) 70%, transparent); color: var(--c-accent-strong); font-size: var(--c-text-body); font-weight: 600; text-decoration: none; }
   .items-action:hover { border-color: var(--c-accent); background: color-mix(in srgb, var(--c-surface-deep) 90%, transparent); }
-  .steam-action { color: var(--c-text-strong); font-size: var(--c-text-small); text-underline-offset: .2em; }
-  .steam-action:hover { color: var(--c-accent-strong); }
-  .hero-resource { margin: .9rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); text-shadow: 0 1px 10px var(--c-shadow-strong); }
-  .hero-resource a { color: var(--c-text); text-underline-offset: .2em; }
+  .steam-links { display: flex; align-items: baseline; gap: 1.1rem; margin: .9rem 0 0; }
+  .steam-links a { color: var(--c-text-strong); font-size: var(--c-text-small); text-underline-offset: .2em; white-space: nowrap; }
+  .steam-links a:hover { color: var(--c-accent-strong); }
   .glyph { display: inline-grid; flex: none; width: 1.05rem; height: 1.05rem; place-items: center; }
   .glyph :global(svg) { width: 100%; height: 100%; }
-  .release { margin: 1rem 0 0; color: var(--c-text); font-size: var(--c-text-small); text-shadow: 0 1px 8px var(--c-shadow-strong); }
+  .release { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .9rem; margin: .9rem 0 0; color: var(--c-text); font-size: var(--c-text-small); text-shadow: 0 1px 8px var(--c-shadow-strong); }
   .release a { color: var(--c-accent-strong); }
+  .release > * { white-space: nowrap; }
   .hero-caption { position: absolute; right: max(1.5rem, calc((100% - 72rem) / 2 + 1.5rem)); bottom: 1.1rem; color: color-mix(in srgb, var(--c-text) 82%, transparent); font-size: var(--c-text-small); text-shadow: 0 1px 6px var(--c-shadow-strong); }
   .hero-caption :global(.entity-link) { color: inherit; }
   .hero-caption :global(.entity-link:hover) { color: var(--c-accent-strong); }

@@ -13,7 +13,7 @@
   import KofiGlyph from './KofiGlyph.svelte';
   import { kindGlyphSvg } from './kind-icon';
   import { KOFI_URL, siteNavigation } from './site-navigation';
-  import { jsonLdScript, SITE_ORIGIN, UNOFFICIAL_NOTICE } from './seo';
+  import { jsonLdScript, SITE_ORIGIN, STEAM_GUIDE_URL, UNOFFICIAL_NOTICE } from './seo';
   import './compendium.css';
 
   export let registry: PublicKindEntry[] = [];
@@ -131,11 +131,12 @@
           <span>Afallon {release.version}</span>
           <span>Patched {formatCalendarDate(release.patchNotes.date)}</span>
           <span>Data from {formatCalendarDate(release.dataDate)}</span>
-          <a class="c-link" href={release.patchNotes.url} rel="external">Patch notes</a>
+          <a class="c-link" href={release.patchNotes.url} rel="external">Patch Notes</a>
         {/if}
         <slot name="footer-extra" />
         <a class="c-link" href={`${base}/coverage/`}>Coverage</a>
         <a class="c-link" href={`${base}/about/`}>About</a>
+        <a class="c-link" href={STEAM_GUIDE_URL} rel="external">Steam Guide</a>
         <a class="c-link" href={KOFI_URL} rel="external">Support on Ko-fi</a>
         <span class="footer-notice">{UNOFFICIAL_NOTICE}</span>
       </footer>

@@ -14,6 +14,7 @@ The site prerenders detail and list pages, while the map starts with a client lo
 - Use a pure type-aware description helper over published documents. Prefer specific item rarity/type and verified acquisition, NPC type/level/place. Fall back to a meaningful kind-and-name sentence. Limit to 155 characters at a word boundary; never turn a creature-level-limited world drop into an unrestricted creature drop. Use the site's wide preview artwork rather than stretching an inventory icon.
 - Put map's prerendered explanatory text and footer below its full-height workspace to leave first-screen interaction untouched. Give category links direct map query URLs and ensure map remains usable when hydration completes.
 - Place the full README disclaimer verbatim in About. A shared string supplies the identical shorter notice in both footers. About uses publication release fields rather than build time.
+- Keep the home hero focused on the site's own map, search and item actions. Put plain Steam store and Steam Guide text links together below those actions, with the same unembellished \"Steam Guide\" link in About and both footers. Do not describe the guide because its content changes independently. Wrap each release fact as an unbreakable group so mobile dates do not split across lines.
 - Retain the existing host's real 404 fallback and validate it through the production preview, since replacing unknown routes with an SPA fallback would produce soft 404s.
 
 ## Risks / Trade-offs

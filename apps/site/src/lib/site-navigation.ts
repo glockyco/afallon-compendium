@@ -61,7 +61,7 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   const topics: NavigationLink[] = mechanics ? GUIDE_TOPICS.filter((topic) => topic.featured).map(({ label, slug, description }) => ({ label, href: `${base}/${mechanics.route}/${slug}/`, description })) : [];
   // The Mechanics column names the featured pages and links the list of every mechanics page.
   const allGuides: NavigationLink | undefined = mechanics && topics.length < GUIDE_TOPICS.length
-    ? { label: `All ${GUIDE_TOPICS.length} mechanics`, href: `${base}/${mechanics.route}/` } : undefined;
+    ? { label: `All ${GUIDE_TOPICS.length} Mechanics`, href: `${base}/${mechanics.route}/` } : undefined;
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/`, icon: 'world-map', description: DESCRIPTIONS.map }];
     if (id === 'mechanics') return topics;

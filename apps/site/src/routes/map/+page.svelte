@@ -1,7 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import SeoHead from '$lib/SeoHead.svelte';
-  import { UNOFFICIAL_NOTICE } from '$lib/seo';
+  import { STEAM_GUIDE_URL, UNOFFICIAL_NOTICE } from '$lib/seo';
   import MapExplorer from '$lib/MapExplorer.svelte';
   import type { PageData } from './$types';
   export let data: PageData;
@@ -21,7 +21,7 @@
     <a href={`${base}/map/?categories=questGiver`}>Quests</a>
     <a href={`${base}/places/`}>Places</a>
   </nav>
-  <footer><a href={`${base}/about/`}>About</a><span>{UNOFFICIAL_NOTICE}</span></footer>
+  <footer><a href={`${base}/about/`}>About</a><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a><span>{UNOFFICIAL_NOTICE}</span></footer>
 </section>
 
 <style>

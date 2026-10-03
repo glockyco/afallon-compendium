@@ -55,14 +55,14 @@
 </script>
 
 <div class="compendium-search" class:large={size === 'large'}>
-  <label for="compendium-search" class="visually-hidden">Search the compendium</label>
+  <label for="compendium-search" class="visually-hidden">Search the Compendium</label>
   <div class="input-wrap">
     <span class="glyph" aria-hidden="true">{@html searchGlyph}</span>
     <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} on:focus={loadSearch} on:input={loadSearch} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={placeOnMap(entry.ref.key)}>View on map</a>{:else if entry.hasPlacements}<a class="map-link" href={entry.ref.kind === 'items' ? itemOnMap(entry.ref.key) : entityOnMap(entry.ref.key)}>View on map</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={placeOnMap(entry.ref.key)}>View on Map</a>{:else if entry.hasPlacements}<a class="map-link" href={entry.ref.kind === 'items' ? itemOnMap(entry.ref.key) : entityOnMap(entry.ref.key)}>View on Map</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
 </div>
 
 <style>

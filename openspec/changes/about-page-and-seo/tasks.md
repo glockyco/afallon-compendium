@@ -1,6 +1,6 @@
 ## 1. Reader Identity
 
-- [x] 1.1 Add home introduction and Steam links, verifying initial HTML and browser layout at desktop and phone widths.
+- [x] 1.1 Add the home introduction and plain Steam store and Steam Guide links together, repeat \"Steam Guide\" in About and the footers without explanation, and verify initial HTML and browser layout at desktop and phone widths.
 - [x] 1.2 Add publication-aware About page and shared footer notice including map, verifying exact copy and outbound links in browser.
 
 ## 2. Search Discovery

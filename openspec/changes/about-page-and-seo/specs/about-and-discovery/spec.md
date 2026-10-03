@@ -6,7 +6,7 @@ Make the game's identity, the reference's provenance and unofficial status, and 
 
 ### Requirement: Game introduction and reference identity
 
-The home page SHALL introduce Afallon using verified game facts and link the Steam game listing and the compendium's interactive-map Steam guide. The About page SHALL explain the game, how this reference uses game data and checked rules, the selected publication's game version and data date, Coverage, patch notes, the Steam links, Ko-fi, and the full project disclaimer. No maintainer identity or personal project link SHALL be inferred.
+The home page SHALL introduce Afallon using verified game facts and display plain Steam game listing and \"Steam Guide\" links together. The shared footer including the map and the About page SHALL also link \"Steam Guide\" without describing what it contains. The About page SHALL explain the game, how this reference uses game data and checked rules, the selected publication's game version and data date, Coverage, patch notes, Ko-fi, and the full project disclaimer. No maintainer identity or personal project link SHALL be inferred.
 
 #### Scenario: New reader visits home and About
 - **WHEN** the home and About pages load without interaction

@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Page not found · Afallon Compendium</title>
+  <title>Page Not Found · Afallon Compendium</title>
   <meta name="description" content="This address does not match a page in the Afallon Compendium." />
   <meta name="robots" content="noindex" />
 </svelte:head>
@@ -14,11 +14,11 @@
 <PageShell registry={data.registry} release={data.release}>
   <div class="not-found">
     <p class="eyebrow">Error 404</p>
-    <h1>Page not found</h1>
+    <h1>Page Not Found</h1>
     <p class="lede">No page exists at this address.</p>
     <nav aria-label="Recovery">
-      <a class="c-action" href={`${base}/`}>Compendium home</a>
-      <a class="c-action" href={`${base}/map/`}>Open the map</a>
+      <a class="c-action" href={`${base}/`}>Compendium Home</a>
+      <a class="c-action" href={`${base}/map/`}>Open the Map</a>
     </nav>
   </div>
 </PageShell>

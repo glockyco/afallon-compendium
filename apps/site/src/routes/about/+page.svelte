@@ -15,9 +15,8 @@
 <PageShell registry={data.registry} release={data.release} {crumbs}>
   <article class="about">
     <header>
-      <p class="eyebrow">The Game And The Reference</p>
       <h1>About Afallon Compendium</h1>
-      <p class="lead">Afallon Compendium is a fan-made map and game reference for Afallon. Find items, creatures, quests, classes, places, crafting information, and game mechanics in one place. Search the reference or explore the map to find locations and item sources.</p>
+      <p class="lead">Afallon Compendium is a fan-made map and game reference for Afallon. Find items, creatures, quests, classes, places, crafting, and game mechanics in one place.</p>
     </header>
     <div class="columns">
       <div class="sections">
@@ -35,7 +34,7 @@
       <aside aria-labelledby="links"><h2 id="links">More Links</h2>
         <ul>
           <li><a href={STEAM_URL} rel="external">Game on Steam</a></li>
-          <li><a href={STEAM_GUIDE_URL} rel="external">Interactive Map on Steam</a><span>Map locations and filters</span></li>
+          <li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li>
           <li><a href={`${base}/coverage/`}>Coverage</a></li>
           <li><a href={data.release.patchNotes.url} rel="external">Patch Notes</a></li>
           <li><a href={KOFI_URL} rel="external">Support on Ko-fi</a></li>
@@ -48,7 +47,6 @@
 <style>
   .about { max-width: 68rem; }
   header { padding: 1.5rem 0 2rem; border-bottom: 1px solid var(--c-line); }
-  .eyebrow { margin: 0 0 .65rem; color: var(--c-accent); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   h1 { margin: 0; color: var(--c-text-strong); font: 600 clamp(2rem, 4vw, 3rem)/1.12 var(--c-serif); }
   .lead { max-width: 49rem; margin: 1rem 0 0; color: var(--c-text); font-size: var(--c-text-lead); line-height: 1.55; }
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(13rem, 17rem); align-items: start; gap: clamp(2rem, 5vw, 5rem); padding-top: 2rem; }
@@ -61,6 +59,5 @@
   aside h2 { font-size: 1.2rem; }
   ul { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
   li a { color: var(--c-accent); text-underline-offset: .2em; }
-  li span { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
   @media (max-width: 700px) { .columns { grid-template-columns: minmax(0, 1fr); } header { padding-top: .5rem; } }
 </style>

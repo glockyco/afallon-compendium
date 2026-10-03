@@ -2,7 +2,7 @@
 
 An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/), built from the game's own data.
 
-[Open the compendium](https://afallon.compendiums.org/) · [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
+[Open the compendium](https://afallon.compendiums.org/) · [Steam Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
 
 ![Afallon Compendium showing the world map, interior maps, category filters, and search results](assets/afallon-compendium-map.png)
 

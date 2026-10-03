@@ -4,7 +4,7 @@ A first-time visitor cannot tell what game this reference covers from its home p
 
 ## What Changes
 
-- Introduce Afallon and link its Steam store and interactive-map guide on the home page.
+- Introduce Afallon and place plain Steam store and Steam Guide links together in the home hero. Repeat the Steam Guide link in About and the footer without describing its content.
 - Add a publication-aware About page with game facts, reference provenance, useful links, and the full rights disclaimer, plus a compact notice and About link in every footer including the map.
 - Supply factual, length-limited entity summaries, canonical and social metadata, structured site and breadcrumb identities, static map context, and About sitemap discovery.
 - Preserve 404 status and noindex for unknown URLs through the existing Cloudflare static-assets 404 fallback and production preview.
