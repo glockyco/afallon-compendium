@@ -69,7 +69,7 @@
             <FactRow label="Extra wait">Up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} on either cooldown</FactRow>
             <FactRow label="First roll">Within {intervalText(facts.worldQuest.initialRollSeconds)} of the zone starting</FactRow>
           </FactList>
-          <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="availability" label="How World Quests Appear" />
+          <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="availability" label="How World Quests appear" />
         </DetailsDisclosure>
       {/if}
       {#if hasQuestText || document.worldChanges.length}

@@ -53,7 +53,7 @@
       {#each timed.thresholds as threshold}<li>Defeat the last boss with {timerText(threshold.remainingSeconds)} left and the reward token gains {levels(threshold.tokenLevels)}.</li>{/each}
       {#if timed.maxLootItems !== undefined}<li>The reward bag holds {#if timed.token}a <EntityLink ref={timed.token} {registry} /> and{/if} up to {formatNumber(timed.maxLootItems)} other {timed.maxLootItems === 1 ? 'item' : 'items'}.</li>{/if}
     </ul>
-    <HowItWorks guide={timed.guide} section="timed-dungeons" label="How Timed Dungeons Work" />
+    <HowItWorks guide={timed.guide} section="timed-dungeons" label="How timed dungeons work" />
   </SideCard>
 {/if}
 
@@ -67,7 +67,7 @@
         <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on Map</a></FactRow>
       {/each}
     </FactList>
-    {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier Works</a></p>{/if}
+    {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier works</a></p>{/if}
   </SideCard>
 {/if}
 

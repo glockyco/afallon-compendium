@@ -6,7 +6,7 @@ Keep the compendium's page titles and explanatory text consistent across gallery
 
 ### Requirement: Titles and sentence text use their own casing
 
-The site and publication SHALL use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, buttons, and action links. Inside a title, a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, and vs SHALL remain lowercase unless first or last. A heading or disclosure summary phrased as a sentence or question SHALL instead use sentence case. Field labels, counts and result lines, card facts, placeholders, hints, chips, published filter values authored by the compendium, units, lead-ins continuing into content, descriptions, empty states, and errors SHALL use sentence case. Game-provided names and abbreviations such as NPCs, XP, and HP SHALL retain their spelling. The counted hidden-entries reveal action SHALL remain sentence case.
+The site and publication SHALL use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links. Inside a title, a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, and vs SHALL remain lowercase unless first or last. Headings, disclosure summaries, and links phrased as sentences SHALL instead use sentence case; a section navigation pill SHALL repeat its heading's casing. Field labels, counts and result lines, card facts, placeholders, hints, chips, published filter values authored by the compendium, units, lead-ins continuing into content, descriptions, empty states, and errors SHALL use sentence case. Game-provided names and abbreviations such as NPCs, XP, and HP SHALL retain their spelling. The counted hidden-entries reveal command SHALL remain sentence case.
 
 #### Scenario: Classes gallery view
 - **WHEN** a reader opens the Classes gallery
@@ -35,3 +35,8 @@ The site and publication SHALL use Title Case for title-like noun labels: page a
 #### Scenario: Sentence-like disclosure summary
 - **WHEN** a reader opens the details about how a kill award adds up
 - **THEN** the disclosure summary reads “How the kill award adds up” rather than Title Case
+
+#### Scenario: Mechanics explanation link and section pill
+- **WHEN** a reader follows an item's explanation of its creature drop rules
+- **THEN** the link reads “How creature drops work”
+- **AND** the navigation pill for the section “Dropped by” also reads “Dropped by”, not “Dropped By”

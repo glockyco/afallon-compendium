@@ -19,9 +19,9 @@
 
   type Field = Exclude<NpcVariantField, 'stats' | 'abilityPhases'>;
   const FIELD_LABELS: Record<Field, string> = {
-    npcType: 'Type', creatureType: 'Creature Type', tameable: 'Hunter Pet', family: 'Family', faction: 'Faction', species: 'Species', respawn: 'Respawn',
-    experience: 'Experience', immunities: 'Immune To', aggroRange: 'Aggro Range', lootSpecialization: 'Gear Preference',
-    factionRewards: 'Faction Changes', linkedNpc: 'Linked NPC',
+    npcType: 'Type', creatureType: 'Creature type', tameable: 'Hunter pet', family: 'Family', faction: 'Faction', species: 'Species', respawn: 'Respawn',
+    experience: 'Experience', immunities: 'Immune to', aggroRange: 'Aggro range', lootSpecialization: 'Gear preference',
+    factionRewards: 'Faction changes', linkedNpc: 'Linked NPC',
   };
   // Who it is first, then how it fights, then its stats, and its abilities last because they take the most room.
   const FIELD_ORDER: readonly Field[] = [
@@ -96,7 +96,7 @@
       {@const portrait = item.portrait ?? document.art.portrait}
       {#if portraits && portrait}<img src={`${base}/data/${portrait.url}`} width={portrait.width} height={portrait.height} alt="" loading="lazy" />{/if}{item.label}
     </svelte:fragment>
-    <svelte:fragment slot="fact" let:fact>{fact.label}{#if fact.id === 'experience' && experienceRule}<HowItWorks guide={experienceRule.guide} section={experienceRule.section} label="How Kill Experience Works" compact />{/if}</svelte:fragment>
+    <svelte:fragment slot="fact" let:fact>{fact.label}{#if fact.id === 'experience' && experienceRule}<HowItWorks guide={experienceRule.guide} section={experienceRule.section} label="How kill experience works" compact />{/if}</svelte:fragment>
     <svelte:fragment slot="cell" let:item let:fact>
       {@const stat = statOf(item, fact)}
       {@const link = linkOf(item, fact)}

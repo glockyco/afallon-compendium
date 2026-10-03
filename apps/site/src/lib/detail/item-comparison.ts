@@ -26,13 +26,13 @@ export function compareItems(before: Display, after: Display, fromLevel: number,
     const difference = Number((displayedNumber(afterText) - displayedNumber(beforeText)).toFixed(2));
     rows.push({ name, before: beforeText, after: afterText, difference: delta(difference), negative: difference < 0 });
   };
-  numeric('Item Power', before.itemPower, after.itemPower);
+  numeric('Item power', before.itemPower, after.itemPower);
   if (before.minDamage !== undefined && before.maxDamage !== undefined && after.minDamage !== undefined && after.maxDamage !== undefined && (before.minDamage !== after.minDamage || before.maxDamage !== after.maxDamage)) {
     const low = after.minDamage - before.minDamage, high = after.maxDamage - before.maxDamage;
     rows.push({ name: 'Damage', before: rangeText(before.minDamage, before.maxDamage)!, after: rangeText(after.minDamage, after.maxDamage)!,
       difference: `${low < 0 ? '-' : '+'}${rangeText(Math.abs(low), Math.abs(high))}`, negative: low < 0 });
   }
-  numeric('Damage per Second', before.damagePerSecond === undefined ? undefined : Number(before.damagePerSecond.toFixed(1)), after.damagePerSecond === undefined ? undefined : Number(after.damagePerSecond.toFixed(1)), (value) => value.toFixed(1));
+  numeric('Damage per second', before.damagePerSecond === undefined ? undefined : Number(before.damagePerSecond.toFixed(1)), after.damagePerSecond === undefined ? undefined : Number(after.damagePerSecond.toFixed(1)), (value) => value.toFixed(1));
   before.stats.forEach((stat, index) => {
     const next = after.stats[index];
     if (!next || next.amount === stat.amount) return;

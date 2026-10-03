@@ -10,7 +10,7 @@ See proposal.md. SvelteKit prerenders routes against a staged publication; a lis
 
 ## Decisions
 
-- Reuse the existing shared gallery/table search-and-count control; format home-card facts as sentence-case counts and keep action links independent.
+- Reuse the existing shared gallery/table search-and-count control; format home-card facts as sentence-case counts. Short command controls use Title Case, while explanatory links and section navigation keep the sentence-like heading they name.
 - Audit built HTML via an HTML parser rather than source regexes. Distinguish title-like headings from sentence-like headings and use sentence case for field labels, facts, counts, filter values, and placeholders. Crawl every list and mechanics route and at least three detail pages per kind for diagnosis; deployment validation crawls all routes.
 - Keep the reveal exception and game-provided names explicit. Report ambiguous contextual strings for review, but gate deployment only on clear structural violations. Record excluded map and progression labels separately rather than silently treating them as compliant.
 - Publication-generated guide titles appear in a verification-only candidate; do not accept, deploy, or replace the accepted publication.

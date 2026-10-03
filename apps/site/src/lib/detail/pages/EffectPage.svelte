@@ -95,7 +95,7 @@
           <HowItWorks guide={explanation.guide} section={explanation.section} label={explanation.label} />
         {/each}
       {:else}
-        <HowItWorks guide={combat} section="effects" label="How Combat Effects Work" />
+        <HowItWorks guide={combat} section="effects" label="How combat effects work" />
       {/if}
     </AnswerCard></div>
     <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>

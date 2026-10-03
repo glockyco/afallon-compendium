@@ -27,3 +27,24 @@ test('the built-page audit rejects the Classes table casing regression while pre
     rmSync(output, { recursive: true, force: true });
   }
 });
+
+test('phrase links and section pills follow sentence-like headings without changing short map commands', () => {
+  const output = mkdtempSync(join(tmpdir(), 'afallon-casing-'));
+  try {
+    mkdirSync(join(output, 'mechanics', 'heroic-tier'), { recursive: true });
+    writeFileSync(join(output, 'index.html'), '<h1>Afallon Compendium</h1>');
+    writeFileSync(join(output, '404.html'), '<h1>Page Not Found</h1>');
+    const page = join(output, 'mechanics', 'heroic-tier', 'index.html');
+    writeFileSync(page, '<h1>Heroic Tier</h1><h2>Turning It On and Off</h2><a class="how-it-works">How Creature Drops Work</a><button class="pill"><span class="visually-hidden">On this page:</span><span>Turning It On and Off</span></button>');
+    const failed = Bun.spawnSync(['bun', script, `--output=${output}`, '--strict']);
+    expect(failed.exitCode).toBe(1);
+    expect(JSON.parse(failed.stdout.toString()).violations.map((entry: { class: string; text: string }) => [entry.class, entry.text])).toEqual([
+      ['heading', 'Turning It On and Off'], ['action', 'How Creature Drops Work'], ['summary', 'Turning It On and Off'],
+    ]);
+
+    writeFileSync(page, '<h1>Heroic Tier</h1><h2>Turning it on and off</h2><a class="how-it-works">How creature drops work</a><button class="pill"><span class="visually-hidden">On this page:</span><span>Turning it on and off</span></button><a class="c-action">Show on Map</a>');
+    expect(Bun.spawnSync(['bun', script, `--output=${output}`, '--strict']).exitCode).toBe(0);
+  } finally {
+    rmSync(output, { recursive: true, force: true });
+  }
+});

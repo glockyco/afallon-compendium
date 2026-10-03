@@ -23,7 +23,7 @@
   <div class="from-control"><slot name="before-control" /></div>
   <div class="to-control"><slot name="after-control" /></div>
   <div class="summary" aria-live="polite" aria-atomic="true">
-    <h3>What Changes</h3>
+    <h3>What changes</h3>
     <table class="c-table c-table--calculator c-table--comparison" aria-label={tableLabel}>
       <caption>{beforeLabel} to {afterLabel}</caption>
       <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num from-value">{beforeLabel}</th><th scope="col" class="c-num to-value">{afterLabel}</th><th scope="col" class="c-num change-value">Change</th></tr></thead>

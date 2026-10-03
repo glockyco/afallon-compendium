@@ -11,7 +11,7 @@ Search SHALL show a spinner inside its input while loading, without changing pag
 
 #### Scenario: Link to a map location
 - **WHEN** a page links a character's location on the map
-- **THEN** the link reads "View on map"
+- **THEN** the link reads "Show on Map"
 - **AND** it opens the matching location at `/map` with its map query state
 
 #### Scenario: Publication changes searchable kinds

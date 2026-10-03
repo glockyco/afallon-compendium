@@ -72,7 +72,7 @@
       {#if !document.description && !document.note && !document.recovery.length && !onHit}<p>{document.ref.name} is a {document.category?.toLowerCase() ?? document.statCategory?.toLowerCase() ?? 'character'} stat.</p>{/if}
       {#if itemCount > 0}<p><a class="c-link" href={itemsHref}>Browse {formatNumber(itemCount)} {itemCount === 1 ? 'item' : 'items'} with {document.ref.name}</a>.{#if !document.itemListColumn}{' '}Fixed bonuses and possible rolls are listed below.{/if}</p>
       {:else if totalSources > 0}<p>See the sources below for ways to gain this stat.</p>{/if}
-      <HowItWorks guide={combat} section={guideSection} label="How Combat Stats Work" />
+      <HowItWorks guide={combat} section={guideSection} label="How combat stats work" />
     </AnswerCard></div>
     <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>
     <Sections>

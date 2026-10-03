@@ -153,7 +153,7 @@
               {/each}
             </FactList></details>
           {/if}
-          {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How Enchanting Works" />{/if}
+          {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
         </SideCard>
       {/if}
       {#if versions.length > 1 || facts.heroicPausedIn?.length || facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
@@ -167,11 +167,11 @@
           {/if}
           {#if version === 'heroic'}
             <p>Creatures drop it as Heroic gear while the Heroic tier is live, with {formatNumber(facts.heroic?.statBonusPercent ?? 0)}% higher fixed stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}.</p>
-            {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic Gear Works" />{/if}
+            {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
           {:else if version === 'corrupted' && facts.corruption}
             <LevelControl id="corruption-level" label="Corruption level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} valueText={(level) => `+${level}`} />
             {#if facts.dungeonRewards?.length}<p>From the reward bags of {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
-            {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How Corruption Works" />{/if}
+            {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
           {/if}
           {#if version !== 'normal' && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
           {#if facts.heroicPausedIn?.length}<p>Never drops as Heroic gear. It drops only in {#each facts.heroicPausedIn as place, index}{index ? (index === facts.heroicPausedIn.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={place} {registry} />{/each}, where the Heroic tier pauses.</p>{/if}
@@ -181,7 +181,7 @@
         </SideCard>
       {/if}
       {#if !facts.enchanting && hasSources && (document.description || facts.buyPrice)}
-        <SideCard title="About This Item">
+        <SideCard title="About this item">
           {#if document.description}<p class="description">{document.description}</p>{/if}
           {#if facts.buyPrice}<FactList><FactRow label="Buy price"><Price price={facts.buyPrice} showName /></FactRow></FactList>{/if}
         </SideCard>
@@ -196,7 +196,7 @@
           <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
         {/if}
         <p><strong>Dungeon affixes:</strong> The saved token lists its affix names and descriptions.{#if facts.tokenInfo.affixesPerToken !== undefined}{' '}A new token can roll up to {facts.tokenInfo.affixesPerToken} distinct eligible affixes.{/if}</p>
-        {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} section={tokenGuide.section} label="How Tokens Work" />{/if}
+        {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} section={tokenGuide.section} label="How tokens work" />{/if}
       </Section>
     {/if}
     {#if document.teaches}
@@ -224,7 +224,7 @@
                 </div>
               {/each}
             </div>
-            {#if chestGuide}<HowItWorks guide={chestGuide.guide} section={chestGuide.section} label="How Bag Contents Work" />{/if}
+            {#if chestGuide}<HowItWorks guide={chestGuide.guide} section={chestGuide.section} label="How bag contents work" />{/if}
           {/if}
           {#if useEffects.length}
             <RelationTable columns={useEffectPlan.columns} rows={useEffects} label="Effects when used">
@@ -277,7 +277,7 @@
         <div class="adventurer-gear">
           {#if rewardRow}<p>After a job, an adventurer has a {formatNumber(rewardRow.chance)}% chance to take an upgrade from the reward gear list. This item is on it for {rewardLevel > 1 ? `adventurers of level ${formatNumber(rewardLevel)} or higher` : 'every adventurer'}.</p>{/if}
           {#each kitRows as row}<p>Part of the gear kit of <EntityLink ref={row.adventurer} {registry} />.</p>{/each}
-          {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How Adventurer Gear Works" />{/if}
+          {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurer gear works" />{/if}
         </div>
       </Section>
     {/if}
@@ -288,7 +288,7 @@
       <Section id="cloth-loot" title="Cloth Loot">
         <div class="c-stack">
           <p>Each kill of a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature rolls for cloth at a base rate of {formatNumber(document.clothDrop.chance)}% before loot bonuses. A successful roll gives {document.clothDrop.min === document.clothDrop.max ? formatNumber(document.clothDrop.min) : `${formatNumber(document.clothDrop.min)} to ${formatNumber(document.clothDrop.max)}`} {document.clothDrop.max === 1 ? 'piece' : 'pieces'}. The creature's level decides which cloth it is.</p>
-          {#if clothGuide}<HowItWorks guide={clothGuide.guide} section={clothGuide.section} label="How Cloth Loot Works" />{/if}
+          {#if clothGuide}<HowItWorks guide={clothGuide.guide} section={clothGuide.section} label="How cloth loot works" />{/if}
           <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Base cloth rate by creature level">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'level'}{levelRangeText(row.minLevel, row.maxLevel)}
@@ -298,15 +298,15 @@
         </div>
       </Section>
     {/if}
-    <VendorSection id="sold-by" title="Sold By" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
-    <ContainerSection id="collected-from" title="Found in Objects" guide={objectGuide} guideLabel="How World Object Loot Works" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
-    <ContainerSection id="found-in-containers" title="Found in Containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
+    <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
+    <ContainerSection id="collected-from" title="Found in objects" guide={objectGuide} guideLabel="How world object loot works" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
+    <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="Quest Rewards" roleLabel="Given As" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
     {#if document.questPickups.length}
       <Section id="quest-pickups" title="Quest Pickups" count={document.questPickups.length}>
         <div class="c-stack">
           <p>A quest pickup gives {document.ref.name} only while the quest's task to get it is open, and never more than the task still needs.</p>
-          {#if pickupGuide}<HowItWorks guide={pickupGuide.guide} section={pickupGuide.section} label="How Quest Pickups Work" />{/if}
+          {#if pickupGuide}<HowItWorks guide={pickupGuide.guide} section={pickupGuide.section} label="How quest pickups work" />{/if}
           <RelationTable columns={pickupPlan.columns} rows={document.questPickups} label="Quest pickups">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'source'}{#if row.kind === 'creature'}Where <EntityLink ref={row.counterpart} {registry} /> dies{:else}{row.places[0]?.label ?? 'Placed pickup'}{#if row.placementCount > 1}{' '}({formatNumber(row.placementCount)} spots){/if}{#if row.singleUse}{' '}· once{/if}{/if}
@@ -322,7 +322,7 @@
         <div class="c-stack">
           <p>Each successful Random run of the Dungeon Finder gives one {document.ref.name}. A Random run goes to one of these dungeons.</p>
           <LinkGrid refs={document.dungeonFinder.dungeons} {registry} />
-          {#if finderGuide}<HowItWorks guide={finderGuide.guide} section={finderGuide.section} label="How Dungeon Finder Rewards Work" />{/if}
+          {#if finderGuide}<HowItWorks guide={finderGuide.guide} section={finderGuide.section} label="How Dungeon Finder rewards work" />{/if}
         </div>
       </Section>
     {/if}

@@ -4,7 +4,7 @@ Short reader-facing labels vary between views of the same data: the Classes gall
 
 ## What Changes
 
-- Use Title Case for title-like noun headings, page titles, navigation, tabs, table headers, buttons, and action links. Keep sentence-like headings, fields, counts, facts, placeholders, authored filter values, and prose in sentence case.
+- Use Title Case for title-like noun headings, page titles, navigation, tabs, table headers, and short command controls. Keep sentence-like headings, phrase links, fields, counts, facts, placeholders, authored filter values, and prose in sentence case.
 - Share one gallery/table search-and-count control, and correct source-authored labels without changing game names or the counted hidden-entry reveal exception.
 - Audit prerendered route kinds and client-rendered views, and reject clear new label regressions during deployment verification.
 

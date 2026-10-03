@@ -22,7 +22,7 @@
   // Lead with rewards, then explain how to enable the tier and what changes. Detailed sections retain each rule.
   const PARTS = [
     { id: 'getting-started', title: 'Getting started', sections: ['entering'] },
-    { id: 'what-changes', title: 'What Changes', sections: ['empowered-creatures', 'affixes'] },
+    { id: 'what-changes', title: 'What changes', sections: ['empowered-creatures', 'affixes'] },
     { id: 'rewards', title: 'Rewards', sections: ['kill-experience', 'essence', 'currency', 'heroic-gear'] },
   ] as const;
   $: byId = new Map(document.sections.map((section) => [section.id, section]));
@@ -86,7 +86,7 @@
 
     {#if rewards.length}
       <div>
-        <h2>What You Get</h2>
+        <h2>What you get</h2>
         <p>{list(rewards)}.</p>
         <a class="c-link more" href="#kill-experience">Rewards</a>
       </div>

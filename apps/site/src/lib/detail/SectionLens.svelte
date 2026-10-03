@@ -6,15 +6,6 @@
 
   const glyph = iconNodeToSvg(TableOfContents, 'currentColor');
   const chevron = iconNodeToSvg(ChevronUp, 'currentColor');
-  // A section heading can be sentence-like even though its navigation action is a title.
-  const ACTION_SECTION_TITLES: Record<string, string> = {
-    'When used': 'When Used',
-    'Dropped by': 'Dropped By',
-    'Used for': 'Used For',
-    'Meeting and inviting': 'Meeting and Inviting',
-    'Building your stats': 'Building Your Stats',
-    'Turning it on and off': 'Turning It On and Off',
-  };
 
   /** The rendered sections of the page, in page order. */
   export let sections: SectionEntry[];
@@ -92,15 +83,15 @@
           <a class="row section" class:active={section.id === active.id} href={`#${section.id}`} aria-current={section.id === active.id ? 'location' : undefined} style={`--i: ${index}`} on:click={() => { open = false; }}>
             <span class="mark" aria-hidden="true">•</span>
             <span class="index">{String(index + 1).padStart(2, '0')}</span>
-            <span class="name">{ACTION_SECTION_TITLES[section.title] ?? section.title}</span>
+            <span class="name">{section.title}</span>
           </a>
         {/each}
       </nav>
     {/if}
     <button type="button" class="pill" bind:this={pill} aria-expanded={open} aria-controls="section-lens-menu" on:click={() => { if (!open) select(); open = !open; }}>
       <span class="glyph" aria-hidden="true">{@html glyph}</span>
-      <span class="visually-hidden">On This Page:</span>
-      <span class="current">{ACTION_SECTION_TITLES[active.title] ?? active.title}</span>
+      <span class="visually-hidden">On this page:</span>
+      <span class="current">{active.title}</span>
       <span class="chevron" class:open aria-hidden="true">{@html chevron}</span>
     </button>
   </div>

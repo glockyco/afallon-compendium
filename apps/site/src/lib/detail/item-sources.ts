@@ -136,9 +136,9 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     line('quest-pickups', 'Quest pickup', item.questPickups.map((row): SummaryName => row.quest ? { ref: row.quest } : row.kind === 'creature' ? { ref: row.counterpart } : { text: 'Placed pickup' }),
       { detail: 'While the quest needs it' }),
     item.dungeonFinder && { id: 'dungeon-finder', label: 'Dungeon Finder', names: [], more: 0, text: `Each successful Random run gives one ${item.ref.name}` },
-    line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See All Items That Give It' }),
+    line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See all items that give it' }),
     line('adventurer-starting-gear', 'Adventurer starting gear', item.startingGearOfAdventurers.map((ref) => ({ ref }))),
-    line('gained-from-items', 'Use', item.gainedFromItems.map((ref) => ({ ref })), { linkText: 'See Items That Give It' }),
+    line('gained-from-items', 'Use', item.gainedFromItems.map((ref) => ({ ref })), { linkText: 'See items that give it' }),
     startingGearLine(item),
   ];
   return routes.filter((entry): entry is SummaryLine => entry !== undefined)

@@ -25,7 +25,7 @@
     {/if}
     {#if document.facts.worldQuest && document.rewards.some((reward) => reward.counterpart.key !== null && reward.counterpart.kind === 'currencies')}
       <p class="world-currency">Your currency reward is scaled to your level. Heroic Cache also changes it while the Heroic Tier is live.
-        <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="rewards" label="How World Quest Rewards Work" />
+        <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="rewards" label="How World Quest rewards work" />
       </p>
     {/if}
   </Section>

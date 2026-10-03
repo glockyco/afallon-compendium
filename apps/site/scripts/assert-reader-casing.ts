@@ -30,7 +30,7 @@ const excludedProgression: Record<string, true> = {
 
 function text(node: Node): string {
   if (node.type === 'text') return (node as Node & { data: string }).data;
-  if (!('children' in node) || ('attribs' in node && node.attribs['aria-hidden'] === 'true')) return '';
+  if (!('children' in node) || ('attribs' in node && (node.attribs['aria-hidden'] === 'true' || /(?:^|\s)visually-hidden(?:\s|$)/.test(node.attribs.class ?? '')))) return '';
   return node.children.map(text).join(' ');
 }
 function clean(value: string): string { return value.replace(/\s+/g, ' ').trim(); }
@@ -44,8 +44,9 @@ function firstHeading(node: Node): string | undefined {
   }
   return undefined;
 }
-const properWords: Record<string, true> = { Afallon: true, Compendium: true, Heroic: true, Tier: true, World: true, Loot: true, Dungeon: true, Finder: true, Steam: true, Ko: true };
-const phraseHeading = /^(?:How |Try |See |Show |Can |Could |When |Why |Getting |Turning |Finding |Taking |Joining |Meeting |Building |Playing |Your |Experience per |What can |What it |What to |Where and when |Where to get |Where to find it|Used by|Used for|Dropped by|Mined from|Gathered from|Starts with|Starts and ends with|Turn in to|Explore this place|To gather|Choose one|Effects they apply|Points to learn)/iu;
+const properWords: Record<string, true> = { Afallon: true, Compendium: true, Heroic: true, Tier: true, World: true, Quest: true, Quests: true, Loot: true, Dungeon: true, Finder: true, Steam: true, Ko: true };
+const phraseHeading = /^(?:How |Try |See |Show |Can |Could |When |Why |Getting |Turning |Finding |Taking |Joining |Meeting |Building |Playing |Your |Experience per |What can |What it |What to |What changes|What you get|Where and when |Where to get |Where to find it|Used by|Used for|Dropped by|Sold by|Found in|Mined from|Gathered from|Starts with|Starts and ends with|Turn in to|Turn it on|Explore this place|To gather|Choose one|Effects they apply|Points to learn|About this item)/iu;
+const sentenceLink = /^(?:How |See |Turning |Find a |What )/iu;
 
 function casingViolation(value: string, group: LabelClass, route: string): boolean {
   if (!value || authoredNames[value] || reveal.test(value) || /^Unknown: /u.test(value)) return false;
@@ -57,7 +58,8 @@ function casingViolation(value: string, group: LabelClass, route: string): boole
   if (group === 'label' && (/\bgives\b/u.test(value) || /^If eligible /u.test(value) || /:\s*\+\d+ weight/u.test(value))) return false;
   const words = value.match(/[\p{L}][\p{L}'’-]*/gu) ?? [];
   const sentence = ['label', 'placeholder', 'count', 'fact', 'chip'].includes(group)
-    || (['heading', 'summary'].includes(group) && phraseHeading.test(value));
+    || (['heading', 'summary'].includes(group) && phraseHeading.test(value))
+    || (group === 'action' && sentenceLink.test(value));
   if (sentence) {
     if (['count', 'fact'].includes(group) && /^\d/.test(value)) {
       const noun = words[0];
@@ -126,13 +128,13 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
   let group: LabelClass | undefined;
   if (tag === 'title') group = 'title';
   else if (/^h[1-6]$/.test(tag)) group = 'heading';
-  else if (tag === 'th') group = 'column';
-  else if (tag === 'button') group = role === 'tab' ? 'tab' : /(?:^|\s)hint(?:\s|$)/.test(parent?.attribs.class ?? '') && /(?:^|\s)term(?:\s|$)/.test(css) ? 'label' : /chip/.test(css) ? 'chip' : 'button';
+  else if (tag === 'th') group = element.attribs.scope === 'row' ? 'label' : 'column';
+  else if (tag === 'button') group = role === 'tab' ? 'tab' : /(?:^|\s)pill(?:\s|$)/.test(css) ? 'summary' : /(?:^|\s)hint(?:\s|$)/.test(parent?.attribs.class ?? '') && /(?:^|\s)term(?:\s|$)/.test(css) ? 'label' : /chip/.test(css) ? 'chip' : 'button';
   else if (tag === 'label' || tag === 'dt') group = 'label';
   else if (tag === 'summary') group = 'summary';
   else if (tag === 'legend') group = 'legend';
-  else if (tag === 'a' && parent?.name === 'nav') group = 'nav';
-  else if (tag === 'a' && /section-link|c-action/.test(css)) group = 'action';
+  else if (tag === 'a' && parent?.name === 'nav') group = /(?:^|\s)row section(?:\s|$)/.test(css) ? 'label' : 'nav';
+  else if (tag === 'a' && /section-link|c-action|how-it-works|route-more/.test(css)) group = 'action';
   else if (/(?:^|\s)tile-meta(?:\s|$)/.test(css)) group = 'fact';
   else if (/(?:^|\s)count(?:\s|$)/.test(css)) group = 'count';
   if (tag === 'summary' && element.children.some((child) => child.type === 'tag' && /(?:^|\s)summary-note(?:\s|$)/.test((child as Element).attribs.class ?? ''))) {
@@ -145,7 +147,7 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
     record(route, tag === 'button' && /[\p{L}]/u.test(clean(text(element))) ? group ?? 'button' : 'label', element.attribs['aria-label'], excluded);
   }
   // Parent controls and headings already own their complete text; do not double count child spans.
-  if (group && group !== 'count' && group !== 'fact') return;
+  if (group && group !== 'count' && group !== 'fact' && tag !== 'th') return;
   for (const child of element.children) visit(child, route, element, excluded);
 }
 const roots = readdirSync(output, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith('_') && entry.name !== 'data');

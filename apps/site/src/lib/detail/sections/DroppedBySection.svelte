@@ -58,7 +58,7 @@
         {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
       </svelte:fragment>
     </RelationTable>
-    {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How Creature Drops Work" />{/if}
+    {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
   </Section>
 {/if}
 

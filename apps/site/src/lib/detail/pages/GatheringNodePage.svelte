@@ -108,7 +108,7 @@
           </RelationTable>
         {:else}<p>No known yields for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How Gathering Works" /></p>
+          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
       </AnswerCard>
     </div>
@@ -152,7 +152,7 @@
         <p class="intro">Each spawner picks one of its options. The relative and exact chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance appears{/if}.</p>
         {#if oddsGroups.length}<LevelControl id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} min={1} max={skillCap} fallback={1} />{/if}
         <AttunementToggles attunements={document.attunements} {registry} bind:active />
-        {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How Spawners Choose Nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How Attunement Changes the Odds" />{/if}</div>{/if}
+        {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
@@ -164,7 +164,7 @@
       </DetailsDisclosure>
     {/if}
       <DetailsDisclosure title="Timers and Ranges" id="timers">
-        {#if timerGuide}<HowItWorks guide={timerGuide.guide} section={timerGuide.section} label="How Node Timers Work" />{/if}
+        {#if timerGuide}<HowItWorks guide={timerGuide.guide} section={timerGuide.section} label="How node timers work" />{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">

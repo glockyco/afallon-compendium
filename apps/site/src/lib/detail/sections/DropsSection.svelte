@@ -68,7 +68,7 @@
           </RelationTable>
         </div>
       {/each}
-      {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How Creature Drops Work" />{/if}
+    {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
     </div>
   {:else}<p class="empty">No known drops for {name}.</p>{/if}
 {/snippet}

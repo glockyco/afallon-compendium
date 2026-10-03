@@ -60,9 +60,9 @@
         {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
         <h3>Points to learn every rank</h3>
         <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{#if tree.points && tree.points !== commonPoints}<small>{#if tree.pointsGuide}<a class="c-link" href={`${base}/mechanics/${tree.pointsGuide.guide.slug}/#${tree.pointsGuide.section}`}>{tree.points}</a>{:else}{tree.points}{/if}</small>{/if}</span></li>{/each}</ul>
-        {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How Talent Points Work" />{/if}
+        {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{/if}
       </SideCard>{/if}
-      {#if facts.weapons.length}<SideCard title="Gear"><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and Armor for {document.ref.name}</a></SideCard>{/if}
+      {#if facts.weapons.length}<SideCard title="Gear"><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and armor for {document.ref.name}</a></SideCard>{/if}
     </div>
     <Sections>
       {#if document.startingGear.length}
