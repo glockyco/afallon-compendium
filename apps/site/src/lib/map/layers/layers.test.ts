@@ -45,14 +45,17 @@ test("connection layers preserve picking identity and selected style", () => {
 
 test("movement layer visibility and styles follow supplied state", () => {
   const geometry: MovementGeometry = { paths: [{ movementId: "move", placementId: "npc", kind: "patrol", points: [[1, 2], [3, 4]] }], radii: [] };
-  expect(createMovementLayers("movement", { paths: [], radii: [] }, new Set(), new Set(), true, () => undefined)).toEqual([]);
-  const [path] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(), true, () => undefined);
+  expect(createMovementLayers("movement", { paths: [], radii: [] }, new Set(), new Set())).toEqual([]);
+  const [path] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set());
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getPath")(geometry.paths[0]!)).toEqual([[1, 2], [3, 4]]);
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getColor")(geometry.paths[0]!)).toEqual([250, 204, 21, 255]);
-  const [selectedAndHovered] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(["npc"]), true, () => undefined);
-  const [hovered] = createMovementLayers("movement", geometry, new Set(), new Set(["npc"]), true, () => undefined);
+  const [selectedAndHovered] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(["npc"]));
+  const [hovered] = createMovementLayers("movement", geometry, new Set(), new Set(["npc"]));
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(selectedAndHovered!, "getColor")(geometry.paths[0]!)).toEqual([250, 204, 21, 255]);
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(hovered!, "getColor")(geometry.paths[0]!)).toEqual([255, 255, 255, 255]);
+  expect(path!.props.pickable).toBe(false);
+  const [radius] = createMovementLayers("movement", { paths: [], radii: [{ movementId: "range", placementId: "npc", kind: "roaming", center: [1, 2], radius: 30 }] }, new Set(), new Set());
+  expect(radius!.props.pickable).toBe(false);
 });
 
 test("imagery ordering keeps game maps below captures", () => {

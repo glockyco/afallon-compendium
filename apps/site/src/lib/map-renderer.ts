@@ -11,7 +11,7 @@ import { createRegionLayers, type RegionRecord } from "./map/layers/regions";
 import { MAP_EVENT_RECOGNIZER_OPTIONS, MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from "./map/interaction";
 import type { MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, effectiveMapDelta } from "./map/world-layout";
-import { buildMarkers, buildAreas, buildRegions, buildMovementGeometry, groupCoincidentMarkers, type MarkerRecord, type AreaRecord, type Point, type WorldMapBounds } from "./map/render-data";
+import { buildMarkers, buildAreas, buildRegions, buildMovementGeometry, groupCoincidentMarkers, orderFocusedMarkers, type MarkerRecord, type AreaRecord, type Point, type WorldMapBounds } from "./map/render-data";
 
 export type MapViewState = {
   target: [number, number, number];
@@ -320,21 +320,20 @@ export async function createMapAdapter(
           paths: baseMovement.paths.filter((movement) => focusedMovementIds.has(movement.placementId)),
           radii: baseMovement.radii.filter((movement) => focusedMovementIds.has(movement.placementId)),
         };
-    const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds, true, callbacks.onSelect);
+    const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds);
     const areaLayer = createAreaLayer(baseAreas, markerByPlacement, next.selectedId, next.hoveredPlacementIds, callbacks.onSelect);
     const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
     // The disabled option still permits lines for the selected or hovered marker.
     const focusedConnections = next.showConnections || next.authoring ? allConnections : allConnections.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
     const connectionLayers = createConnectionLayers(focusedConnections, next.selectedId, hoveredConnectionIds);
-    // Every marker draws as its own icon. A stack of placements at one position selects
-    // the next member on each click, so a hidden member is still reachable.
+    // A marker at an exact shared position cycles through its members on successive clicks.
     const selectStacked = (placementId: string) => {
       const stack = stacks.find((marker) => marker.members.includes(placementId));
       if (!stack) return callbacks.onSelect(placementId);
       const selectedIndex = stack.members.indexOf(next.selectedId ?? "");
       callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
-    const markerLayer = createPlacementIconLayer(renderMarkers, iconSheet, next.markerSize, next.selectedId, null, selectStacked);
+    const markerLayer = createPlacementIconLayer(orderFocusedMarkers(renderMarkers, next.selectedId, next.hoveredPlacementIds), iconSheet, next.markerSize, next.selectedId, null, selectStacked);
     const stackCounts = createStackCountLayer(stacks, next.markerSize);
     const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
       const ids = new Set(placementIds);

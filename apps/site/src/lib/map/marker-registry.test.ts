@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
-import type { PublicPlacement } from "@afallon/contracts/public"
-import { buildMarkers, groupCoincidentMarkers } from "./render-data";
+import type { PublicPlacement, PublicationData } from "@afallon/contracts/public"
+import { buildMarkers, coincidentPlacements, groupCoincidentMarkers, orderFocusedMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
 import { iconSheetMapping } from "./icon-sheet";
 import { DEFAULT_MARKER_IDS, MARKER_IDS, MARKER_LAYER_ID, MARKER_SIZE_RANGE, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
@@ -58,6 +58,23 @@ test("station stacks draw alchemy, tailoring, smithing, furnace, then cooking", 
   const overlapping = buildMarkers([placements[0]!, placements[2]!, { ...placements[4]!, position: [0, 0] }]);
   expect(groupCoincidentMarkers(overlapping).map((marker) => marker.markerId)).toEqual(["alchemyStation", "smithingStation"]);
   expect(groupCoincidentMarkers(buildMarkers(placements.map((placement) => ({ ...placement, position: [0, 0] }))))[0]?.markerId).toBe("alchemyStation");
+});
+
+test("selected and hovered icons draw over other icons while exact stacks keep every identity", () => {
+  const placements = [
+    { placementId: "console", mapSpaceId: "surface", position: [0, 0], categories: ["heroicConsole"], label: "Heroic Console" },
+    { placementId: "station", mapSpaceId: "surface", position: [3, 0], categories: ["tailoringStation"], label: "Tailoring Station" },
+    { placementId: "chest-a", mapSpaceId: "surface", position: [8, 0], categories: ["container"], label: "Chest" },
+    { placementId: "chest-b", mapSpaceId: "surface", position: [8, 0], categories: ["container"], label: "Chest" },
+  ] as PublicPlacement[];
+  const markers = groupCoincidentMarkers(buildMarkers(placements));
+  const front = orderFocusedMarkers(markers, "console", ["chest-b"]);
+  expect(front.at(-1)?.members).toEqual(["console"]);
+  expect(front.at(-2)?.members).toContain("chest-b");
+  expect(markers.find((marker) => marker.members.length === 2)?.members).toEqual(["chest-a", "chest-b"]);
+  const data = { buildId: "build", world: { offsets: [{ mapSpaceId: "surface", worldX: 0, worldY: 0, source: "native", status: "placed" }] } } as PublicationData;
+  expect(coincidentPlacements(placements, placements[2]!, data, {}).map((placement) => placement.placementId)).toEqual(["chest-a", "chest-b"]);
+  expect(coincidentPlacements(placements, placements[0]!, data, {})).toEqual([]);
 });
 
 test("no two markers share a glyph", () => {

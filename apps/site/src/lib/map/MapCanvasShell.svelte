@@ -11,6 +11,7 @@
   export let mapUnavailable: boolean;
   export let previewPlacement: PublicPlacement | null;
   export let previewMarker: MarkerDefinition | null;
+  export let previewGroup: PublicPlacement[];
   export let previewSelected = false;
   export let countsPending = false;
   export let matchingCount: number;
@@ -19,6 +20,7 @@
   export let onZoomIn: () => void;
   export let onZoomOut: () => void;
   export let onFit: () => void;
+  export let onSelectPlacement: (placementId: string, origin: HTMLElement) => void;
 
   $: previewMeta = previewPlacement ? [
     ...previewPlacement.categories.map((category) => markerFor(category).label).filter((label) => label !== previewPlacement.label),
@@ -37,8 +39,26 @@
     {#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map…</span></div></div>{/if}
     <div class="map-top-overlay">
       <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={onZoomIn}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={onZoomOut}>−</button><button type="button" disabled={!mapReady} on:click={onFit}>Fit map</button><a class="kofi-button" href="https://ko-fi.com/wowmuch" aria-label="Support on Ko-fi" title="Support on Ko-fi"><KofiGlyph /><span>Support</span></a></div>
-      {#if previewPlacement}<div class="hover-preview" class:has-guide={previewSelected && Boolean(previewMarker?.guide)}><div class="preview-title">{#if previewMarker}<span class="marker-badge" style:background={markerColorCss(previewMarker)} aria-hidden="true">{@html markerGlyphSvg(previewMarker)}</span>{/if}<strong>{previewPlacement.label}</strong></div>{#if previewMeta}<span class="preview-meta">{previewMeta}</span>{/if}{#if previewSelected && previewMarker?.description}<p class="preview-description">{previewMarker.description}</p>{/if}{#if previewSelected && previewMarker?.guide}<a class="c-link preview-guide" href={`${base}${previewMarker.guide.href}`}>{previewMarker.guide.label}</a>{/if}</div>{/if}
+      {#if previewPlacement}
+        <div class="hover-preview" class:has-guide={(previewSelected && Boolean(previewMarker?.guide)) || previewGroup.length > 1}>
+          <div class="preview-title">
+            {#if previewMarker}<span class="marker-badge" style:background={markerColorCss(previewMarker)} aria-hidden="true">{@html markerGlyphSvg(previewMarker)}</span>{/if}
+            <strong>{previewPlacement.label}</strong>
+          </div>
+          {#if previewMeta}<span class="preview-meta">{previewMeta}</span>{/if}
+          {#if previewGroup.length > 1}
+            <div class="preview-group" aria-label="Spots At This Location">
+              <span>{previewGroup.length} Spots Here</span>
+              {#each previewGroup as placement, index (placement.placementId)}
+                <button type="button" aria-label={`${placement.label}, spot ${index + 1} of ${previewGroup.length}`} on:click={(event) => onSelectPlacement(placement.placementId, event.currentTarget)}>{placement.label}{#if previewGroup.some((other) => other !== placement && other.label === placement.label)} {' · '}{index + 1}{/if}</button>
+              {/each}
+            </div>
+          {/if}
+          {#if previewSelected && previewMarker?.description}<p class="preview-description">{previewMarker.description}</p>{/if}
+          {#if previewSelected && previewMarker?.guide}<a class="c-link preview-guide" href={`${base}${previewMarker.guide.href}`}>{previewMarker.guide.label}</a>{/if}
+        </div>
+      {/if}
     </div>
-    <div class="map-status" aria-live="polite">{#if countsPending}Loading matching placements…{:else}{matchingCount} matching placements · {viewportCount} in viewport{/if}{#if showsExtraSelection}{' · selected location also shown'}{/if}</div>
+    <div class="map-status" aria-live="polite">{#if countsPending}Loading Spots…{:else}{matchingCount} Spots Match · {viewportCount} In View{/if}{#if showsExtraSelection}{' · Selected Spot Also Shown'}{/if}</div>
   {/if}
 </div>

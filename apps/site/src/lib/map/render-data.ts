@@ -40,6 +40,38 @@ function compareMarkerDrawOrder(left: MarkerRecord, right: MarkerRecord): number
   return markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId);
 }
 
+export function orderFocusedMarkers(markers: readonly MarkerRecord[], selectedId: string | null, hoveredIds: readonly string[]): readonly MarkerRecord[] {
+  if (!selectedId && hoveredIds.length === 0) return markers;
+  const ordinary: MarkerRecord[] = [], hovered: MarkerRecord[] = [], selected: MarkerRecord[] = [];
+  const hoveredSet = new Set(hoveredIds);
+  for (const marker of markers) {
+    if (selectedId && marker.members.includes(selectedId)) selected.push(marker);
+    else if (marker.members.some((id) => hoveredSet.has(id))) hovered.push(marker);
+    else ordinary.push(marker);
+  }
+  return [...ordinary, ...hovered, ...selected];
+}
+
+function worldPointKey(x: number, y: number): string {
+  return `${x}:${y}`;
+}
+
+export function coincidentPlacements(
+  placements: readonly PublicPlacement[],
+  selected: PublicPlacement,
+  data: PublicationData,
+  overrides: WorldOffsetOverrides,
+): PublicPlacement[] {
+  const origin = effectiveMapDelta(data, selected.mapSpaceId, overrides);
+  const selectedKey = worldPointKey(selected.position[0] + origin.worldX, selected.position[1] + origin.worldY);
+  const members: PublicPlacement[] = [];
+  for (const placement of placements) {
+    const delta = effectiveMapDelta(data, placement.mapSpaceId, overrides);
+    if (worldPointKey(placement.position[0] + delta.worldX, placement.position[1] + delta.worldY) === selectedKey) members.push(placement);
+  }
+  return members.length > 1 ? members : [];
+}
+
 export function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null, focusedIds?: ReadonlySet<string>): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
@@ -197,7 +229,7 @@ export function groupCoincidentMarkers(markers: readonly MarkerRecord[]): readon
   if (markers.length < 2) return markers;
   const groups = new Map<string, MarkerRecord[]>();
   for (const marker of markers) {
-    const key = `${marker.position[0]}:${marker.position[1]}`;
+    const key = worldPointKey(marker.position[0], marker.position[1]);
     const group = groups.get(key);
     if (group) group.push(marker);
     else groups.set(key, [marker]);

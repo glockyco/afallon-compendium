@@ -10,6 +10,7 @@
   import { MapController, type MapSnapshot } from './map-controller';
   import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, summarizePlacements } from './map-search';
   import { DEFAULT_MAP_STATE, itemSourcePlacementIds, nodePlacePlacementIds, readMapUrl, repairMapUrl, writeMapUrl } from './map-state';
+  import type { MapState } from './map-state';
   import MapDevelopmentDetails from './map/MapDevelopmentDetails.svelte';
   import MapCanvasShell from './map/MapCanvasShell.svelte';
   import MapSearchResults from './map/MapSearchResults.svelte';
@@ -28,6 +29,8 @@
   } from './map/marker-registry';
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
+  import { entityResults, framePlacements, linkedPlacements, visibleResults } from './map/map-navigation';
+  import { coincidentPlacements } from './map/render-data';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
   import type { PublicPlacement, PublicRelease, PublicationData, StaticDocument } from '@afallon/contracts/public';
 
@@ -60,6 +63,8 @@
   let resultsCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   let fittedPlaceKey: string | null = null;
+  let inboundLink: MapState | null = null;
+  let fittedInboundLink = false;
   const initialIndexes = emptySearchIndexes();
   const initialDocuments: ReadonlyMap<string, StaticDocument> = new Map();
   const idleRequest = { status: 'idle' } as const;
@@ -121,8 +126,8 @@
   $: queryPlacementIds = new Set(matchingEntries.flatMap((entry) => searchIndexes.placementsByEntryKey.get(entry.ref.key)?.map((placement) => placement.placementId) ?? []));
   $: variantPlacementIds = selectedPlace?.space?.placementIds ? new Set(selectedPlace.space.placementIds) : null;
   // Placements that pass every filter except the category selection keep category counts stable.
-  $: candidatePlacements = allMapPlacements.filter((placement) => (!variantPlacementIds || variantPlacementIds.has(placement.placementId)) && (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!itemSource || sourcePlacementIds?.has(placement.placementId)) && (!selectedNode || nodePlacementIds.has(placement.placementId)) && (!nodePlace || nodePlaceIds?.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
-  $: matchingPlacements = searchNeedle ? candidatePlacements : candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
+  $: candidatePlacements = entityResults(allMapPlacements.filter((placement) => (!variantPlacementIds || variantPlacementIds.has(placement.placementId)) && (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!itemSource || sourcePlacementIds?.has(placement.placementId)) && (!selectedNode || nodePlacementIds.has(placement.placementId)) && (!nodePlace || nodePlaceIds?.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId))), selectedEntityKey, searchIndexes);
+  $: matchingPlacements = searchNeedle || selectedEntityKey ? candidatePlacements : candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
   // Every category the publication carries stays listed, selected or not.
@@ -138,6 +143,7 @@
   $: hoveredPlacement = searchIndexes.placementsById.get(hoveredId ?? '') ?? null;
   // The map preview names the hovered placement, and falls back to the selection.
   $: previewPlacement = hoveredPlacement ?? selectedPlacement;
+  $: previewGroup = previewPlacement && publication ? coincidentPlacements(adapterPlacements, previewPlacement, publication, effectiveOffsets) : [];
   $: previewMarkerId = previewPlacement ? resolveMarker(previewPlacement) : null;
   $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
   $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? placeKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
@@ -145,7 +151,7 @@
   $: sourcePlacementIds = itemSource && selectedPage?.kind === 'items' ? itemSourcePlacementIds(selectedPage.document, itemSource) : null;
   $: selectedPlace = selectedPage?.kind === 'places' ? selectedPage.document : null;
   $: selectedRegionIds = selectedPlace?.space?.regionIds ?? [];
-  $: resultPlacements = !searchNeedle && !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
+  $: resultPlacements = visibleResults(matchingPlacements, viewportPlacements, { search: Boolean(searchNeedle), entityKey: selectedEntityKey, mapUnavailable, hasViewport: Boolean(viewportBounds) });
   $: rankedResults = rankResults(searchNeedle, resultPlacements);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
   $: highlightedPlacementIds = itemSource ? [...(sourcePlacementIds ?? [])] : nodePlace ? [...(nodePlaceIds ?? [])] : selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
@@ -156,7 +162,7 @@
   $: adapterPlacements = extraSelection || extraRelatedPlacements.length
     ? [...matchingPlacements, ...(extraSelection ? [extraSelection] : []), ...extraRelatedPlacements] : matchingPlacements;
   $: hoveredPlacementIds = hoveredId ? [hoveredId] : [];
-  $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded') || Boolean(itemSource && selectedPage?.kind !== 'items') || Boolean(selectedNode && selectedPage?.kind !== 'gatheringNodes');
+  $: resultsPending = mapState.status !== 'loaded' || Boolean((selectedEntityKey || searchNeedle) && searchState.status !== 'loaded') || Boolean(itemSource && selectedPage?.kind !== 'items') || Boolean(selectedNode && selectedPage?.kind !== 'gatheringNodes');
   $: resultsError = searchState.status === 'error' ? searchState.message : '';
 
   function handleMapError(message: string): void {
@@ -226,7 +232,8 @@
     });
     const initialUrl = repairMapUrl(new URL(window.location.href));
     if (initialUrl.search !== window.location.search) window.history.replaceState(window.history.state, '', initialUrl);
-    controller.start(readMapUrl(initialUrl.search));
+    inboundLink = readMapUrl(initialUrl.search);
+    controller.start(inboundLink);
     return () => {
       disposed = true;
       window.removeEventListener('popstate', onPopState);
@@ -246,12 +253,22 @@
     if (variantPlacementIds && variantPlacementIds.size) fitPlacementIds(variantPlacementIds, selectedPlace.space.mapSpaceId);
     else fitMapSpace(selectedPlace.space.mapSpaceId);
   }
+  $: if (adapterReady && mapReady && publication && inboundLink && !inboundLink.view && !fittedInboundLink
+    && state.selectedPlacementId === inboundLink.selectedPlacementId && state.entityKey === inboundLink.entityKey
+    && (!inboundLink.entityKey || searchState.status === 'loaded')) {
+    const spots = linkedPlacements(inboundLink, searchIndexes);
+    if (spots.length) {
+      fittedInboundLink = true;
+      const framed = framePlacements(publication, spots, effectiveOffsets, canvas.clientWidth || 640, canvas.clientHeight || 480);
+      if (framed) setMapView({ target: [...framed.target] as [number, number, number], zoom: framed.zoom });
+    }
+  }
 
   function acceptSnapshot(next: MapSnapshot): void {
     snapshot = next;
   }
 
-  $: if (publication && !rendererStarting) void startRenderer().catch((error: unknown) => {
+  $: if (publication && !rendererStarting && !renderer && !mapUnavailable) void startRenderer().catch((error: unknown) => {
     if (disposed) return;
     mapUnavailable = true;
     rendererError = error instanceof Error ? error.message : String(error);
@@ -259,22 +276,26 @@
 
   async function startRenderer(): Promise<void> {
     rendererStarting = true;
-    await tick();
-    if (disposed || !publication) return;
-    const requestedView = controller?.snapshot.state.view;
-    view = requestedView ? { target: [...requestedView.target] as [number, number, number], zoom: requestedView.zoom } : centerView(publication.world);
-    const module = await import('./map-renderer');
-    if (disposed) return;
-    renderer = new module.MapRendererController(handleMapError);
-    adapter = await renderer.replace(canvas, view, {
-      onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; controller?.scheduleView(nextView); },
-      onSelect(placementId) { selectPlacement(placementId, canvas); },
-      onHover(placementId) { hoveredId = placementId; },
-      onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
-      onReady() { mapReady = true; },
-      onError(message) { handleMapError(message); },
-    });
-    adapterReady = adapter !== null;
+    try {
+      await tick();
+      if (disposed || !publication) return;
+      const requestedView = controller?.snapshot.state.view;
+      view = requestedView ? { target: [...requestedView.target] as [number, number, number], zoom: requestedView.zoom } : centerView(publication.world);
+      const module = await import('./map-renderer');
+      if (disposed) return;
+      renderer = new module.MapRendererController(handleMapError);
+      adapter = await renderer.replace(canvas, view, {
+        onViewChange(nextView, bounds) { hoveredId = null; view = nextView; viewportBounds = bounds; controller?.scheduleView(nextView); },
+        onSelect(placementId) { selectPlacement(placementId, canvas); },
+        onHover(placementId) { hoveredId = placementId; },
+        onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
+        onReady() { mapReady = true; },
+        onError(message) { handleMapError(message); },
+      });
+      adapterReady = adapter !== null;
+    } finally {
+      rendererStarting = false;
+    }
   }
 
   function centerView(map: PublicationData['world']): MapViewState {
@@ -290,19 +311,9 @@
 
   function fitPlacementIds(ids: ReadonlySet<string>, mapSpaceId: string): void {
     if (!publication || !adapter || !mapReady) return;
-    const delta = effectiveMapDelta(publication, mapSpaceId, effectiveOffsets);
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, found = false;
-    for (const placement of publication.placements) {
-      if (!ids.has(placement.placementId)) continue;
-      found = true;
-      const x = placement.position[0] + delta.worldX, y = placement.position[1] + delta.worldY;
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-    }
-    if (!found) return;
-    const padding = 25;
-    setMapView(centerBounds({ min: { x: minX - padding, y: minY - padding },
-      max: { x: maxX + padding, y: maxY + padding } }));
+    const spots = publication.placements.filter((placement) => placement.mapSpaceId === mapSpaceId && ids.has(placement.placementId));
+    const framed = framePlacements(publication, spots, effectiveOffsets, canvas.clientWidth || 640, canvas.clientHeight || 480);
+    if (framed) setMapView({ target: [...framed.target] as [number, number, number], zoom: framed.zoom });
   }
 
   function fitMapSpace(mapSpaceId: string): void {
@@ -521,8 +532,8 @@
       {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close map controls" on:click={togglePanel}></button>{/if}
 
       <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker} previewSelected={Boolean(previewPlacement && selectedId === previewPlacement.placementId)}
-          countsPending={resultsPending} matchingCount={matchingPlacements.length} viewportCount={resultPlacements.length} showsExtraSelection={Boolean(extraSelection)}
+        <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker} {previewGroup} previewSelected={Boolean(previewPlacement && selectedId === previewPlacement.placementId)}
+          countsPending={resultsPending} matchingCount={matchingPlacements.length} viewportCount={viewportPlacements.length} showsExtraSelection={Boolean(extraSelection)} onSelectPlacement={selectPlacement}
           onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
@@ -536,7 +547,7 @@
         <MapSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
           resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} searching={Boolean(searchNeedle)}
-          hasViewport={Boolean(viewportBounds) && !searchNeedle} {mapUnavailable}
+          hasViewport={Boolean(viewportBounds) && !searchNeedle && !selectedEntityKey} {mapUnavailable}
           selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
           onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
         />
