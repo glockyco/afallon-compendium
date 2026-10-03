@@ -4,7 +4,7 @@
   import { markerColorCss, markerFor, type MarkerDefinition } from './marker-registry';
   import { markerGlyphSvg } from './icon-sheet';
   import type { PublicPlacement } from '@afallon/contracts/public';
-  import { alternativeText, formatNumber, npcLevelText } from '../format';
+  import { alternativeText, formatNumber, levelText } from '../format';
 
   export let canvas: HTMLCanvasElement;
   export let mapReady: boolean;
@@ -24,7 +24,7 @@
 
   $: previewMeta = previewPlacement ? [
     ...previewPlacement.categories.map((category) => markerFor(category).label).filter((label) => label !== previewPlacement.label),
-    previewPlacement.level ? `Level ${npcLevelText(previewPlacement.level)}` : '',
+    previewPlacement.level ? `Level ${levelText(previewPlacement.level)}` : '',
     previewPlacement.alternative ? alternativeText(previewPlacement.alternative.chance, previewPlacement.alternative.options) : '',
     previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '',
     previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : '',
