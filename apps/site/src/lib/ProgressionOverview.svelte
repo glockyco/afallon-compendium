@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { base } from '$app/paths';
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import { formatNumber } from './format';
   import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from './reader-levels';
-  import { progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
+  import { levelTicks, progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
 
   export let entries: ProgressionEntry[];
   export let registry: PublicKindEntry[];
@@ -16,7 +15,12 @@
   $: selectedLevel = $readerLevels[levelId];
   $: axisEnd = progressionAxis(entries, selectedLevel);
   $: groups = progressionGroups(entries);
-  $: marker = selectedLevel === undefined ? null : (selectedLevel - 0.5) / axisEnd * 100;
+  $: ticks = levelTicks(axisEnd);
+  $: marker = selectedLevel === undefined ? null : levelPoint(selectedLevel, axisEnd);
+
+  function levelPoint(level: number, end: number): number {
+    return (level - 0.5) / end * 100;
+  }
 
   function chooseLevel(event: Event): void {
     const value = (event.currentTarget as HTMLInputElement).value;
@@ -33,7 +37,7 @@
   </div>
   {#if groups.length}
     <div class="axis" aria-label={`Level axis from 1 to ${formatNumber(axisEnd)}`}>
-      <span>Level</span><div class="scale"><span>1</span><span>{formatNumber(axisEnd)}</span>{#if marker !== null}<span class="axis-marker" style:left={`${marker}%`} aria-hidden="true"></span>{/if}</div><span class="axis-detail">{selectedLevel === undefined ? 'Choose a level' : `${levelLabel} ${formatNumber(selectedLevel)}`}</span>
+      <span>Level</span><div class="scale">{#each ticks as tick (tick)}<span class="tick-label" style:left={`${levelPoint(tick, axisEnd)}%`}>{formatNumber(tick)}</span>{/each}{#if marker !== null}<span class="axis-marker" style:left={`${marker}%`} aria-hidden="true"></span>{/if}</div><span class="axis-detail">{selectedLevel === undefined ? 'Choose a level' : `${levelLabel} ${formatNumber(selectedLevel)}`}</span>
     </div>
     {#each groups as group (group.label)}
       <section class="group" aria-label={group.label}>
@@ -42,13 +46,13 @@
           {#each group.entries as entry (entry.ref.key)}
             {@const fit = selectedLevel !== undefined && entry.range !== null && entry.range.min <= selectedLevel && selectedLevel <= entry.range.max}
             <li class:fit>
-              <div class="place-name">{#if entry.artwork}<img class="place-art" src={`${base}/data/${entry.artwork.url}`} width={entry.artwork.width} height={entry.artwork.height} alt="" loading="lazy" decoding="async" />{/if}<EntityLink ref={entry.ref} {registry} forceIcon={!entry.artwork} /></div>
+              <div class="place-name"><EntityLink ref={entry.artwork ? { ...entry.ref, icon: entry.artwork } : entry.ref} {registry} forceIcon /></div>
               {#if entry.range}
                 {@const position = rangePosition(entry.range, axisEnd)}
-                <div class="range"><div class="track" aria-hidden="true"><span class="fill" style:left={`${position.left}%`} style:width={`${position.width}%`}></span>{#if marker !== null}<span class="marker" style:left={`${marker}%`}></span>{/if}</div><span class="range-text">{formatNumber(entry.range.min)}–{formatNumber(entry.range.max)}</span></div>
+                <div class="range"><div class="track" aria-hidden="true">{#each ticks as tick (tick)}<span class="tick-line" style:left={`${levelPoint(tick, axisEnd)}%`}></span>{/each}<span class="fill" style:left={`${position.left}%`} style:width={`${position.width}%`}></span>{#if marker !== null}<span class="marker" style:left={`${marker}%`}></span>{/if}</div><span class="range-text">{formatNumber(entry.range.min)}–{formatNumber(entry.range.max)}</span></div>
               {:else}<span class="unknown">Level Range Unknown</span>{/if}
               <div class="detail">{entry.detail ?? ''}</div>
-              {#if entry.mapHref}<a class="map-link" href={entry.mapHref}>View on Map</a>{/if}
+              {#if entry.mapHref}<a class="map-link" href={entry.mapHref} aria-label={`View ${entry.ref.name} on Map`}><span class="map-long">View on Map</span><span class="map-short">Map</span></a>{/if}
             </li>
           {/each}
         </ul>
@@ -65,7 +69,8 @@
   .level-control input { width: 5.1rem; min-height: 2.4rem; padding: .35rem .5rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
   .axis, li { display: grid; grid-template-columns: minmax(10rem, 1.3fr) minmax(9rem, 2fr) minmax(5.2rem, .55fr) minmax(5.8rem, .7fr); align-items: center; gap: .75rem; }
   .axis { padding: .55rem .9rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .scale { display: flex; position: relative; justify-content: space-between; width: calc(100% - 5.15rem); font-variant-numeric: tabular-nums; }
+  .scale { position: relative; width: calc(100% - 5.15rem); height: 1.25rem; font-variant-numeric: tabular-nums; }
+  .tick-label { position: absolute; transform: translateX(-50%); white-space: nowrap; }
   .axis-detail { grid-column: 3 / 5; text-align: right; color: var(--c-accent-strong); }
   .axis-marker { position: absolute; bottom: -.4rem; width: .5rem; height: .5rem; border-radius: 50%; background: var(--c-accent); transform: translateX(-50%); }
   .group { margin-bottom: 1.4rem; }
@@ -76,15 +81,17 @@
   li:last-child { border-bottom: 0; }
   li.fit { background: var(--c-surface-2); box-shadow: inset 3px 0 var(--c-accent); }
   .place-name, .range, .detail { min-width: 0; }
-  .place-name { display: flex; align-items: center; gap: .45rem; }
-  .place-art { flex: none; width: 2.35rem; height: 2.35rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); object-fit: cover; }
+  .place-name { min-width: 0; }
+  .place-name :global(.entity-link img) { width: 3.5rem; height: 2.2rem; object-fit: cover; vertical-align: middle; }
   .range { display: flex; align-items: center; gap: .65rem; }
   .track { position: relative; flex: 1 1 auto; min-width: 0; height: .48rem; border-radius: 1rem; background: var(--c-surface-sunken); box-shadow: inset 0 0 0 1px var(--c-line); }
+  .tick-line { position: absolute; top: -.25rem; bottom: -.25rem; width: 1px; background: var(--c-line-strong); opacity: .6; }
   .fill { position: absolute; top: 0; bottom: 0; border-radius: 1rem; background: var(--c-accent); }
   .marker { position: absolute; z-index: 1; top: -.22rem; bottom: -.22rem; width: 2px; background: var(--c-text-strong); transform: translateX(-50%); }
   .range-text { flex: none; width: 4.5rem; text-align: right; white-space: nowrap; color: var(--c-text-strong); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
   .unknown, .detail { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .map-link { justify-self: end; color: var(--c-accent); font-size: var(--c-text-small); white-space: nowrap; text-underline-offset: .17em; }
+  .map-short { display: none; }
   @media (max-width: 800px) {
     .axis, li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
     .axis > span:first-child { display: block; }
@@ -104,6 +111,10 @@
     .place-name { grid-column: 1 / -1; }
     .range, .unknown { grid-column: 1 / -1; grid-row: 2; }
     .range-text { width: auto; min-width: 4.6rem; }
+    li { padding-top: .8rem; padding-bottom: .8rem; }
+    .place-name :global(.entity-link img) { width: 3.15rem; height: 2rem; }
+    .map-long { display: none; }
+    .map-short { display: inline; }
     .detail { grid-column: 1; grid-row: 3; }
     .map-link { grid-column: 2; grid-row: 3; }
   }

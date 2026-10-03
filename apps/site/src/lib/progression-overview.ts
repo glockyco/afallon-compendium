@@ -37,3 +37,14 @@ export function rangePosition(range: { min: number; max: number }, axisEnd: numb
 export function progressionAxis(entries: readonly ProgressionEntry[], readerLevel?: number): number {
   return Math.max(1, readerLevel ?? 1, ...entries.flatMap((entry) => entry.range ? [entry.range.max] : []));
 }
+
+/** Decade landmarks, with the end replacing a nearby decade so labels do not collide. */
+export function levelTicks(axisEnd: number): number[] {
+  const ticks = [1];
+  for (let level = 10; level <= axisEnd; level += 10) ticks.push(level);
+  if (axisEnd > 1) {
+    if (axisEnd - ticks[ticks.length - 1]! <= 5 && ticks.length > 1) ticks[ticks.length - 1] = axisEnd;
+    else ticks.push(axisEnd);
+  }
+  return ticks;
+}

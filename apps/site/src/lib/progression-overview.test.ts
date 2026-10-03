@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
+import { levelTicks, progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
 
 const entry = (name: string, group: string, range: ProgressionEntry['range']): ProgressionEntry => ({
   ref: { key: `places:${name}`, kind: 'places', name, slug: name.toLowerCase() }, group, range,
@@ -22,4 +22,11 @@ test('axis positions keep inclusive single-level entries visible and overlapping
   expect(rangePosition({ min: 40, max: 40 }, 40)).toEqual({ left: 97.5, width: 2.5 });
   expect(progressionAxis([entry('Unknown', 'Zone', null), entry('Known', 'Zone', { min: 8, max: 25 })])).toBe(25);
   expect(progressionAxis([entry('Known', 'Zone', { min: 8, max: 25 })], 40)).toBe(40);
+});
+
+test('axis landmarks remain readable near the final decade and follow a higher reader level', () => {
+  expect(levelTicks(1)).toEqual([1]);
+  expect(levelTicks(31)).toEqual([1, 10, 20, 31]);
+  expect(levelTicks(45)).toEqual([1, 10, 20, 30, 45]);
+  expect(levelTicks(60)).toEqual([1, 10, 20, 30, 40, 50, 60]);
 });

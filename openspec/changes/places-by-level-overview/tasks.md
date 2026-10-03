@@ -12,3 +12,8 @@
 
 - [x] 3.1 Run focused tests and inspect Chromium and Firefox screenshots at 1440, 1100, and 390 pixels with no page overflow.
 - [x] 3.2 Update player-facing documentation, validate OpenSpec strictly, and verify the staged changes before committing.
+
+## 4. Visual Refinement
+
+- [x] 4.1 Use one published artwork or kind glyph per entry and add readable intermediate level landmarks; verify with focused tick tests and browser inspection.
+- [x] 4.2 Inspect loaded-art Firefox and Chromium screenshots at 1440 and 390 pixels, validate OpenSpec strictly, and verify the staged follow-up.

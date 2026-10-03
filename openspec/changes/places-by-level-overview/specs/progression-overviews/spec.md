@@ -11,6 +11,10 @@ The site SHALL support a progression overview that orders entries by known level
 - **WHEN** entries have overlapping ranges and one entry has no published range
 - **THEN** each known entry shows its own bar at its published start and end, and the unknown entry appears outside the level axis under an unknown-range heading
 
+#### Scenario: Labeled axis landmarks
+- **WHEN** several known ranges appear on a level axis
+- **THEN** intermediate level labels and matching grid lines show where their bars fall, and the reader's chosen level remains marked
+
 ### Requirement: Places By Level
 The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries.
 
@@ -21,6 +25,11 @@ The Places overview SHALL default to the level progression view, show place type
 #### Scenario: Place without a map space
 - **WHEN** a place has no published map space
 - **THEN** its place link remains visible without an invented map destination
+
+#### Scenario: Published place artwork
+- **WHEN** a place has published artwork
+- **THEN** its row uses that artwork as its only identity image
+- **AND** a place without artwork shows one kind glyph instead of an empty image
 
 ### Requirement: Complete Table Alternative
 The Places overview SHALL retain its searchable, facet-filterable, sortable full table as a URL-addressable alternate view, with a visible way to switch between views.
