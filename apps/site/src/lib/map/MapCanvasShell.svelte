@@ -4,7 +4,7 @@
   import { markerColorCss, markerFor, type MarkerDefinition } from './marker-registry';
   import { markerGlyphSvg } from './icon-sheet';
   import type { PublicPlacement } from '@afallon/contracts/public';
-  import { alternativeText, npcLevelText } from '../format';
+  import { alternativeText, formatNumber, npcLevelText } from '../format';
 
   export let canvas: HTMLCanvasElement;
   export let mapReady: boolean;
@@ -59,6 +59,6 @@
         </div>
       {/if}
     </div>
-    <div class="map-status" aria-live="polite">{#if countsPending}Loading Spots…{:else}{matchingCount} Spots Match · {viewportCount} In View{/if}{#if showsExtraSelection}{' · Selected Spot Also Shown'}{/if}</div>
+    <div class="map-status" aria-live="polite">{#if countsPending}Loading Spots…{:else}{formatNumber(matchingCount)} {matchingCount === 1 ? 'Spot Matches' : 'Spots Match'} · {formatNumber(viewportCount)} In View{/if}{#if showsExtraSelection}{' · Selected Spot Also Shown'}{/if}</div>
   {/if}
 </div>

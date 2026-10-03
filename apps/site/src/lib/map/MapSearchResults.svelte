@@ -3,6 +3,7 @@
   import type { ResultSummary } from '../map-search-types';
   import { markerColorCss } from './marker-registry';
   import { markerGlyphSvg } from './icon-sheet';
+  import { formatNumber } from '../format';
   export let pending = false;
   export let error = '';
   export let searchPending = false;
@@ -31,8 +32,8 @@
       {#if searchPending && !pending}<p role="status">Finding Search Results…</p>{/if}
       {#if error}<p role="alert">{error} <button type="button" on:click={onRetry}>Retry Search</button></p>{/if}
       {#if pending}<p role="status">Finding Spots…</p>
-      {:else}<p>{placementCount} Spots{#if hasViewport && !mapUnavailable}{' In View'}{/if}</p>{/if}
-      {#if !pending && totalResults > resultLimit}<p class="result-limit">Showing {displayedResults.length} of {totalResults} Spots.</p>{/if}
+      {:else}<p>{formatNumber(placementCount)} {placementCount === 1 ? 'Spot' : 'Spots'}{#if hasViewport && !mapUnavailable}{' In View'}{/if}</p>{/if}
+      {#if !pending && totalResults > resultLimit}<p class="result-limit">Showing {formatNumber(displayedResults.length)} of {formatNumber(totalResults)} Spots.</p>{/if}
     </div>
     <div class="results-actions"><button type="button" class="quiet-button" aria-expanded={!collapsed} aria-controls="results-content" on:click={onToggle}>{collapsed ? 'Show Results' : 'Hide Results'}</button></div>
   </div>
