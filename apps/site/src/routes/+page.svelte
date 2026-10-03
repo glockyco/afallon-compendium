@@ -48,6 +48,10 @@
   $: orderedPlaces = [...data.placeTiles].sort((left, right) => Number(!fits(left)) - Number(!fits(right))
     || Number(!(left.creatures || left.quests)) - Number(!(right.creatures || right.quests)));
   $: shownPlaces = orderedPlaces.slice(0, shownRowCount(orderedPlaces.length, showAllPlaces));
+  // Dungeons are places too, so a level that only a dungeon covers still has a place.
+  $: allRanges = [...data.placeTiles, ...data.dungeons];
+  $: highestPlaceLevel = Math.max(1, ...allRanges.map((place) => place.max));
+  $: noPlaceFits = yourLevel !== undefined && !allRanges.some((place) => place.min <= yourLevel! && yourLevel! <= place.max);
 
 </script>
 
@@ -125,10 +129,11 @@
       <div class="section-head">
         <h2 id="hub-places">Places by Level</h2>
         <div class="section-links">
-          <LevelControl id="hub-your-level" label="Your level" min={1} max={data.levelScale} level={yourLevel} readerId={CHARACTER_LEVEL} optional compact slider={false} />
+          <LevelControl id="hub-your-level" label="Your level" min={1} max={data.characterLevelCap} level={yourLevel} readerId={CHARACTER_LEVEL} optional compact slider={false} />
           {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'Place', 'Places')}</a>{/if}
         </div>
       </div>
+      {#if noPlaceFits}<p class="no-fit">No place covers level {yourLevel}. Places go up to level {highestPlaceLevel}.</p>{/if}
       <ul class="places">
         {#each shownPlaces as place (place.ref.key)}
           <li class="place">
@@ -292,6 +297,7 @@
   .place-art { position: relative; aspect-ratio: 16 / 9; background: var(--c-surface-deep); }
   .place-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .place-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, var(--c-surface-1) 0%, transparent 32%); }
+  .no-fit { margin: 0 0 1rem; color: var(--c-text-dim); text-wrap: pretty; }
   .fits { position: absolute; z-index: 1; top: .6rem; right: .6rem; padding: .22rem .55rem; border-radius: 999px; background: var(--c-accent); color: var(--c-surface-deep); font-size: var(--c-text-label); font-weight: 700; }
   .place h3 { margin: .6rem .9rem .2rem; font: 600 var(--c-text-lead)/1.25 var(--c-serif); }
   .place-link { color: var(--c-text-strong); text-decoration: none; }

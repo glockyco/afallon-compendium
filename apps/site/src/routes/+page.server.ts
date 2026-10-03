@@ -79,14 +79,18 @@ export const load: PageServerLoad = async ({ parent }) => {
     return page.kind === 'mechanics' ? [{ ref: page.document.ref, description: page.document.description }] : [];
   }))).flat() : [];
 
+  // A reader's level reaches the character level cap, not only the highest level that a place records.
+  const progression = published.has('mechanics') ? await loader.loadDocument('mechanics', 'character-progression') : undefined;
+  const placeLevelMax = Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1);
+  const characterLevelCap = progression?.kind === 'mechanics' && progression.document.topic === 'character-progression' ? progression.document.curve.cap : placeLevelMax;
+
   return {
     itemGroups,
     guides,
     world,
     dungeons,
     placeTiles,
-    // The level bars share one scale, from level 1 to the highest recorded level.
-    levelScale: Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1),
+    characterLevelCap,
     classes: classRows.map((row) => ({ ref: row.ref, talentTrees: count(row.values.talentTrees), abilities: count(row.values.abilities) })),
     // A crafting skill has recipes.
     craftingSkills: skillRows.flatMap((row) => { const recipes = count(row.values.recipes); return recipes ? [{ ref: row.ref, recipes }] : []; }),
