@@ -24,7 +24,7 @@
     { id: 'name', label: counterpartLabel, value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
     { id: 'price', label: 'Price', numeric: true, value: (row) => `${row.price.amount} ${nameOf(row.price.currency)}`, sort: (row) => row.price.amount },
     { id: 'unlock', label: 'Unlock requirement', value: (row) => row.requirements.length ? JSON.stringify(row.requirements) : undefined },
-    { id: 'variant', label: 'Variant', value: (row) => row.variants?.join(' ') },
+    { id: 'variant', label: 'Version', value: (row) => row.variants?.join(' ') },
   ];
 
   $: plan = planColumns(columns, rows);

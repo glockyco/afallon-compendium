@@ -27,7 +27,7 @@
     try {
       const page = await clientMapLoader()?.loadDocument('items', slug);
       if (current !== request) return;
-      if (!page || page.kind !== 'items' || !page.document.facts.heroic) throw new Error('This item has no eligible Heroic creature drop in this publication.');
+      if (!page || page.kind !== 'items' || !page.document.facts.heroic) throw new Error('No eligible Heroic creature drop is known for this item.');
       item = page.document;
     } catch (cause) {
       if (current === request) { item = undefined; error = cause instanceof Error ? cause.message : String(cause); }

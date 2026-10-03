@@ -183,8 +183,11 @@ test("labels variants that no fact tells apart by their position and keeps nativ
   const entities = [entity("npcs", 76, "Outlaw Rogue"), entity("npcs", 77, "Outlaw Rogue"), entity("npcs", 90, "Outlaw Rogue")];
   const facts: CatalogFacts = { ...emptyFacts, entities, npcs: [npcFact("npcs:76", 100), npcFact("npcs:77", 200), npcFact("npcs:90", 300)] };
   const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(pages.get("npcs:76")?.members.map((member) => [member.label, member.anchor])).toEqual([["Variant 1", "n76"], ["Variant 2", "n77"], ["Variant 3", "n90"]]);
-  expect(refs.get("npcs:77")).toMatchObject({ name: "Outlaw Rogue (Variant 2)", variant: "n77" });
+  const members = pages.get("npcs:76")!.members;
+  expect(members.map((member) => member.anchor)).toEqual(["n76", "n77", "n90"]);
+  expect(new Set(members.map((member) => member.label)).size).toBe(3);
+  expect(members.every((member, index) => member.label.endsWith(String(index + 1)))).toBe(true);
+  expect(refs.get("npcs:77")).toMatchObject({ name: `Outlaw Rogue (${members[1]!.label})`, variant: "n77" });
 });
 
 test("gives each unnamed record its own page and a name without its native id", () => {

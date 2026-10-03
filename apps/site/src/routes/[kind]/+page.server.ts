@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
   const registry = await loader.loadRegistry();
   const kind = registry.find((entry) => entry.list && entry.route === params.kind);
-  if (!kind || (!isPublicPageKind(kind.kind) && kind.kind !== 'recipes')) error(404, 'This compendium kind is not published.');
+  if (!kind || (!isPublicPageKind(kind.kind) && kind.kind !== 'recipes')) error(404, 'This compendium section is unavailable.');
   const list = await loader.loadList(kind.kind);
   const places: ProgressionEntry[] = kind.kind === 'places'
     ? await Promise.all(list.rows.map(async (row) => {

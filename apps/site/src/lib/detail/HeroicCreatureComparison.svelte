@@ -53,7 +53,7 @@
         });
         const first = choices.find((choice) => choice.entry.creature.name === 'Fangchill' && choice.place.name === 'Chillwind Heights') ?? choices[0];
         if (first) selectCreature(first.id);
-        else throw new Error('No published eligible creature encounter is available.');
+        else throw new Error('No eligible creature encounter is available.');
       } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
       finally { loading = false; }
     })();

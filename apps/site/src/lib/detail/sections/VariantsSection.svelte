@@ -85,7 +85,7 @@
   const present = (variant: NpcVariant, id: string) => { const value = facts.find((fact) => fact.id === id)?.value(variant); return value !== undefined && value !== ''; };
 </script>
 
-<Section id="variants" title="Variants" count={variants.length} line={`The game has ${formatNumber(variants.length)} versions of ${document.ref.name} with the same name. They differ in these facts.${allScale ? ' Every level scales with the player.' : ''}`}>
+<Section id="variants" title="Versions" count={variants.length} line={`The game has ${formatNumber(variants.length)} versions of ${document.ref.name} with the same name. They differ in these facts.${allScale ? ' Every level scales with the player.' : ''}`}>
   <CompareTable items={variants} {facts} has={present} anchor={(variant) => variant.anchor} label="Versions" minColumn={170}>
     <svelte:fragment slot="head" let:item>
       {@const portrait = item.portrait ?? document.art.portrait}

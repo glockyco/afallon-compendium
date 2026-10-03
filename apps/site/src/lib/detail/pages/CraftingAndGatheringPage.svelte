@@ -59,7 +59,7 @@
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'attunement', label: 'Attunement', value: (row) => row.effect },
     { id: 'nodes', label: 'More of', value: (row) => row.nodes.map(nameOf).join(', ') },
-    { id: 'boost', label: 'Weight bonus', numeric: true, value: (row) => row.boost, sort: (row) => row.boost },
+    { id: 'boost', label: 'Chance Ratio Bonus', numeric: true, value: (row) => row.boost, sort: (row) => row.boost },
     { id: 'lasts', label: 'Lasts', value: (row) => durationText(row.minutes), whenShared: stateInHeading },
   ];
   $: attunementPlan = planColumns(attunementColumns, document.attunements);

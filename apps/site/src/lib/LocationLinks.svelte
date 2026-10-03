@@ -15,7 +15,7 @@
     {#if members.length === 1}<a class="location" href={href(members[0]!)}>{label}</a>
     {:else}<span class="location">{label}{#each members as placement, index}<a href={href(placement)} aria-label={`${label}, location ${index + 1} of ${members.length}`}>{index + 1}</a>{/each}</span>{/if}
   {/each}
-{:else}<MissingValue explanation="No location is published" />{/if}
+{:else}<MissingValue explanation="No location is known." />{/if}
 
 <style>
   a { color: var(--c-accent); text-underline-offset: .18em; }

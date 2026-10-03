@@ -103,10 +103,10 @@
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'item'}<EntityLink ref={row.counterpart} {registry} />
               {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
-              {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="No chance is published" />{:else}{formatNumber(row.chance)}%{/if}{/if}
+              {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="The chance is unknown." />{:else}{formatNumber(row.chance)}%{/if}{/if}
             </svelte:fragment>
           </RelationTable>
-        {:else}<p>No yields are published for this node.</p>{/if}
+        {:else}<p>No known yields for this node.</p>{/if}
         {#if bonus?.levelChances}
           <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
@@ -141,15 +141,15 @@
 
     <Sections>
     <Section id="locations" title="Where to find" count={document.places.length}>
-      {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No location of this node is published.</p>{/if}
-      {#if document.spawners.some((group) => group.unplaced) || document.placed.some((group) => group.unplaced)}<p class="footnote">Some spawners or placed nodes have no published location.</p>{/if}
+      {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No known location for this node.</p>{/if}
+      {#if document.spawners.some((group) => group.unplaced) || document.placed.some((group) => group.unplaced)}<p class="footnote">Some spawners or placed nodes have no known location.</p>{/if}
     </Section>
 
     {#if document.spawners.length || document.placed.length}
     <div class="c-disclosures">
     {#if document.spawners.length}
-      <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
-        <p class="intro">Each spawner picks one of its options. The weights and chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}, and a group without verified odds shows its weights only{/if}.</p>
+      <DetailsDisclosure title="Spawn Odds" id="spawn-odds" summary="Chance Ratios and Chances by Skill Level">
+        <p class="intro">Each spawner picks one of its options. The chance ratios and chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance ratios appear{/if}.</p>
         {#if oddsGroups.length}<ReaderLevel id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} />{/if}
         <AttunementToggles attunements={document.attunements} {registry} bind:active />
         {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}

@@ -62,14 +62,14 @@
   ].sort((left, right) => left.noun.localeCompare(right.noun, 'en')).map((entry) => ({ label: `${formatNumber(entry.count)} ${entry.noun}`, href: entry.href }));
 </script>
 
-<SeoHead title="Data Coverage · Afallon Compendium" description="See what the Afallon Compendium publishes for this game release, including known gaps in items, NPCs, places, and recipes." />
+<SeoHead title="Data Coverage · Afallon Compendium" description="See what the Afallon Compendium covers for this game release, including known gaps in items, NPCs, places, and recipes." />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <EntityHeader name="Data coverage" />
   <p class="intro">Explore what the compendium covers, and where an item, character, or place is still missing information.</p>
 
   <div class="c-stack">
-    <Card title="Published">
+    <Card title="What You Can Explore">
       <ul class="published">
         {#each published as entry (entry.label)}<li><a class="c-link" href={entry.href}>{entry.label}</a></li>{/each}
       </ul>

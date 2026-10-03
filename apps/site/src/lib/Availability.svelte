@@ -21,7 +21,7 @@
     {#each orderedRules as rule}
       <li>
         {#if rule.effect === 'excludes'}Not while{' '}
-        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue text="an unknown time" explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
+        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue text="an unknown time" explanation="The toggle's duration is unknown." />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
         <Requirements requirements={rule.requirements} {registry} opensSentence={rule.effect === 'requires'} />
       </li>
     {/each}

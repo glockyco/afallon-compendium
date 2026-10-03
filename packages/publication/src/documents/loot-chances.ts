@@ -45,7 +45,7 @@ function entriesFor(input: DocumentProjectionInput, table: CatalogItemLootTable,
     const key = entry.item.entityKey;
     if (!key) return "An item in this loot list has no known identity.";
     const facts = itemFacts.get(key);
-    if (!facts) return "An item in this loot list has no published requirements.";
+    if (!facts) return "An item's requirements in this loot list are unknown.";
     if (typeof entry.rate !== "number" || !Number.isFinite(entry.rate)) return "An item in this loot list has no known listed rate.";
     let eligible = true;
     if (table.levelBandGear) {

@@ -20,7 +20,7 @@
   export let registry: PublicKindEntry[];
 
   // Level bands summarize the published gate, never infer a required level for a recipe without one.
-  const recipeBand = (row: SkillRecipeRow) => row.requiredLevel === undefined ? 'Level not published' : row.requiredLevel < 1 ? 'No level requirement' : `Levels ${Math.floor((row.requiredLevel - 1) / 50) * 50 + 1}–${(Math.floor((row.requiredLevel - 1) / 50) + 1) * 50}`;
+  const recipeBand = (row: SkillRecipeRow) => row.requiredLevel === undefined ? 'Level Unknown' : row.requiredLevel < 1 ? 'No level requirement' : `Levels ${Math.floor((row.requiredLevel - 1) / 50) * 50 + 1}–${(Math.floor((row.requiredLevel - 1) / 50) + 1) * 50}`;
   const recipeOrder = (row: SkillRecipeRow) => row.requiredLevel === undefined ? Number.MAX_SAFE_INTEGER : row.requiredLevel;
   $: sortedRecipes = [...document.recipes].sort((a, b) => recipeOrder(a) - recipeOrder(b) || a.recipe.name.localeCompare(b.recipe.name));
   $: recipeBands = [...new Set(sortedRecipes.map(recipeBand))].map((label) => ({ label, rows: sortedRecipes.filter((row) => recipeBand(row) === label) }));
@@ -100,10 +100,10 @@
         {#if document.description}<p class="description">{document.description}</p>{/if}
         <ul class="routes">
           {#if document.experience.crafting && firstRecipe}
-            <li><strong>Craft recipes</strong><span>Make a recipe for this skill. {#if firstRecipe.requiredLevel !== undefined}From <a class="c-link" href={`#${firstRecipe.anchor}`}>{firstRecipe.recipe.name} at level {formatNumber(firstRecipe.requiredLevel)}</a>{#if lastRecipe && lastRecipe !== firstRecipe}{' '}to <a class="c-link" href={`#${lastRecipe.anchor}`}>{lastRecipe.recipe.name} at level {formatNumber(lastRecipe.requiredLevel!)}</a>{/if}.{:else}See the <a class="c-link" href="#recipes">published recipes</a> for their known gates.{/if}</span></li>
+            <li><strong>Craft recipes</strong><span>Make a recipe for this skill. {#if firstRecipe.requiredLevel !== undefined}From <a class="c-link" href={`#${firstRecipe.anchor}`}>{firstRecipe.recipe.name} at level {formatNumber(firstRecipe.requiredLevel)}</a>{#if lastRecipe && lastRecipe !== firstRecipe}{' '}to <a class="c-link" href={`#${lastRecipe.anchor}`}>{lastRecipe.recipe.name} at level {formatNumber(lastRecipe.requiredLevel!)}</a>{/if}.{:else}See the <a class="c-link" href="#recipes">recipes</a> for their known requirements.{/if}</span></li>
           {/if}
           {#if document.experience.gathering && firstNode}
-            <li><strong>Gather from nodes</strong><span>Each use awards the node's published skill experience. From <EntityLink ref={firstNode.node} {registry} />{#if gate(firstNode)}{' '}({gate(firstNode)}){/if}{#if lastNode && lastNode !== firstNode}{' '}to <EntityLink ref={lastNode.node} {registry} />{#if gate(lastNode)}{' '}({gate(lastNode)}){/if}{/if}.</span></li>
+            <li><strong>Gather from nodes</strong><span>Each use gives the node's skill experience. From <EntityLink ref={firstNode.node} {registry} />{#if gate(firstNode)}{' '}({gate(firstNode)}){/if}{#if lastNode && lastNode !== firstNode}{' '}to <EntityLink ref={lastNode.node} {registry} />{#if gate(lastNode)}{' '}({gate(lastNode)}){/if}{/if}.</span></li>
           {/if}
           {#if document.experience.autoAttack}
             <li><strong>Auto-attack hits</strong><span>Every hit with {weapon?.singular ?? 'this weapon type'} gives {formatNumber(document.experience.autoAttack.perHit)} skill experience{document.facts.highestLevel ? ` until the skill reaches level ${formatNumber(document.facts.highestLevel)}` : ' below its highest level'}.{' '}<a class="c-link" href={weaponHref}>See all {document.ref.name.toLocaleLowerCase()}</a>.</span></li>

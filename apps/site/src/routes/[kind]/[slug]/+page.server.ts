@@ -27,9 +27,9 @@ export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
   const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
   const kind = registry.find((entry) => entry.pages && entry.route === params.kind);
-  if (!kind || !isPublicPageKind(kind.kind)) error(404, 'This compendium kind is not published.');
+  if (!kind || !isPublicPageKind(kind.kind)) error(404, 'This compendium section is unavailable.');
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
-  if (!entry?.document) error(404, 'This compendium page is not published.');
+  if (!entry?.document) error(404, 'This compendium page is unavailable.');
   const page = await loader.loadDocument(kind.kind, params.slug);
   const inlineItem = await _loadGuideInlineItem(page, loader);
   return { kind, page, inlineItem, documentPath: entry.document.path };

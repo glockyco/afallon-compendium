@@ -354,7 +354,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     const pageRef: EntityRef = { key: group.key, kind: group.kind, name, ...(slug ? { slug } : {}), ...(pageIcon ? { icon: pageIcon } : {}), ...(pagePortrait ? { portrait: pagePortrait } : {}) };
     const variantFields = group.kind === "npcs" ? npcVariantFields(group.members.map((member) => npcFacts.get(member.entityKey)).filter((fact): fact is CatalogNpcFacts => fact !== undefined), abilityVersion) : [];
     const members = group.members.length > 1
-      ? variantMembers(group, recordLabels(group.members, group.kind === "npcs" ? npcLabelCandidates : [], (position) => `Variant ${position}`))
+      ? variantMembers(group, recordLabels(group.members, group.kind === "npcs" ? npcLabelCandidates : [], (position) => `Version ${position}`))
       : [{ entity: group.members[0]!, label: name, anchor: `n${group.members[0]!.nativeId}` }];
     const versions = versionsByGroup.get(group.key) ?? [];
     if (hasPage) pages.set(group.key, { kind: group.kind, ref: pageRef, members, variantFields, versions });

@@ -7,8 +7,18 @@ export function topicRef(topic: MechanicsTopic): EntityRef {
   return { key: `mechanics:${topic}`, kind: "mechanics", name: MECHANICS_TOPIC_DETAILS[topic].name, slug: topic };
 }
 
+// Keep reviewed rules intact in the catalog. Their guide copy uses player language when projected.
+function readerRulePhrase(rule: CatalogMechanicsRule): string {
+  if (rule.ruleId === "quest-reward-skip-flag") return "A quest reward can be set to give no experience.";
+  if (rule.ruleId === "world-quest-heroic-cache") return rule.phrase.replace("Heroic Cache setting", "Heroic Cache");
+  if (rule.section === "node-selection" || rule.section === "attunement") {
+    return rule.phrase.replace(/\bweights\b/gi, "chance ratios").replace(/\bweight\b/gi, "chance ratio");
+  }
+  return rule.phrase;
+}
+
 export function projectRule(rule: CatalogMechanicsRule, resolve: ReferenceResolver): MechanicsRule {
-  return { id: rule.ruleId, status: rule.status, phrase: rule.phrase, operands: rule.operands, links: rule.links.map(resolve) };
+  return { id: rule.ruleId, status: rule.status, phrase: readerRulePhrase(rule), operands: rule.operands, links: rule.links.map(resolve) };
 }
 
 /**

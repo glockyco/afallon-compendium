@@ -50,7 +50,7 @@
     <div slot="answer">
       <AnswerCard title="Where to find it" id="where-to-find">
         {#if document.description}<p class="description">{document.description}</p>{/if}
-        {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No location of this station is published.</p>{/if}
+        {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No known location for this station.</p>{/if}
       </AnswerCard>
     </div>
 

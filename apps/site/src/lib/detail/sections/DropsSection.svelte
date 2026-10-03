@@ -24,7 +24,7 @@
     { id: 'quantity', label: 'Quantity', numeric: true, value: (row) => rangeText(row.min, row.max) ?? 'Unknown', sort: (row) => row.max ?? row.min, whenShared: omitWhenShared('1') },
     { id: 'rate', label: 'Listed Rate', hint: LISTED_RATE_HINT, numeric: true, value: (row) => row.killChance ?? row.chance, sort: (row) => row.killChance ?? row.chance },
     { id: 'requirements', label: 'Requirement', value: (row) => row.requirements.length ? JSON.stringify(row.requirements) : undefined },
-    { id: 'variant', label: 'Variant', value: (row) => row.variants?.join(' ') },
+    { id: 'variant', label: 'Version', value: (row) => row.variants?.join(' ') },
   ];
   const ruleKey = (row: NpcDropRow) => JSON.stringify([row.lootGroup ?? null, row.tableChance ?? null, row.tableMinimum ?? null, row.tableLimit ?? null]);
   $: groups = mergeRows(rows, ruleKey, (group) => [...group]);
@@ -70,7 +70,7 @@
       {/each}
       {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
     </div>
-  {:else}<p class="empty">No drops are published for {name}.</p>{/if}
+  {:else}<p class="empty">No known drops for {name}.</p>{/if}
 {/snippet}
 
 {#if answer}

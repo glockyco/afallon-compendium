@@ -49,7 +49,7 @@
         {:else if column === 'spots'}
           {#if row.placementCount && row.counterpart.key}<a class="c-link" href={entityOnMap(row.counterpart.key)}>{row.placementCount} {row.placementCount === 1 ? 'spot' : 'spots'}</a>
           {:else if row.placementCount}{row.placementCount}
-          {:else}<MissingValue explanation="No spot is published" />{/if}
+          {:else}<MissingValue explanation="No spot is known." />{/if}
         {/if}
       </svelte:fragment>
     </RelationTable>{/if}

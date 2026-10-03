@@ -32,7 +32,7 @@
             {/each}</ul>
             {#if document.locations.length > 1}<a class="c-action" href={entityOnMap(document.ref.key)}>Show all signs on map</a>{/if}
           </div>
-        {:else}<p>No for-sale sign is published for this property.</p>{/if}
+        {:else}<p>No for-sale sign is known for this property.</p>{/if}
       </PropertyPanel>
     </AnswerCard>
   </svelte:fragment>

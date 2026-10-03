@@ -54,7 +54,7 @@
 <div class="chart-scroll" class:compact role="region" aria-label={compact ? 'Level curve chart' : 'Level curve chart; scroll horizontally to see all levels'} tabindex="0">
   <svg viewBox={`0 0 ${width} ${height}`} role="img" preserveAspectRatio="xMidYMid meet" aria-labelledby={`${uid}-title ${uid}-description`}>
     <title id={`${uid}-title`}>Experience to next level by {subject.toLowerCase() === "character" ? "character" : subject} level</title>
-    <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each published level below the cap. The marked point follows the selected level.</desc>
+    <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each known level below the cap. The marked point follows the selected level.</desc>
     {#each ticks as tick}
       <line class="grid" x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} />
       <text class="tick" x={left - 10} y={y(tick) + 4} text-anchor="end">{compact ? shortTick(tick) : format(tick)}</text>

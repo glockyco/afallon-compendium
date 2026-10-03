@@ -76,7 +76,7 @@
             <h3>{location.label}</h3>
             {#if location.level}<p>Level <NpcLevel level={location.level} /></p>{/if}
             {#if location.roles.length}<p>Role: {location.roles.map(roleLabel).join(', ')}</p>{/if}
-            {#if document.variants.length > 1}<p>Variant: <VariantLinks anchors={location.variants} variants={document.variants} /></p>{/if}
+            {#if document.variants.length > 1}<p>Version: <VariantLinks anchors={location.variants} variants={document.variants} /></p>{/if}
             {#if location.availability.length}<Availability rules={location.availability} {registry} />{/if}
             {#if location.alternative}<p>{alternativeText(location.alternative.chance, location.alternative.options)}</p>{/if}
             {#if location.quests.length}<p>Quests: {#each location.quests as quest, index}{index ? ', ' : ''}<EntityLink ref={quest.counterpart} {registry} /> ({quest.role}){/each}</p>{/if}
@@ -86,7 +86,7 @@
       </div>
     </details>
   {/if}
-  {#if unplaced.length}<p class="unknown">Without a published location: {#each unplaced as variant, index}{index ? ', ' : ''}<span id={variant.anchor}>{variant.label}</span>{/each}</p>{/if}
+  {#if unplaced.length}<p class="unknown">Without a known location: {#each unplaced as variant, index}{index ? ', ' : ''}<span id={variant.anchor}>{variant.label}</span>{/each}</p>{/if}
 </Section>
 
 <style>

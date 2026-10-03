@@ -162,7 +162,7 @@
     {/if}
     {#if document.summonedBy.length}
       <Section id="summoned-by" title="Summoned By" count={document.summonedBy.length}>
-        <p>These effects summon {document.variants.length > 1 ? `a variant of ${document.ref.name}` : document.ref.name}.</p>
+        <p>These effects summon {document.variants.length > 1 ? `one version of ${document.ref.name}` : document.ref.name}.</p>
         <LinkGrid refs={document.summonedBy} {registry} />
       </Section>
     {/if}

@@ -22,7 +22,7 @@
     {#each attunements as attunement (keyOf(attunement))}
       <label>
         <input type="checkbox" checked={active.includes(keyOf(attunement))} on:change={(event) => toggle(keyOf(attunement), event.currentTarget.checked)} />
-        <span><EntityLink ref={attunement.item} {registry} />{#if compact}: +{formatNumber(attunement.boost)} weight{:else}{' '}gives {attunement.effect}: +{formatNumber(attunement.boost)} weight for {attunement.nodes.map(nameOf).join(' and ')}{/if}{#if attunement.minutes !== undefined}, {formatNumber(attunement.minutes)} minutes{/if}</span>
+        <span><EntityLink ref={attunement.item} {registry} />{#if compact}: Chance Ratio +{formatNumber(attunement.boost)}{:else}{' '}gives {attunement.effect}: +{formatNumber(attunement.boost)} to the chance ratio for {attunement.nodes.map(nameOf).join(' and ')}{/if}{#if attunement.minutes !== undefined}, {formatNumber(attunement.minutes)} minutes{/if}{#if !compact}.{/if}</span>
       </label>
     {/each}
   </fieldset>

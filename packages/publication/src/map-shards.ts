@@ -113,7 +113,7 @@ function pathByName(name: string, placement: CatalogMapPlacement, spatial: Catal
   if (matches.length === 0) return { name, status: "unresolved", reason: "The source scene has no patrol path with this name." };
   if (matches.length > 1) return { name, status: "unresolved", reason: "The source scene has more than one patrol path with this name." };
   const path = matches[0]!;
-  if (path.worldPoints.length === 0) return { name, status: "unresolved", reason: "The patrol path has no authored points." };
+  if (path.worldPoints.length === 0) return { name, status: "unresolved", reason: "The patrol path has no known points." };
   return { name, status: "resolved", looping: path.looping, groupPatrol: path.groupPatrol, groupSpacing: path.groupSpacing, poiRadius: path.poiRadius, points: path.worldPoints.map((point) => [point.x, point.z]) };
 }
 function movementForPlacement(placement: CatalogMapPlacement, gameplayByEntity: ReadonlyMap<string, unknown>, spatial: CatalogSpatialContext): PublicMovement[] {
@@ -201,9 +201,9 @@ function travelForPlacement(placement: CatalogMapPlacement, spatial: CatalogSpat
   const target = findTravelTarget(source.data.actions, placement.sceneNativeId);
   if (!target) return { transitionId, enabled, destination: { status: "unresolved", reason: "Transition destination is unresolved." } };
   const spawn = target.position === null ? spatial.sceneSpawns.find((candidate) => candidate.sceneNativeId === target.sceneNativeId)?.position : target.position;
-  if (!spawn) return { transitionId, enabled, destination: { status: "unresolved", reason: "Destination scene has no start position record." } };
+  if (!spawn) return { transitionId, enabled, destination: { status: "unresolved", reason: "The destination's starting point is unknown." } };
   const destination = resolveTravelPoint({ sceneNativeId: target.sceneNativeId, position: spawn }, spatial);
-  return destination ? { transitionId, enabled, destination: { status: "resolved", ...destination } } : { transitionId, enabled, destination: { status: "unresolved", reason: "Verified destination has no published map position." } };
+  return destination ? { transitionId, enabled, destination: { status: "resolved", ...destination } } : { transitionId, enabled, destination: { status: "unresolved", reason: "The destination has no known map position." } };
 }
 
 function offsetMovement(movements: readonly PublicMovement[], offset: { worldX: number; worldY: number }): PublicMovement[] {
@@ -217,7 +217,7 @@ function offsetPath(path: PublicPatrolPath, offset: { worldX: number; worldY: nu
 function offsetTravel(travel: PublicTravel | undefined, offsets: ReadonlyMap<string, { worldX: number; worldY: number }>): PublicTravel | undefined {
   if (travel?.destination.status !== "resolved" || !travel.destination.mapSpaceId || !travel.destination.position) return travel;
   const offset = offsets.get(travel.destination.mapSpaceId);
-  return offset ? { ...travel, destination: { ...travel.destination, position: [travel.destination.position[0] + offset.worldX, travel.destination.position[1] + offset.worldY] } } : { ...travel, destination: { status: "unresolved", reason: "Verified destination has no published map position." } };
+  return offset ? { ...travel, destination: { ...travel.destination, position: [travel.destination.position[0] + offset.worldX, travel.destination.position[1] + offset.worldY] } } : { ...travel, destination: { status: "unresolved", reason: "The destination has no known map position." } };
 }
 
 function creatureServices(gameplay: Record<string, unknown> | null): CreatureServices {

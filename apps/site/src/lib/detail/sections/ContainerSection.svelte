@@ -34,7 +34,7 @@
       {#if hasOpen || hasListed}
         <div class="source-heading">
           {#if hasOpen}<Hint text={OPEN_CHANCE_HINT}>Chance per Open</Hint>{#if sharedOpenLevel !== undefined}<span>At player level {formatNumber(sharedOpenLevel)}</span>{/if}{/if}
-          {#if hasListed}<Hint text="The object's loot list gives this item's authored rate. A per-open chance needs the object's action and its full loot list.">Listed Rate</Hint>{/if}
+          {#if hasListed}<Hint text="The object's loot list gives this item's listed rate. A per-open chance needs the object's action and its full loot list.">Listed Rate</Hint>{/if}
         </div>
       {/if}
       {#each ordered as row, index}
@@ -54,7 +54,7 @@
                 <span>{eventChanceText(row.openChance, 'open')}{#if row.openChanceLevel !== undefined && row.openChanceLevel !== sharedOpenLevel}<small>Player level {formatNumber(row.openChanceLevel)}</small>{/if}</span>
               {:else if row.chance !== undefined}
                 {#if id === 'collected-from'}
-                  <Hint text={`The object's full per-open chance is unavailable. ${row.oddsUnavailable ?? "The object's complete loot roll is not published."}`}>{formatNumber(row.chance)}%</Hint>
+                  <Hint text={`The object's full per-open chance is unavailable. ${row.oddsUnavailable ?? "The object's complete loot chance is unknown."}`}>{formatNumber(row.chance)}%</Hint>
                 {:else}<span>{formatNumber(row.chance)}%</span>{/if}
               {/if}
             </div>

@@ -43,7 +43,7 @@
                 <span>{#each tier.stats as stat, index}{index ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} <EntityLink ref={stat.stat} {registry} />{/each}</span></li>
             {/each}
           </ul>
-        {:else}<p>This set has no published bonus.</p>{/if}
+        {:else}<p>This set has no bonus.</p>{/if}
       </AnswerCard>
     </div>
 

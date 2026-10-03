@@ -29,7 +29,7 @@
       </li>
     {/each}
   </ol>
-{:else}<p>No objectives are published for this quest.</p>{/if}
+{:else}<p>No objectives are known for this quest.</p>{/if}
 
 <style>
   .objectives { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
