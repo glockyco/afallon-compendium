@@ -24,9 +24,9 @@ test('axis positions keep inclusive single-level entries visible and overlapping
   expect(progressionAxis([entry('Known', 'Zone', { min: 8, max: 25 })], 40)).toBe(40);
 });
 
-test('axis landmarks remain readable near the final decade and follow a higher reader level', () => {
+test('axis landmarks show round levels and leave an irregular endpoint to a separate max label', () => {
   expect(levelTicks(1)).toEqual([1]);
-  expect(levelTicks(31)).toEqual([1, 10, 20, 31]);
-  expect(levelTicks(45)).toEqual([1, 10, 20, 30, 45]);
+  expect(levelTicks(31)).toEqual([1, 10, 20, 30]);
+  expect(levelTicks(45)).toEqual([1, 10, 20, 30, 40]);
   expect(levelTicks(60)).toEqual([1, 10, 20, 30, 40, 50, 60]);
 });

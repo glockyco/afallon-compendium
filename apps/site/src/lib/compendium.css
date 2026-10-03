@@ -94,6 +94,13 @@ body { font-size: 1rem; line-height: 1.5; }
    specificity, so a component can still set a margin inside its own layout. */
 :where(p, ul, ol, dl, dd, h1, h2, h3, h4, h5, h6, figure, blockquote) { margin: 0; }
 
+/* Balance is the Firefox fallback for orphan-free prose; Chromium can use pretty wrapping on longer paragraphs.
+   Short introductions and supporting lines stay balanced in both browsers. */
+:where(p) { text-wrap: balance; }
+@supports (text-wrap: pretty) { :where(p) { text-wrap: pretty; } }
+:where(.intro > p, .section header > .line, .lead, .description, .table-intro, .tile-summary, .card-summary, .tile-meta, .place-meta, .hint-panel, .rule, .c-prose) { text-wrap: balance; }
+:where(h1, h2, h3, h4, .tile-name, .label) { text-wrap: balance; }
+
 /* Cards */
 
 .c-card {

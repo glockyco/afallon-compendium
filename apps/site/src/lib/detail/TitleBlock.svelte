@@ -78,5 +78,10 @@
   .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
   .value { color: var(--c-text-strong); }
-  @media (max-width: 640px) { .heading { grid-template-columns: auto minmax(0, 1fr); gap: .8rem; } .map { grid-column: 1 / -1; justify-self: start; } }
+  @media (max-width: 640px) {
+    .heading { grid-template-columns: auto minmax(0, 1fr); gap: .8rem; }
+    .heading .identity-art:not(.portrait) { width: 3rem; height: 3rem; padding: .25rem; }
+    .heading:has(.identity-art:not(.portrait)) h1 { font-size: 1.5rem; }
+    .map { grid-column: 1 / -1; justify-self: start; }
+  }
 </style>

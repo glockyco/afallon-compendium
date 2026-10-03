@@ -12,8 +12,9 @@ The site SHALL support a progression overview that orders entries by known level
 - **THEN** each known entry shows its own bar at its published start and end, and the unknown entry appears outside the level axis under an unknown-range heading
 
 #### Scenario: Labeled axis landmarks
-- **WHEN** several known ranges appear on a level axis
-- **THEN** intermediate level labels and matching grid lines show where their bars fall, and the reader's chosen level remains marked
+- **WHEN** several known ranges appear within a place-type group
+- **THEN** the group starts with an axis directly above its bars, with intermediate round-level labels and matching grid lines showing where bars fall
+- **AND** the reader's chosen level appears as a labeled marker on the first group axis, not as a separate result label
 
 ### Requirement: Places By Level
 The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries.

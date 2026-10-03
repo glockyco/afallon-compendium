@@ -17,3 +17,9 @@
 
 - [x] 4.1 Use one published artwork or kind glyph per entry and add readable intermediate level landmarks; verify with focused tick tests and browser inspection.
 - [x] 4.2 Inspect loaded-art Firefox and Chromium screenshots at 1440 and 390 pixels, validate OpenSpec strictly, and verify the staged follow-up.
+
+## 5. Integrated Axis And Site Text Polish
+
+- [x] 5.1 Move chart axes into group boxes with one labeled reader marker, round ticks, and range text immediately beside bars; verify 1440, 1100, and 390 pixel layouts in both browsers.
+- [x] 5.2 Balance short shared introductory text, inspect all list and Mechanics pages, the home page, and representative detail pages for single-word final lines; verify fixes in screenshots.
+- [x] 5.3 Update OpenSpec requirements and staged verification, then commit the complete polish pass.

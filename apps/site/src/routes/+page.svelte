@@ -348,7 +348,7 @@
     .hero-caption { top: .85rem; right: 1rem; bottom: auto; }
     .dungeon h3 { margin-inline: .7rem; font-size: var(--c-text-prose); }
     .bosses { margin-inline: .7rem; }
-    .place h3 { margin-inline: .7rem; font-size: var(--c-text-prose); }
+    .place h3 { margin-inline: .7rem; font-size: .9375rem; }
     .place-meta { margin-inline: .7rem; }
     .item-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
     .item-group { flex-direction: column; gap: .55rem; padding: .9rem .6rem .8rem; text-align: center; }

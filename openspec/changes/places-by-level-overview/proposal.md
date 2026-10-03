@@ -5,9 +5,10 @@ The alphabetical Places list hides the level progression readers need to choose 
 ## What Changes
 
 - Introduce a reusable grouped progression overview that positions published level ranges proportionally on a common axis.
-- Make the Places level view the default, with a visible remembered character level, type grouping, boss counts, and map links for mapped places.
+- Make the Places level view the default, with a visible remembered character level, per-group axes, type grouping, boss counts, and map links for mapped places.
 - Keep the existing searchable, filtered, sortable Places table as a URL-addressable alternate view.
 - Test unknown ranges, overlapping ranges, proportional layout, and group ordering.
+- Balance short introductory and supporting text across reference surfaces to avoid orphaned final words.
 
 ## Capabilities
 
@@ -15,4 +16,4 @@ The alphabetical Places list hides the level progression readers need to choose 
 - `progression-overviews`: A shared level-aware browse mode and its Places application.
 
 ### Modified Capabilities
-- None. The existing list remains reachable with its filtering and sorting intact.
+- `reference-layout`: Shared page, list, card, and section text layout avoids orphaned words in short lead lines.
