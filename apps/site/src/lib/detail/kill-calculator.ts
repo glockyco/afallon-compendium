@@ -70,12 +70,16 @@ export function killsToNextLevel(toNext: number, award: ExperienceRange): { low:
   return { low: Math.ceil(toNext / award.high), high: award.low <= 0 ? null : Math.ceil(toNext / award.low) };
 }
 
-/** Prefer a published creature that scales to the selected character level at this place. */
+/** Prefer an ordinary place encounter at the reader's level for the opening comparison. */
 export function progressionExample(guide: CharacterProgression, characterLevel: number) {
-  const groups = guide.killCalculator.groups;
-  const choices = groups.flatMap((group) => group.creatures.map((entry) => ({ group, entry })));
-  const choice = choices.find(({ entry }) => entry.level.scales && entry.level.min <= characterLevel
-    && (entry.level.max === undefined || entry.level.max >= characterLevel))
+  const choices = guide.killCalculator.groups.flatMap((group) => group.creatures.map((entry) => ({ group, entry })));
+  const atLevel = ({ entry }: typeof choices[number]) => entry.level.scales && entry.level.min <= characterLevel
+    && (entry.level.max === undefined || entry.level.max >= characterLevel);
+  // Prefer an ordinary zone-range encounter. Oakshade's Enraged Ent is a published open-world MOB,
+  // not a boss or challenge-stone variant, when no bounded zone range reaches the selected level.
+  const choice = choices.find((option) => atLevel(option) && option.entry.level.max !== undefined && !/[()]/.test(option.entry.creature.name))
+    ?? choices.find((option) => atLevel(option) && option.group.name === 'Oakshade Logging Camp' && option.entry.creature.slug === 'enraged-ent')
+    ?? choices.find((option) => atLevel(option) && !/[()]/.test(option.entry.creature.name) && !option.entry.creature.name.startsWith('Corrupted '))
     ?? choices.find(({ entry }) => entry.creature.key === guide.killCalculator.defaultCreature.key
       && entry.creature.variant === guide.killCalculator.defaultCreature.variant)!;
   const creatureLevel = nearestCreatureLevel(choice.entry.level, characterLevel, guide.curve.cap);

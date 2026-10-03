@@ -75,3 +75,23 @@ test('opening estimate chooses a real level-matched creature and keeps the publi
   expect(progressionExample(guide, 60).kills).toBeNull();
   expect(killsToNextLevel(24496, fixed.award)).toEqual({ low: 173, high: 264 });
 });
+
+test('the opening comparison skips qualified challenge encounters and named elites at high levels', () => {
+  const level = { min: 1, scales: true };
+  const base = { minExperience: 1, maxExperience: 1, experiencePerLevel: 1, lowerModifier: 0, higherModifier: 0, level };
+  const challenge = { ...base, creature: { key: 'npcs:challenge', slug: 'bloodshroom-colossus', name: 'Bloodshroom Colossus (Challenge Stone Blood)' } };
+  const elite = { ...base, creature: { key: 'npcs:elite', slug: 'ignivar-the-unhinged', name: 'Ignivar the Unhinged' } };
+  const ordinary = { ...base, creature: { key: 'npcs:ordinary', slug: 'enraged-ent', name: 'Enraged Ent' } };
+  const guide = { curve: { cap: 60, rows: [{ level: 40, toNext: 24496 }] }, killCalculator: {
+    defaultCreature: challenge.creature, groups: [
+      { name: 'Coalway Swamp', creatures: [challenge] },
+      { name: 'Coalway Woods', creatures: [elite] },
+      { name: 'Oakshade Logging Camp', creatures: [ordinary] },
+    ],
+  } } as unknown as Parameters<typeof progressionExample>[0];
+  const example = progressionExample(guide, 40);
+  expect(example.entry.creature.name).toBe('Enraged Ent');
+  expect(example.creatureLevel).toBe(40);
+  expect(example.award).toEqual({ low: 41, high: 41 });
+  expect(example.kills).toEqual({ low: 598, high: 598 });
+});

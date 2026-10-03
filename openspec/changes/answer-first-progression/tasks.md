@@ -12,3 +12,8 @@
 
 - [x] 3.1 Make curve ticks small at every viewport, give the answer and kill award modest labelled emphasis, and align calculator and Heroic controls and disclosures.
 - [x] 3.2 Inspect Firefox and Chromium at 1440, 1100, and 390 pixels with full-resolution cropped screenshots, exercise inputs and disclosures, validate the change, and run the staged verification.
+
+## 4. Example And Calculator Clarity
+
+- [x] 4.1 Prefer a published ordinary level-matched encounter, group level numbers and linked names, move the creature picker into the always-open settings card, and keep disclosure titles compact.
+- [x] 4.2 Test the example calculation and browser interactions, review six responsive screenshots, validate the change, and build and verify the staged publication.
