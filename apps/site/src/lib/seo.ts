@@ -164,9 +164,10 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const level = quest.facts.levelRange ? ` for levels ${levelText(quest.facts.levelRange)}` : '';
       const first = quest.objectives[0];
       const start = quest.starts[0];
+      const giver = start?.kind === 'npc' && start.npc ? nameOf(start.npc).replace(/ \([^()]+\)$/, '') : undefined;
       return describe(`${name} is an Afallon quest${level}.`,
         questObjectiveSentence(first),
-        start?.kind === 'npc' && start.npc ? `Start it with ${nameOf(start.npc)}.` : undefined);
+        giver ? `Start it with ${giver}.` : undefined);
     }
     case 'places': {
       const place = page.document;
@@ -204,6 +205,9 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const destination = actions.find((action) => action.label === 'Destination Scene' && action.target)?.target;
       const weaponModifier = actions.find((action) => action.label === 'Weapon Damage Modifier' && action.amount !== undefined)?.amount;
       const source = effect.appliedBy.find((row) => effectSubtitle && nameOf(row.source) === effectSubtitle)?.source ?? effect.appliedBy[0]?.source;
+      if (effect.type === 'Pet' && summon && nameOf(summon) === name) {
+        return `${name} can be summoned as a companion in Afallon.`;
+      }
       const outcome = change
         ? `It changes ${nameOf(change.target!)} by ${formatNumber(change.amount!)}${change.unit === '%' ? '%' : ''}.`
         : damage ? `It deals ${formatNumber(damage.amount!)}${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage.`

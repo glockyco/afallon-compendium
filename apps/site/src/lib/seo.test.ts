@@ -85,6 +85,20 @@ test('related names do not substitute for abilities, places, and stat facts', ()
   expect(entityDescription(stat)).toBe('Health is an Afallon stat. Death occurs when reaching 0.');
 });
 
+test('internal qualifiers stay out of quest and self-named companion snippets', () => {
+  const quest = { kind: 'quests', document: {
+    ref: { name: 'The Drowned Archon' }, facts: {}, objectives: [],
+    starts: [{ kind: 'npc', npc: { key: 'npcs:123', kind: 'npcs', name: 'Lysander Blazeborn (Afallon)' } }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(quest)).toBe('The Drowned Archon is an Afallon quest. Start it with Lysander Blazeborn.');
+  const companion = { kind: 'effects', document: {
+    ref: { name: 'Fenric Blackwell' }, type: 'Pet',
+    ranks: [{ actions: [{ label: 'Summons', target: { key: 'npcs:45', kind: 'npcs', name: 'Fenric Blackwell' } }] }],
+    appliedBy: [], stackLimit: 1,
+  } } as unknown as StaticDocument;
+  expect(entityDescription(companion)).toBe('Fenric Blackwell can be summoned as a companion in Afallon.');
+});
+
 test('canonical URLs ignore query and preserve slash paths', () => {
   expect(absolutePageUrl('/map/')).toBe('https://afallon.compendiums.org/map/');
   expect(absolutePageUrl('/items/footmans-bulwark')).toBe('https://afallon.compendiums.org/items/footmans-bulwark/');
