@@ -112,11 +112,11 @@
               {#if dungeon.artwork}<img src={artUrl(dungeon.artwork)} width={dungeon.artwork.width} height={dungeon.artwork.height} alt="" loading="lazy" decoding="async" />{/if}
               <span class="levels">Levels {dungeon.min}–{dungeon.max}</span>
             </div>
-            <h3 class="dungeon-link"><EntityLink ref={dungeon.ref} registry={data.registry} plain /></h3>
+            <h3 class="dungeon-link"><EntityLink ref={dungeon.ref} registry={data.registry} tooltip={false} plain /></h3>
             {#if dungeon.bosses.length}
               <ul class="bosses" aria-label={`Bosses of ${dungeon.ref.name}`}>
                 {#each dungeon.bosses as boss (boss.ref.key)}
-                  <li><span class="boss-link"><EntityLink ref={{ ...boss.ref, ...(boss.portrait ? { portrait: boss.portrait } : {}) }} registry={data.registry} /></span></li>
+                  <li><span class="boss-link"><EntityLink ref={{ ...boss.ref, ...(boss.portrait ? { portrait: boss.portrait } : {}) }} registry={data.registry} truncate /></span></li>
                 {/each}
               </ul>
             {/if}
@@ -160,7 +160,7 @@
           <li>
             <div class="class-tile">
               {#if entry.ref.icon}<img class="class-art" src={artUrl(entry.ref.icon)} width="72" height="72" alt="" loading="lazy" decoding="async" />{:else}<span class="class-art fallback" aria-hidden="true">{@html kindGlyph(entry.ref.kind)}</span>{/if}
-              <span class="tile-name"><EntityLink ref={entry.ref} registry={data.registry} plain /></span>
+              <span class="tile-name"><EntityLink ref={entry.ref} registry={data.registry} tooltip={false} plain /></span>
               <span class="tile-meta">{[entry.talentTrees === null ? null : countText(entry.talentTrees, 'talent tree', 'talent trees'), entry.abilities === null ? null : countText(entry.abilities, 'ability', 'abilities')].filter(Boolean).join(' · ')}</span>
             </div>
           </li>
@@ -183,7 +183,7 @@
           <li>
             <div class="skill-tile">
               {#if skill.ref.icon}<img class="skill-art" src={artUrl(skill.ref.icon)} width="44" height="44" alt="" loading="lazy" decoding="async" />{:else}<span class="skill-art fallback" aria-hidden="true">{@html kindGlyph(skill.ref.kind)}</span>{/if}
-              <span class="skill-copy"><span class="tile-name"><EntityLink ref={skill.ref} registry={data.registry} plain /></span><span class="tile-meta">{countText(skill.recipes, 'recipe', 'recipes')}</span></span>
+              <span class="skill-copy"><span class="tile-name"><EntityLink ref={skill.ref} registry={data.registry} tooltip={false} plain /></span><span class="tile-meta">{countText(skill.recipes, 'recipe', 'recipes')}</span></span>
             </div>
           </li>
         {/each}
@@ -270,8 +270,9 @@
   .dungeon-link :global(.entity-link) { color: var(--c-text-strong); }
   .dungeon-link :global(.entity-link::after) { content: ''; position: absolute; inset: 0; z-index: 1; }
   .bosses { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin: 0 .9rem .95rem; }
-  .boss-link { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; min-height: 1.5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .boss-link :global(.entity-link) { color: inherit; }
+  .boss-link { display: flex; align-items: center; gap: .5rem; min-width: 0; min-height: 1.5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  /* Only a boss link sits above the dungeon's stretched link, so the space beside a boss name still opens the dungeon. */
+  .boss-link :global(.entity-link) { position: relative; z-index: 2; color: inherit; }
   .boss-link :global(.entity-link:hover) { color: var(--c-accent-strong); }
   .boss-link :global(.entity-link img), .boss-link :global(.entity-link .kind-icon) { width: 1.75rem; height: 1.75rem; border-radius: 50%; object-fit: cover; }
 

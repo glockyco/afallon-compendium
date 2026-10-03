@@ -129,8 +129,8 @@
 
 <style>
   /* A link flows with the text around it: the name sits on the line's baseline, so commas and words next to it line up,
-     and the icon centers on the letters. */
-  .tooltip-anchor { position: relative; }
+     and the icon centers on the letters. The hover card opens at the end of the page, so the anchor around a link stays
+     unpositioned: a card that stretches its link over the whole card is then clickable everywhere, not only on the name. */
   /* A name wraps between words. It breaks inside a word only when that one word is wider than its column. */
   .entity-link, .entity-text { overflow-wrap: break-word; }
   .entity-link { color: var(--c-accent); text-decoration: none; }
