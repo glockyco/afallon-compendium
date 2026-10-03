@@ -89,7 +89,7 @@
       {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
       {:else if document.explainedBy.length}
         {#each document.explainedBy as explanation (explanation.rule.id)}
-          <p class="impact"><RulePhrase rule={explanation.rule} {registry} self={document.ref.key} /></p>
+          <div class="impact"><RulePhrase rule={explanation.rule} {registry} self={document.ref.key} /></div>
         {/each}
       {:else if summon?.target}<p class="impact">Summons {summonCount && summonCount > 1 ? `${formatNumber(summonCount)} ` : ''}<EntityLink ref={summon.target} {registry} />{summonDuration ? ` for ${durationWords(summonDuration)}` : ''}.</p>
       {:else if leadImpact}<p class="impact">{leadImpact}</p>{/if}
@@ -143,7 +143,8 @@
 </article>
 
 <style>
-  .impact { color: var(--c-text-strong); font-size: 1.06rem; line-height: 1.5; }
+  .impact { color: var(--c-text-strong); font-size: 1.06rem; line-height: 1.5; text-wrap: balance; }
+  @supports (text-wrap: pretty) { .impact { text-wrap: pretty; } }
   .actions { display: grid; gap: .4rem; list-style: none; padding: 0; margin: .7rem 0; }
   .actions li { min-width: 0; }
 </style>

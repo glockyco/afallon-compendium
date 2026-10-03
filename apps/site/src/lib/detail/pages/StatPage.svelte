@@ -10,6 +10,7 @@
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
+  import StaticMore from '../StaticMore.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import TabSet from '../TabSet.svelte';
@@ -89,6 +90,17 @@
             </RelationTable>
           {/each}
         </TabSet>
+        {#if groups.length > 1}
+          <StaticMore count={groups.slice(1).reduce((sum, group) => sum + group.rows.length, 0)} summary="Other source types">
+            <div class="static-sources">
+              {#each groups.slice(1) as group}
+                <section><h3>{group.label}</h3><ul>
+                  {#each group.rows as row}<li><EntityLink ref={row.source} {registry} />{#if row.class && row.class.key !== row.source.key}{' · '}<EntityLink ref={row.class} {registry} />{/if}</li>{/each}
+                </ul></section>
+              {/each}
+            </div>
+          </StaticMore>
+        {/if}
       </Section>{/if}
       {#if document.sources.classes.length}<Section id="class-stats" title="Class Stats" count={document.sources.classes.length} line="Starting value and the increase at each level.">
         <RelationTable columns={classPlan.columns} rows={document.sources.classes} label="Class stat growth"><svelte:fragment slot="cell" let:row let:column>
@@ -101,4 +113,7 @@
 
 <style>
   .description { color: var(--c-text-strong); font-size: 1.06rem; line-height: 1.5; white-space: pre-line; }
+  .static-sources { display: grid; gap: 1rem; padding: 0 .75rem .75rem; }
+  .static-sources h3 { margin: 0 0 .35rem; font-size: var(--c-text-body); }
+  .static-sources ul { margin: 0; padding-left: 1.25rem; }
 </style>

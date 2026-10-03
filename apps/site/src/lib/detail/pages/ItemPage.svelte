@@ -15,6 +15,7 @@
   import { itemSourceLines, levelRangeText, packBandText, unboundLootTableNames } from '../item-sources';
   import { omitAlways, planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
+  import StaticMore from '../StaticMore.svelte';
   import LinkGrid from '../LinkGrid.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import CraftingSection from '../sections/CraftingSection.svelte';
@@ -260,7 +261,14 @@
           {#each document.usedInRecipes as row, index}
             {#if index < shownRecipes}<div class="used-row"><RecipeEquation materials={[{ item: document.ref, quantity: row.count }]} product={row.counterpart} yieldCount={row.product?.count ?? 1} skill={row.skill} requiredLevel={row.requiredLevel} {registry} /></div>{/if}
           {/each}
-          {#if shownRecipes < document.usedInRecipes.length}<button class="c-action" type="button" on:click={() => (showAllRecipes = true)}>Show {document.usedInRecipes.length - shownRecipes} More</button>{/if}
+          {#if shownRecipes < document.usedInRecipes.length}
+            <StaticMore count={document.usedInRecipes.length - shownRecipes}>
+              <button slot="control" class="c-action" type="button" on:click={() => (showAllRecipes = true)}>Show {document.usedInRecipes.length - shownRecipes} More</button>
+              {#each document.usedInRecipes as row, index}
+                {#if index >= shownRecipes}<div class="used-row"><RecipeEquation materials={[{ item: document.ref, quantity: row.count }]} product={row.counterpart} yieldCount={row.product?.count ?? 1} skill={row.skill} requiredLevel={row.requiredLevel} {registry} /></div>{/if}
+              {/each}
+            </StaticMore>
+          {/if}
         </div>{/if}
         {#if questUses.length}<div id="needed-for-quests" class="used-quests">{#each questUses as row}<div class="used-quest"><EntityLink ref={row.quest} {registry} />{#if row.count && row.count > 1}<span>×{row.count}</span>{/if}{#each row.objectives as objective}<span><ObjectiveText {objective} /></span>{/each}</div>{/each}</div>{/if}
         {#if document.challengeStoneUses?.length}<div class="used-stones">

@@ -20,18 +20,20 @@
 <Section id={section.id} title={section.title} {line} {level}>
   {#if section.lead || $$slots.lead}<p class="lead">{section.lead}<slot name="lead" /></p>{/if}
   <slot name="top" />
-  {#each verified as rule (rule.id)}<p class="rule"><RulePhrase {rule} {registry} /></p>{/each}
+  {#each verified as rule (rule.id)}<div class="rule"><RulePhrase {rule} {registry} /></div>{/each}
   <slot />
   {#if unknown.length}
     <details class="unknown"><summary>Unconfirmed Details</summary>
-      {#each unknown as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+      {#each unknown as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
     </details>
   {/if}
 </Section>
 
 <style>
   .lead, .rule, .unknown { line-height: 1.55; }
+  .rule-line { text-wrap: balance; }
+  @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
   .unknown { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
   .unknown summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
-  .unknown p { margin: .6rem 0 0; }
+  .unknown .rule-line { margin: .6rem 0 0; }
 </style>

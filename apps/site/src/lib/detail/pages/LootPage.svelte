@@ -43,14 +43,14 @@
               {#if rules.length}
                 <div class="rule-group">
                   <h3>{group.title}</h3>
-                  {#each rules as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+                  {#each rules as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
                 </div>
               {/if}
             {/each}
             {#if otherCreatureRules.length}
               <div class="rule-group">
                 <h3>Other creature drops</h3>
-                {#each otherCreatureRules as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+                {#each otherCreatureRules as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
               </div>
             {/if}
           </details>
@@ -58,13 +58,13 @@
             <section id="loot-chance" class="loot-chance" aria-labelledby="loot-chance-title">
               <h3 id="loot-chance-title">Loot Chance and Luck</h3>
               <p>Loot Chance is a stat that affects ordinary creature drops. Item pages show drop chances without Loot Chance bonuses.</p>
-              <p><RulePhrase rule={lootChanceRule} {registry} /></p>
+              <div class="rule-line"><RulePhrase rule={lootChanceRule} {registry} /></div>
             </section>
           {/if}
         {/if}
         {#if detailRules.length}
           <details class="pick-details"><summary>How supply pack picks work</summary>
-            {#each detailRules as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+            {#each detailRules as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </details>
         {/if}
       </GuideSection>
@@ -75,10 +75,12 @@
 <style>
   .pick-details, .rule-details { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
   .pick-details summary, .rule-details summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
-  .pick-details p, .rule-details p { margin: .6rem 0 0; line-height: 1.55; }
+  .pick-details .rule-line, .rule-details .rule-line { margin: .6rem 0 0; line-height: 1.55; }
   .rule-group { margin-top: 1rem; }
   .rule-group h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
   .loot-chance { display: grid; gap: .55rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); scroll-margin-top: 7rem; }
   .loot-chance h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
-  .loot-chance p { margin: 0; line-height: 1.55; }
+  .loot-chance p, .loot-chance .rule-line { margin: 0; line-height: 1.55; }
+  .rule-line { text-wrap: balance; }
+  @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
 </style>

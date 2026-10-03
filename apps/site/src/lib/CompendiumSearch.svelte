@@ -86,17 +86,17 @@
   }
 </script>
 
-<div class="compendium-search" class:large={size === 'large'} bind:this={root} on:focusout={focusOut} on:keydown={escape}>
+<div class="compendium-search" class:large={size === 'large'} bind:this={root} on:focusout={focusOut}>
   <label for="compendium-search" class="visually-hidden">Search the Compendium</label>
   <div class="input-wrap">
     <span class="glyph" aria-hidden="true">{@html searchGlyph}</span>
     <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} role="combobox" aria-expanded={open && results.length > 0} aria-controls={listId} aria-autocomplete="list"
       aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-      on:focus={loadSearch} on:click={() => { if (query) open = true; }} on:input={() => { loadSearch(); open = true; active = -1; }} on:keydown={keydown} />
+      on:focus={loadSearch} on:click={() => { if (query) open = true; }} on:input={() => { loadSearch(); open = true; active = -1; }} on:keydown={(event) => { escape(event); keydown(event); }} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
-  {#if open && results.length > 0}<ul id={listId} role="listbox" aria-label="Search results">{#each results as entry, index (entry.ref.key)}<li id={`${listId}-${index}`} role="option" aria-selected={index === active} class:active={index === active}><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={placeOnMap(entry.ref.key)}>Show on Map</a>{:else if entry.hasPlacements}<a class="map-link" href={entry.ref.kind === 'items' ? itemOnMap(entry.ref.key) : entry.ref.kind === 'gatheringNodes' ? nodeOnMap(entry.ref.key) : entityOnMap(entry.ref.key)}>Show on Map</a>{/if}</li>{/each}</ul>{:else if open && query.trim() && !loading && !error}<p class="empty" role="status">No page matches this search.</p>{/if}
+  {#if open && results.length > 0}<ul id={listId} role="listbox" aria-label="Search results" on:keydown={escape}>{#each results as entry, index (entry.ref.key)}<li id={`${listId}-${index}`} role="option" aria-selected={index === active} class:active={index === active}><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={placeOnMap(entry.ref.key)}>Show on Map</a>{:else if entry.hasPlacements}<a class="map-link" href={entry.ref.kind === 'items' ? itemOnMap(entry.ref.key) : entry.ref.kind === 'gatheringNodes' ? nodeOnMap(entry.ref.key) : entityOnMap(entry.ref.key)}>Show on Map</a>{/if}</li>{/each}</ul>{:else if open && query.trim() && !loading && !error}<p class="empty" role="status">No page matches this search.</p>{/if}
 </div>
 
 <style>

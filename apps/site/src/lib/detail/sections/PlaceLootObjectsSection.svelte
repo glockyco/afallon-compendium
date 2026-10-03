@@ -6,6 +6,7 @@
   import { formatNumber } from '../../format';
   import { spotOnMap } from '../../map-links';
   import Section from '../Section.svelte';
+  import StaticMore from '../StaticMore.svelte';
 
   /** The objects of a place that give items, with what using them takes and the items they can give. */
   export let rows: PlaceLootObject[];
@@ -48,7 +49,12 @@
                 </div>
                 <div class="meta">
                   {#if group.variants.length > 1 && row.placements.length}{#if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>{:else}<span>{spots(row.placements.length)}</span>{/if}{:else if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>Show on Map</a>{/if}
-                  {#if row.items.length > SHORT_LIST}<button type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide Items' : `Show ${formatNumber(row.items.length)} Items`}</button>{/if}
+                  {#if row.items.length > SHORT_LIST}
+                    <StaticMore count={row.items.length}>
+                      <button slot="control" type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide Items' : `Show ${formatNumber(row.items.length)} Items`}</button>
+                      <LinkGrid refs={row.items} {registry} expanded />
+                    </StaticMore>
+                  {/if}
                 </div>
               </div>
               {#if row.items.length <= SHORT_LIST || open.has(row)}
@@ -75,5 +81,6 @@
   .conditions :global(.availability li) { font-size: var(--c-text-small); }
   .choice { color: var(--c-text-strong); font-weight: 600; }
   .meta { display: flex; align-items: center; gap: .75rem; font-size: var(--c-text-small); }
-  .items li { min-width: 0; overflow-wrap: anywhere; }
+  .meta:has(:global(details.static-more[open])) { flex: 1 0 100%; flex-wrap: wrap; }
+  .meta :global(details.static-more[open]) { flex-basis: 100%; }
 </style>

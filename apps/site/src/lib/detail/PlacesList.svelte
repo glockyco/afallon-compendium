@@ -7,6 +7,7 @@
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../EntityLink.svelte';
   import { detailNavigation } from './detail-navigation';
+  import StaticMore from './StaticMore.svelte';
   import { shownRowCount } from './relation-table';
   import { fragmentId } from './tab-state';
   export let places: PlaceCount[];
@@ -53,9 +54,24 @@
     </li>
   {/each}
 </ul>
-<!-- A hidden place keeps its anchor beside the control that reveals it, so a fragment link always has a target. -->
-{#each sorted.slice(shown) as place}{#if place.id}<span class="waiting" id={place.id}></span>{/if}{/each}
-{#if shown < sorted.length}<button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>{/if}
+{#if shown < sorted.length}
+  <StaticMore count={sorted.length - shown}>
+    <svelte:fragment slot="control">
+      <!-- Keep fragment targets available until the hydrated list expands. -->
+      {#each sorted.slice(shown) as place}{#if place.id}<span class="waiting" id={place.id}></span>{/if}{/each}
+      <button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>
+    </svelte:fragment>
+    <ul class="places">
+      {#each sorted.slice(shown) as place}
+        <li id={place.id}>
+          <span class="name">{#if place.nameHref}<a class="c-link place-name" href={place.nameHref}>{place.place.key === null ? place.place.label : place.place.name}</a>{:else}<EntityLink ref={place.place} {registry} />{/if}</span>
+          <span class="spots">{place.spotCount} {place.spotCount === 1 ? 'spot' : 'spots'}</span>
+          <span class="bar" aria-hidden="true"><span style={`width: ${place.spotCount / maximum * 100}%`}></span></span>
+        </li>
+      {/each}
+    </ul>
+  </StaticMore>
+{/if}
 
 <style>
   .places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; padding: 0; list-style: none; }

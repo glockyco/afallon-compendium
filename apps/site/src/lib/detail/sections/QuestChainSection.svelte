@@ -3,6 +3,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import { kindGlyphSvg } from '../../kind-icon';
   import SideCard from '../SideCard.svelte';
+  import StaticMore from '../StaticMore.svelte';
 
   export let quests: Ref[];
   export let currentKey: string;
@@ -27,7 +28,19 @@
         </li>
       {/each}
     </ol>
-    {#if shown.length < quests.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {quests.length - shown.length} More</button>{/if}
+    {#if shown.length < quests.length}
+      <StaticMore count={quests.length - shown.length}>
+        <button slot="control" type="button" class="c-action more" on:click={() => (expanded = true)}>Show {quests.length - shown.length} More</button>
+        <ol>
+          {#each steps.filter(({ index }) => index < firstStep || index >= firstStep + 4) as { quest, index }}
+            <li class:current={quest.key === currentKey}>
+              <span class="number">{index + 1}</span>
+              <span class="step-name">{#if quest.key === currentKey}<strong aria-current="step" title={quest.name}><span class="kind-icon" aria-hidden="true">{@html questGlyph ?? ''}</span><span class="current-name">{quest.name}</span></strong>{:else}<EntityLink ref={quest} {registry} truncate />{/if}</span>
+            </li>
+          {/each}
+        </ol>
+      </StaticMore>
+    {/if}
   </SideCard>
 {/if}
 

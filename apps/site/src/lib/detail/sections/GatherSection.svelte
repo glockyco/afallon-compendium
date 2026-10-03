@@ -6,6 +6,7 @@
   import { formatNumber, nameOf, rangeText } from '../../format';
   import { itemSourceOnMap } from '../../map-links';
   import { shownRowCount } from '../relation-table';
+  import StaticMore from '../StaticMore.svelte';
   import Section from '../Section.svelte';
 
   export let rows: GatherRow[];
@@ -18,27 +19,34 @@
   $: title = rows[0]?.skill && nameOf(rows[0].skill).toLowerCase() === 'mining' ? 'Mined from' : 'Gathered from';
 </script>
 
+{#snippet sourceRow(row: GatherRow)}
+  <div class="source-row">
+    <div class="source-main">
+      {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}<strong>{row.label}</strong>{/if}
+      <div class="source-sub">
+        {#if row.skill}<EntityLink ref={row.skill} {registry} />{#if row.rank !== undefined}{' '}{formatNumber(row.rank)}{/if}{/if}
+        {#if row.requirements.length}<Requirements requirements={row.requirements} {registry} />{/if}
+        {#if row.availability.length}<Availability rules={row.availability} {registry} />{/if}
+      </div>
+    </div>
+    <span class="quantity">{#if row.min !== undefined}×{rangeText(row.min, row.max)}{/if}</span>
+    <span class="chance">{#if row.chance !== undefined}Chance per Use: {formatNumber(row.chance)}%{/if}</span>
+    {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, 'gatheredFrom', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
+  </div>
+{/snippet}
+
 {#if rows.length}
   <Section id="gathered-from" {title} count={rows.length}>
     <div class="source-list">
       {#each ordered as row, index}
-        {#if index < shown}
-          <div class="source-row">
-            <div class="source-main">
-              {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}<strong>{row.label}</strong>{/if}
-              <div class="source-sub">
-                {#if row.skill}<EntityLink ref={row.skill} {registry} />{#if row.rank !== undefined}{' '}{formatNumber(row.rank)}{/if}{/if}
-                {#if row.requirements.length}<Requirements requirements={row.requirements} {registry} />{/if}
-                {#if row.availability.length}<Availability rules={row.availability} {registry} />{/if}
-              </div>
-            </div>
-            <span class="quantity">{#if row.min !== undefined}×{rangeText(row.min, row.max)}{/if}</span>
-            <span class="chance">{#if row.chance !== undefined}Chance per Use: {formatNumber(row.chance)}%{/if}</span>
-            {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, 'gatheredFrom', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
-          </div>
-        {/if}
+        {#if index < shown}{@render sourceRow(row)}{/if}
       {/each}
-      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>{/if}
+      {#if shown < rows.length}
+        <StaticMore count={rows.length - shown}>
+          <button slot="control" type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>
+          {#each ordered as row, index}{#if index >= shown}{@render sourceRow(row)}{/if}{/each}
+        </StaticMore>
+      {/if}
     </div>
   </Section>
 {/if}

@@ -8,6 +8,7 @@
   import { detailNavigation } from './detail-navigation';
   import { fragmentId } from './tab-state';
 
+  import StaticMore from './StaticMore.svelte';
   /** The columns that `planColumns` keeps. The first column names the counterpart of the row. */
   export let columns: RelationColumn<Row>[];
   export let rows: Row[];
@@ -132,8 +133,22 @@
       {/each}
     </tbody>
   </table>
-  {#each waitingAnchors as anchor}<span class="anchor" id={anchor}></span>{/each}
-  {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>{/if}
+  {#if mounted}{#each waitingAnchors as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
+  {#if shown < sorted.length}
+    <StaticMore count={sorted.length - shown}>
+      <button slot="control" type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>
+      <ul class="static-rows">
+        {#each sorted.slice(shown) as row}
+          <li>
+            {#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}
+            {#each columns as column, index}
+              <span class="static-cell">{#if index > 0}<span class="static-label">{column.label}: </span>{/if}<slot name="cell" {row} column={column.id} /></span>
+            {/each}
+          </li>
+        {/each}
+      </ul>
+    </StaticMore>
+  {/if}
 </div>
 
 <style>
@@ -152,6 +167,10 @@
   .anchor { scroll-margin-top: 6rem; }
   tr:has(.anchor:target) td { background: color-mix(in srgb, var(--c-accent) 12%, transparent); }
   .show-all { margin: .5rem .75rem; min-height: 1.5rem; }
+  .static-rows { list-style: none; margin: 0; padding: 0; }
+  .static-rows li { display: flex; flex-wrap: wrap; gap: .25rem .85rem; padding: .5rem .75rem; border-top: 1px solid var(--c-line-soft); }
+  .static-cell { min-width: 0; }
+  .static-label { margin-right: .3em; color: var(--c-text-mute); font-size: var(--c-text-label); }
 
   /* Keep the name and up to two comparison values across; any other fields stay as labeled detail lines. */
   @media (max-width: 640px) {

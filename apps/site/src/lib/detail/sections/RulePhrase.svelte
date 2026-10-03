@@ -2,6 +2,7 @@
   import { phraseParts, type MechanicsRule, type PublicKindEntry, type Ref } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { shownRowCount } from '../relation-table';
+  import StaticMore from '../StaticMore.svelte';
 
   export let rule: Pick<MechanicsRule, 'phrase' | 'operands' | 'links'>;
   export let registry: PublicKindEntry[];
@@ -24,7 +25,7 @@
   const shownRef = (ref: Ref): Ref => self && ref.key === self ? { ...ref, slug: undefined } : ref;
 </script>
 
-{#each parts as part}{#if part.kind === 'text'}{part.text}{:else if part.kind === 'operand'}{operand(part.name)}{:else}{@const ref = rule.links[part.index]}{#if ref}<EntityLink ref={shownRef(ref)} {registry} />{/if}{/if}{/each}{#if closing.length}<span class="links">{#each closing as ref, index}{separator(index, closing.length, shown === rule.links.length)}<EntityLink ref={shownRef(ref)} {registry} />{/each}{#if shown < rule.links.length}{', '}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {rule.links.length - shown} More</button>{:else}.{/if}</span>{/if}
+{#each parts as part}{#if part.kind === 'text'}{part.text}{:else if part.kind === 'operand'}{operand(part.name)}{:else}{@const ref = rule.links[part.index]}{#if ref}<EntityLink ref={shownRef(ref)} {registry} />{/if}{/if}{/each}{#if closing.length}<span class="links">{#each closing as ref, index}{separator(index, closing.length, shown === rule.links.length)}<EntityLink ref={shownRef(ref)} {registry} />{/each}{#if shown === rule.links.length}.{/if}</span>{#if shown < rule.links.length}<StaticMore count={rule.links.length - shown}><svelte:fragment slot="control">{', '}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {rule.links.length - shown} More</button></svelte:fragment><span class="links">{#each rule.links.slice(shown) as ref, index}{separator(index, rule.links.length - shown, true)}<EntityLink ref={shownRef(ref)} {registry} />{/each}.</span></StaticMore>{/if}{/if}
 
 <style>
   .more { margin-left: .2rem; }

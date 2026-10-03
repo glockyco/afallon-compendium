@@ -3,6 +3,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
   import { shownRowCount } from '../relation-table';
+  import StaticMore from '../StaticMore.svelte';
 
   export let rows: AbilityAppliedEffect[];
   export let registry: PublicKindEntry[];
@@ -35,7 +36,17 @@
         <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
       {/each}
     </ul>
-    {#if shown < rows.length}<button class="c-action" type="button" on:click={() => (showAll = true)}>Show {rows.length - shown} More</button>{/if}
+    {#if shown < rows.length}
+      <StaticMore count={rows.length - shown}>
+        <button slot="control" class="c-action" type="button" on:click={() => (showAll = true)}>Show {rows.length - shown} More</button>
+        <ul>
+          {#each rows.slice(shown) as row}
+            {@const details = context(row)}
+            <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
+          {/each}
+        </ul>
+      </StaticMore>
+    {/if}
   </div>
 {/if}
 

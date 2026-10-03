@@ -8,6 +8,7 @@
   import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
+  import StaticMore from '../StaticMore.svelte';
 
   export let id: string;
   export let title: string;
@@ -28,19 +29,26 @@
   $: plan = planColumns(columns.filter((column) => id === 'npcs' ? column.id !== 'level' : true).map((column) => column.id === 'name' ? { ...column, label: id === 'npcs' ? 'NPC' : 'Creature' } : column), rows);
 </script>
 
+{#snippet bossCard(row: CreatureRow)}
+  <article class="boss-card">
+    <EntityLink ref={row.counterpart} {registry} />
+    {#if row.level}<p>Level <NpcLevel level={row.level} showScalingNote={!sharedScaling} /></p>{/if}
+    {#if row.placementCount && row.counterpart.key}<a class="c-link" href={entityOnMap(row.counterpart.key)}>{row.placementCount} {row.placementCount === 1 ? 'spot' : 'spots'} on map</a>{/if}
+  </article>
+{/snippet}
+
 {#if rows.length}
   <Section {id} {title} count={rows.length} line={sharedScaling ? `${title} scale with your level within their range.` : undefined}>
     {#if id === 'bosses'}
       <div class="boss-cards">
-        {#each shownBosses as row}
-          <article class="boss-card">
-            <EntityLink ref={row.counterpart} {registry} />
-            {#if row.level}<p>Level <NpcLevel level={row.level} showScalingNote={!sharedScaling} /></p>{/if}
-            {#if row.placementCount && row.counterpart.key}<a class="c-link" href={entityOnMap(row.counterpart.key)}>{row.placementCount} {row.placementCount === 1 ? 'spot' : 'spots'} on map</a>{/if}
-          </article>
-        {/each}
+        {#each shownBosses as row}{@render bossCard(row)}{/each}
       </div>
-      {#if shownBosses.length < orderedBosses.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {orderedBosses.length - shownBosses.length} More</button>{/if}
+      {#if shownBosses.length < orderedBosses.length}
+        <StaticMore count={orderedBosses.length - shownBosses.length}>
+          <button slot="control" type="button" class="c-action more" on:click={() => (expanded = true)}>Show {orderedBosses.length - shownBosses.length} More</button>
+          <div class="boss-cards">{#each orderedBosses.slice(shownBosses.length) as row}{@render bossCard(row)}{/each}</div>
+        </StaticMore>
+      {/if}
     {:else}<RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'name', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />

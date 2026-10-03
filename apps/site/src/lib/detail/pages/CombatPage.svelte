@@ -41,10 +41,10 @@
       <GuideSection {section} {registry} rules={specialized.includes(section.id) ? section.rules.filter((rule) => rule.status === 'unknown') : section.rules}>
         {#if section.id === 'building-stats'}
           <div class="rule-group"><h3>Stat Bonuses</h3>
-            {#each section.rules.filter((rule) => rule.status === 'verified' && !gearRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+            {#each section.rules.filter((rule) => rule.status === 'verified' && !gearRule(rule)) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </div>
           <div class="rule-group"><h3>Gear Set Bonuses</h3>
-            {#each section.rules.filter((rule) => rule.status === 'verified' && gearRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+            {#each section.rules.filter((rule) => rule.status === 'verified' && gearRule(rule)) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </div>
         {:else if section.id === 'recovery'}
           <RelationTable columns={recoveryColumns} rows={document.recovery} label="Health and resource recovery">
@@ -56,7 +56,7 @@
           </RelationTable>
         {:else if section.id === 'damage-and-defense' || section.id === 'on-hit-effects'}
           {#each section.rules.filter((rule) => rule.status === 'verified') as rule (rule.id)}
-            <p class="rule"><RulePhrase rule={rule.links.length > PREVIEW ? { ...rule, links: [] } : rule} {registry} /></p>
+            <div class="rule"><RulePhrase rule={rule.links.length > PREVIEW ? { ...rule, links: [] } : rule} {registry} /></div>
             {#if rule.links.length > PREVIEW}
               <div class="examples"><h3>{section.id === 'damage-and-defense' ? 'Resistance and Penetration Stats' : 'On-Hit Stats'}</h3>
                 <LinkGrid refs={rule.links} {registry} />
@@ -65,10 +65,10 @@
           {/each}
         {:else if section.id === 'effects'}
           <div class="rule-group"><h3>Timed Effects</h3>
-            {#each section.rules.filter((rule) => rule.status === 'verified' && !persistenceRule(rule) && !requirementRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+            {#each section.rules.filter((rule) => rule.status === 'verified' && !persistenceRule(rule) && !requirementRule(rule)) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </div>
           <div class="rule-group"><h3>Requirement Checks</h3>
-            {#each section.rules.filter(requirementRule) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+            {#each section.rules.filter(requirementRule) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </div>
           <nav class="effect-links" aria-label="Other Effect Types">
             <h3>Other Effect Types</h3>
@@ -78,7 +78,7 @@
           </nav>
           {#if section.rules.some(persistenceRule)}
             <details class="rule-details"><summary>Character Persistence</summary>
-              {#each section.rules.filter(persistenceRule) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
+              {#each section.rules.filter(persistenceRule) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
             </details>
           {/if}
         {/if}
@@ -89,7 +89,7 @@
 
 <style>
   .rule-group { display: grid; gap: .55rem; line-height: 1.55; }
-  .rule-group p, .rule { margin: 0; }
+  .rule-group .rule-line, .rule { margin: 0; }
   .rule-group + .rule-group { padding-top: 1rem; border-top: 1px solid var(--c-line-soft); }
   h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .examples { display: grid; gap: .5rem; margin-top: .65rem; }
@@ -97,5 +97,7 @@
   .effect-links h3 { width: 100%; }
   .rule-details { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
   .rule-details summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
-  .rule-details p { margin: .6rem 0 0; line-height: 1.55; }
+  .rule-details .rule-line { margin: .6rem 0 0; line-height: 1.55; }
+  .rule-line { text-wrap: balance; }
+  @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
 </style>

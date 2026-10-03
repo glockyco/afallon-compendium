@@ -3,11 +3,12 @@
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import { readable } from 'svelte/store';
-  import type { ArtRef, PublicKindEntry, TalentRow, TalentTree, TalentWeb } from '@afallon/contracts/public';
+  import type { ArtRef, PublicKindEntry, Ref, TalentRow, TalentTree, TalentWeb } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Requirements from '../../Requirements.svelte';
   import TalentEffect from '../../TalentEffect.svelte';
   import { detailNavigation } from '../detail-navigation';
+  import StaticMore from '../StaticMore.svelte';
   import { fragmentId, withTab } from '../tab-state';
   import { drawPoint, fitView, LABEL_PX, labelArc, panBy, requirementChain, viewBox, wedgePath, zoomAt, type WebView } from '../talent-web-view';
 
@@ -22,6 +23,23 @@
   const navigation = detailNavigation();
   const location = navigation?.location ?? readable<URL | null>(null);
 
+  const rankRefs = (rank: TalentRow['first']): Ref[] => rank ? [
+    ...rank.stats.map((stat) => stat.stat),
+    ...rank.petStats.flatMap((group) => [...(group.pets.kind === 'npc' ? [group.pets.npc] : []), ...group.stats.map((stat) => stat.stat)]),
+  ] : [];
+  function linkedTalents(trees: TalentTree[]): Array<{ tree: string; ref: Ref }> {
+    const result: Array<{ tree: string; ref: Ref }> = [], seen = new Set<string>();
+    for (const tree of trees) for (const row of tree.rows) {
+      for (const ref of [...(row.ability ? [row.ability] : []), ...rankRefs(row.first), ...rankRefs(row.last)]) {
+        const key = ref.key ?? ('label' in ref ? ref.label : '');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push({ tree: tree.name, ref });
+      }
+    }
+    return result;
+  }
+  $: staticLinks = linkedTalents(trees);
   $: talents = new Map(trees.flatMap((tree) => tree.rows.map((row) => [row.anchor, { row, tree }] as const)));
   $: treesByAnchor = new Map(trees.map((tree) => [tree.anchor, tree]));
   $: outer = Math.max(RING_START, ...web.nodes.map((node) => Math.hypot(node.x, node.y))) + NODE;
@@ -244,10 +262,20 @@
       <p class="hint">Select a talent to see its ranks, effect, and requirements.</p>
     {/if}
   </div>
+  {#if staticLinks.length}
+    <StaticMore count={staticLinks.length} summary="Talent links">
+      <ul class="static-abilities">
+        {#each staticLinks as entry}<li><EntityLink ref={entry.ref} {registry} /><span>{entry.tree}</span></li>{/each}
+      </ul>
+    </StaticMore>
+  {/if}
 </div>
 
 <style>
   .talent-web { display: grid; gap: 1rem; }
+  .static-abilities { display: grid; gap: .35rem; margin: 0; padding: 0 .75rem .75rem; list-style: none; }
+  .static-abilities li { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .static-abilities li span { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .tree-navigator { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
   .tree-navigator span { margin-right: .35rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .tree-navigator button { min-height: 2rem; padding: .3rem .65rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-strong); font: inherit; cursor: pointer; }

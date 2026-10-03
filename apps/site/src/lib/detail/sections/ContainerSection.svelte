@@ -7,6 +7,7 @@
   import { itemSourceOnMap } from '../../map-links';
   import { shownRowCount } from '../relation-table';
   import HowItWorks from '../HowItWorks.svelte';
+  import StaticMore from '../StaticMore.svelte';
   import Section from '../Section.svelte';
 
   export let id: string;
@@ -28,6 +29,30 @@
     ? rows[0]?.openChanceLevel : undefined;
 </script>
 
+{#snippet sourceRow(row: ContainerRow)}
+  <div class="source-row">
+    <div class="source-main"><strong>{row.label}</strong><div class="source-sub">
+      {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else if row.places[0]}{row.places[0].label}{/if}
+      {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{:else if row.choiceLabel}<span>Choose {row.choiceLabel}</span>{/if}
+      {#if row.prefabChoices}<span>Opens 1 of {formatNumber(row.prefabChoices)} {row.pickOne ? 'sets' : 'chests'} at random</span>{/if}
+      {#if row.pickOne}<span>You pick 1 of {formatNumber(row.pickOne)} items</span>{/if}
+      {#if row.actionChance !== undefined}<span>Loot appears on {formatNumber(row.actionChance)}% of searches</span>{/if}
+      {#if sourceAvailabilities[row.availabilityIndex]?.length}<Availability rules={sourceAvailabilities[row.availabilityIndex] ?? []} {registry} />{/if}
+    </div></div>
+    <div class="source-values">
+      {#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}
+      {#if row.openChance !== undefined}
+        <span>{eventChanceText(row.openChance, 'open')}{#if row.openChanceLevel !== undefined && row.openChanceLevel !== sharedOpenLevel}<small>Player level {formatNumber(row.openChanceLevel)}</small>{/if}</span>
+      {:else if row.chance !== undefined}
+        {#if id === 'collected-from'}
+          <Hint text={`The object's full per-open chance is unavailable. ${row.oddsUnavailable ?? "The object's complete loot chance is unknown."}`}>{formatNumber(row.chance)}%</Hint>
+        {:else}<span>{formatNumber(row.chance)}%</span>{/if}
+      {/if}
+    </div>
+    {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, id === 'collected-from' ? 'collectedFrom' : 'inContainers', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
+  </div>
+{/snippet}
+
 {#if rows.length}
   <Section {id} {title} count={rows.length}>
     <div class="source-list">
@@ -38,31 +63,14 @@
         </div>
       {/if}
       {#each ordered as row, index}
-        {#if index < shown}
-          <div class="source-row">
-            <div class="source-main"><strong>{row.label}</strong><div class="source-sub">
-              {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else if row.places[0]}{row.places[0].label}{/if}
-              {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{:else if row.choiceLabel}<span>Choose {row.choiceLabel}</span>{/if}
-              {#if row.prefabChoices}<span>Opens 1 of {formatNumber(row.prefabChoices)} {row.pickOne ? 'sets' : 'chests'} at random</span>{/if}
-              {#if row.pickOne}<span>You pick 1 of {formatNumber(row.pickOne)} items</span>{/if}
-              {#if row.actionChance !== undefined}<span>Loot appears on {formatNumber(row.actionChance)}% of searches</span>{/if}
-              {#if sourceAvailabilities[row.availabilityIndex]?.length}<Availability rules={sourceAvailabilities[row.availabilityIndex] ?? []} {registry} />{/if}
-            </div></div>
-            <div class="source-values">
-              {#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}
-              {#if row.openChance !== undefined}
-                <span>{eventChanceText(row.openChance, 'open')}{#if row.openChanceLevel !== undefined && row.openChanceLevel !== sharedOpenLevel}<small>Player level {formatNumber(row.openChanceLevel)}</small>{/if}</span>
-              {:else if row.chance !== undefined}
-                {#if id === 'collected-from'}
-                  <Hint text={`The object's full per-open chance is unavailable. ${row.oddsUnavailable ?? "The object's complete loot chance is unknown."}`}>{formatNumber(row.chance)}%</Hint>
-                {:else}<span>{formatNumber(row.chance)}%</span>{/if}
-              {/if}
-            </div>
-            {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, id === 'collected-from' ? 'collectedFrom' : 'inContainers', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
-          </div>
-        {/if}
+        {#if index < shown}{@render sourceRow(row)}{/if}
       {/each}
-      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>{/if}
+      {#if shown < rows.length}
+        <StaticMore count={rows.length - shown}>
+          <button slot="control" type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>
+          {#each ordered as row, index}{#if index >= shown}{@render sourceRow(row)}{/if}{/each}
+        </StaticMore>
+      {/if}
     </div>
     {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label={guideLabel} />{/if}
   </Section>
