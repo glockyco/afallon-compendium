@@ -5,6 +5,7 @@
   import { spotOnMap } from '../../map-links';
   import HeroicCreatureComparison from '../HeroicCreatureComparison.svelte';
   import HeroicItemComparison from '../HeroicItemComparison.svelte';
+  import type { HeroicItemOption } from '../heroic-item-options';
   import CompareTable from '../CompareTable.svelte';
   import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -16,6 +17,7 @@
 
   export let document: HeroicTier;
   export let registry: PublicKindEntry[];
+  export let heroicItems: HeroicItemOption[] = [];
 
   // The page answers three questions in order: how to turn the tier on, what changes, and what it gives. The opening
   // states each answer in one sentence from the rules' values, and the parts below hold the rules in full.
@@ -127,7 +129,7 @@
             {#if section.id === 'empowered-creatures'}
               <HeroicCreatureComparison guide={document} {registry} />
             {:else if section.id === 'heroic-gear'}
-              <HeroicItemComparison {registry} />
+              <HeroicItemComparison {registry} options={heroicItems} />
             {/if}
             {#if section.id === 'empowered-creatures' && strength.length}
               <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>

@@ -232,7 +232,7 @@ body { font-size: 1rem; line-height: 1.5; }
 
 .c-table tbody tr:nth-child(even) { background: var(--c-tint-stripe); }
 .c-table tbody tr:hover { background: var(--c-tint-hover); }
-.c-table tbody td { border-top: 1px solid var(--c-line-soft); }
+.c-table tbody :is(th, td) { border-top: 1px solid var(--c-line-soft); }
 .c-table .c-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* A numeric heading keeps its arrow on the left, so the label's right edge lines up with the numbers below it even
    while an idle arrow is invisible but still takes room. */

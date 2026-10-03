@@ -19,6 +19,6 @@
 <SeoHead title={`${document.ref.name} · Afallon Wiki`} description={summary} type="article" />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
-  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} />
+  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>

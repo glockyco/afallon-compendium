@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MechanicsTopic, PublicDocument, PublicDocumentOf, PublicKindEntry, PublicMechanics, PublicPageKind, StaticDocument } from '@afallon/contracts/public';
+  import type { HeroicItemOption } from './heroic-item-options';
   import type { Component } from 'svelte';
   import AbilityPage from './pages/AbilityPage.svelte';
   import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
@@ -43,15 +44,16 @@
   export let page: StaticDocument;
   export let registry: PublicKindEntry[];
   export let inlineItem: Extract<StaticDocument, { kind: 'items' }>['document'] | undefined = undefined;
+  export let heroicItems: HeroicItemOption[] | undefined = undefined;
   $: detail = page.kind === 'mechanics' ? null
     : pages[page.kind] as Component<DetailProps<PublicDocument>>;
   $: guide = page.kind === 'mechanics'
-    ? guidePages[page.document.topic] as Component<DetailProps<PublicMechanics> & { inlineItem?: typeof inlineItem }>
+    ? guidePages[page.document.topic] as Component<DetailProps<PublicMechanics> & { inlineItem?: typeof inlineItem; heroicItems?: HeroicItemOption[] }>
     : null;
 </script>
 
 {#if page.kind === 'mechanics'}
-  {#if guide}<svelte:component this={guide} document={page.document} {registry} {inlineItem} />{/if}
+  {#if guide}<svelte:component this={guide} document={page.document} {registry} {inlineItem} {heroicItems} />{/if}
 {:else if page.kind === 'currencies'}
   <CurrencyPage document={page.document} {registry} {inlineItem} />
 {:else if detail}

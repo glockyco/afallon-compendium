@@ -57,6 +57,5 @@
   }
   @container comparison (min-width: 61rem) {
     .comparison { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "from to ." "fromTip toTip summary"; grid-template-rows: auto 1fr; }
-    .summary { align-self: start; }
   }
 </style>

@@ -3,6 +3,7 @@ import type { EntryGenerator, PageServerLoad } from './$types';
 import { entityPageEntries } from '$lib/server/page-entries';
 import { serverMapLoader } from '$lib/server/publication';
 import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
+import { heroicItemOption, sortHeroicItemOptions } from '$lib/detail/heroic-item-options';
 
 export const entries: EntryGenerator = entityPageEntries;
 
@@ -32,5 +33,21 @@ export const load: PageServerLoad = async ({ params }) => {
   if (!entry?.document) error(404, 'This compendium page is unavailable.');
   const page = await loader.loadDocument(kind.kind, params.slug);
   const inlineItem = await _loadGuideInlineItem(page, loader);
-  return { kind, page, inlineItem, documentPath: entry.document.path };
+  const heroicItems = page.kind === 'mechanics' && page.document.topic === 'heroic-tier'
+    ? await (async () => {
+      const rows = (await loader.loadList('items')).rows.filter((row) =>
+        row.facets.itemType?.some((type) => type === 'ARMOR' || type === 'WEAPON' || type === 'Trinket') && row.ref.slug);
+      const choices = [];
+      for (let start = 0; start < rows.length; start += 48) {
+        const batch = await Promise.all(rows.slice(start, start + 48).map((row) => loader.loadDocument('items', row.ref.slug!)));
+        for (const item of batch) {
+          if (item.kind !== 'items') continue;
+          const option = heroicItemOption(item.document);
+          if (option) choices.push(option);
+        }
+      }
+      return sortHeroicItemOptions(choices);
+    })()
+    : undefined;
+  return { kind, page, inlineItem, heroicItems, documentPath: entry.document.path };
 };

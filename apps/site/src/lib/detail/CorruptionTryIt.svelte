@@ -69,7 +69,7 @@
   <LevelSlider slot="after-control" id="corruption-to" label="To" min={0} max={guide.maxLevel ?? 30} bind:level={to} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
   <div slot="summary">
     {#if item?.facts.dungeonRewards?.length}
-      <dl class="drop-list"><div><dt>Can Drop Corrupted From</dt><dd>{#each item.facts.dungeonRewards as source}<span class="source-line"><EntityLink ref={source.place} {registry} /> · {#each source.bosses as boss, bossIndex}{bossIndex ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}</span>{/each}</dd></div></dl>
+      <dl class="drop-list"><div><dt>Can drop corrupted from</dt><dd>{#each item.facts.dungeonRewards as source}<span class="source-line"><EntityLink ref={source.place} {registry} /> · {#each source.bosses as boss, bossIndex}{bossIndex ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}</span>{/each}</dd></div></dl>
     {/if}
   </div>
 </ItemComparison>
