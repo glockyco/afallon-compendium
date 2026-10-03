@@ -1,16 +1,21 @@
 <script lang="ts">
   import '../compendium.css';
+  import { afterNavigate } from '$app/navigation';
+  import { followPageScroll } from './side-follow';
   /** Whether the page has an answer card. Without one, the side starts beside the sections. */
   export let answer = true;
   /** Suppress the side when a page has no distinct facts to place there. */
   export let side = true;
+  // A navigation to another page returns the side column to its place at the top.
+  let navigation = 0;
+  afterNavigate(() => { navigation += 1; });
 </script>
 
 <!-- A page without side content gives its main column the full width instead of an empty column beside it. -->
 <div class="detail-frame" class:no-answer={!answer} class:no-side={!side || !$$slots.side}>
   <div class="head"><slot name="head" /></div>
   {#if answer}<div class="answer"><slot name="answer" /></div>{/if}
-  {#if side && $$slots.side}<aside class="side" aria-label="Additional details"><slot name="side" /></aside>{/if}
+  {#if side && $$slots.side}<aside class="side" aria-label="Additional details"><div class="side-column" use:followPageScroll={navigation}><slot name="side" /></div></aside>{/if}
   <div class="rest"><slot /></div>
 </div>
 
@@ -31,10 +36,12 @@
   .detail-frame.no-side.no-answer { grid-template-areas: 'head' 'rest'; }
   .head { grid-area: head; }
   .answer { grid-area: answer; }
-  /* The side scrolls when it is taller than the window. The scroll box clips anything outside it, so a small padding
-     keeps focus outlines of the content at its edges visible. The negative margin keeps the content aligned. */
+  /* The side area spans the answer and the sections, and the column inside it stays in view while the page scrolls.
+     The column has no scroll area of its own, so the wheel over it scrolls the page. A column taller than the window
+     follows the page until its far edge is in view (side-follow.ts). */
+  .side { grid-area: side; align-self: stretch; }
   /* The side is a column of cards and short headed groups, one below the other. */
-  .side { grid-area: side; display: grid; align-content: start; gap: 1rem; position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: -.3rem; padding: .3rem; }
+  .side-column { display: grid; align-content: start; gap: 1rem; min-width: 0; position: sticky; top: 1.25rem; }
   .rest { grid-area: rest; }
   .detail-frame > * { min-width: 0; }
   @media (max-width: 1023px) {
@@ -42,6 +49,6 @@
     .detail-frame.no-answer { grid-template-areas: 'head' 'side' 'rest'; }
     .detail-frame.no-side { grid-template-areas: 'head' 'answer' 'rest'; }
     .detail-frame.no-side.no-answer { grid-template-areas: 'head' 'rest'; }
-    .side { position: static; max-height: none; overflow: visible; margin: 0; padding: 0; }
+    .side-column { position: static; }
   }
 </style>
