@@ -43,10 +43,21 @@ export function createHighlightLayers(
   fill: [number, number, number, number],
   radiusOffset: number,
   markerSize: number,
+  outlineOnly = false,
 ): Layer[] {
   if (data.length === 0) return [];
   const scale = markerSizeScale(markerSize);
   const radius = (MARKER_ICON_SIZE / 2 + radiusOffset) * scale;
+  if (outlineOnly) return [
+    new ScatterplotLayer<MarkerRecord>({
+      id, data, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false,
+      stroked: true, filled: false, radiusUnits: "pixels",
+      getPosition: marker => marker.position, getRadius: radius,
+      getLineColor: [color[0], color[1], color[2], 190],
+      getLineWidth: 2, lineWidthUnits: "pixels",
+      updateTriggers: { getRadius: [markerSize] },
+    }),
+  ];
   return [
     new ScatterplotLayer<MarkerRecord>({
       id: `${id}-outline`,

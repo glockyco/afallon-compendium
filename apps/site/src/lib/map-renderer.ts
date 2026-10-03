@@ -147,6 +147,9 @@ export async function createMapAdapter(
   let imagerySource: PublicationData['tileLayers'] | null = null;
   let imageryKey = "";
   let layers: Layer[] = [];
+  let startupPasses: Layer[][] = [];
+  let startupStage = 0;
+  let softwareRenderer = false;
   let allConnections: TravelConnection[] = [];
   const iconSheet = await createIconSheet();
 
@@ -343,9 +346,14 @@ export async function createMapAdapter(
     const primarySelection = next.selectedId ? groupedMarkersFor([next.selectedId]) : [];
     const hoverSelection = groupedMarkersFor(next.hoveredPlacementIds);
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2, next.markerSize);
-    const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2, next.markerSize);
+    const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2, next.markerSize, true);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6, next.markerSize);
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...primaryHighlightLayers, ...hoverHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    // Compile independent shader families across frames while the loading surface hides the canvas.
+    // The reader only sees the complete composition after the final pass has rendered.
+    const terrainLayers = [backgroundLayer, ...imageLayers];
+    const shapeLayers = [boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, ...(baseAreas.length ? [areaLayer] : [])];
+    layers = [...terrainLayers, ...shapeLayers, markerLayer, stackCounts, ...groupHighlightLayers, ...primaryHighlightLayers, ...hoverHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    if (!readyReported) startupPasses = softwareRenderer ? [layers] : [terrainLayers, [...terrainLayers, ...shapeLayers], layers];
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;
@@ -363,7 +371,7 @@ export async function createMapAdapter(
 
   let readyReported = false;
   const reportReadyWhenSized = (): void => {
-    if (destroyed || readyReported || !deckLoaded || !current) return;
+    if (destroyed || readyReported || !deckLoaded || !current || startupStage !== startupPasses.length - 1) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0 || canvas.width < Math.floor(rect.width) || canvas.height < Math.floor(rect.height)) return;
     readyReported = true;
@@ -387,11 +395,25 @@ export async function createMapAdapter(
       notifyView();
       return controlledView;
     },
+    onWebGLInitialized: gl => {
+      const debug = gl.getExtension("WEBGL_debug_renderer_info");
+      softwareRenderer = Boolean(debug && /SwiftShader/i.test(String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))));
+      if (softwareRenderer && current && startupPasses.length > 1) {
+        startupPasses = [layers];
+        startupStage = 0;
+        queueMicrotask(() => { if (!destroyed) deck.setProps({ layers }); });
+      }
+    },
     onLoad: () => {
       deckLoaded = true;
       reportReadyWhenSized();
     },
-    onAfterRender: reportReadyWhenSized,
+    onAfterRender: () => {
+      if (current && startupStage < startupPasses.length - 1) {
+        startupStage += 1;
+        deck.setProps({ layers: startupPasses[startupStage] });
+      } else reportReadyWhenSized();
+    },
     onError: error => report(`Map rendering error: ${textFromError(error)}`),
   });
 
@@ -447,7 +469,7 @@ export async function createMapAdapter(
       else viewsBySpace.set(nextViewSpaceKey, activeView);
     }
     refreshLayers(next);
-    deck.setProps({layers});
+    deck.setProps({layers: readyReported ? layers : startupPasses[startupStage] ?? layers});
     notifyView();
   };
 
