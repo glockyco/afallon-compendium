@@ -13,7 +13,8 @@ const itemSources = (item: PublicItem) => item.droppedBy.length + item.soldBy.le
 const GAP_TESTS: ReadonlyArray<readonly [CoverageGap, (document: PublicDocument) => boolean]> = [
   ["itemWithoutSource", (document) => document.ref.kind === "items" && itemSources(document as PublicItem) === 0 && (document as PublicItem).adventurers.length === 0],
   ["itemAdventurerOnly", (document) => document.ref.kind === "items" && itemSources(document as PublicItem) === 0 && (document as PublicItem).adventurers.length > 0],
-  ["npcWithoutLocation", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length === 0],
+  // Adventurers roam the world and join a party by invitation, so no spawner places them and none is missing.
+  ["npcWithoutLocation", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length === 0 && !(document as PublicNpc).adventurer],
   ["npcWithoutLevel", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length > 0 && !(document as PublicNpc).facts.level],
   ["placeWithoutMap", (document) => document.ref.kind === "places" && (document as PublicPlace).space === null],
   ["unresolvedReference", (document) => countUnresolvedReferences(document) > 0],

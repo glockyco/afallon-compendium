@@ -1,0 +1,48 @@
+## MODIFIED Requirements
+
+### Requirement: Coverage explains published content and gaps
+
+The reader-facing coverage page SHALL show the number of published pages per kind, maps, and map locations. It SHALL list affected page links for each nonempty gap: `itemWithoutSource`, `npcWithoutLocation`, `npcWithoutLevel`, `placeWithoutMap`, `unresolvedReference`, `recipeWithoutTeacher`, and `recipeWithoutProduct`. An item that only adventurers carry SHALL not count as an item without a source; coverage SHALL list it under adventurer-only items. A recipe gap SHALL link to the Crafting section of the product, or to the recipe row on its skill page when the recipe has no published product. The page SHALL list these gaps as NPCs without a map location and NPCs without a level, and an NPC without a location SHALL not also count as an NPC without a level. Adventurer-only items SHALL be listed as items only adventurers can get. The map SHALL not load coverage to render markers.
+
+#### Scenario: An item has no published source
+- **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, recipe, starting-gear, item, world object chest, dungeon reward, Dungeon Finder reward, quest pickup, cloth drop, or adventurer source
+- **THEN** its page appears under Items without a known source
+
+#### Scenario: Only adventurers carry an item
+- **WHEN** the only relation of an item is an adventurer kit upgrade
+- **THEN** its page appears under adventurer-only items
+- **AND** it does not appear under Items without a known source
+
+#### Scenario: Starting gear is a known source
+- **WHEN** the only source of an item is the starting gear of a published class
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A creature has a location but no level
+- **WHEN** an NPC page has locations and no confirmed level
+- **THEN** its page appears under NPCs without a level
+
+#### Scenario: A recipe has no product
+- **WHEN** the Smithing recipe Demonic Bulwark Looted has no published product
+- **THEN** it appears under Recipes without a product
+- **AND** its link leads to its row on the Smithing page
+
+#### Scenario: A recipe has no teaching item
+- **WHEN** the recipe Ring of Bleed Damage is not learned by default and no captured item action teaches it
+- **THEN** it appears under Recipes without a teaching item
+- **AND** its link leads to the Crafting section of Bloodthrall Signet
+
+#### Scenario: Another item is the only source
+- **WHEN** the only source of an item is a supply pack band or a use chest of another item
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A dungeon reward is the only source
+- **WHEN** the only source of Corruption Token is the reward bag of the timed dungeons
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A cloth drop is the only source
+- **WHEN** the only source of an item is the supplemental cloth drop
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: Adventurers have no fixed location
+- **WHEN** an NPC page belongs to an adventurer, who roams and joins a party by invitation
+- **THEN** the page is not listed under NPCs without a map location

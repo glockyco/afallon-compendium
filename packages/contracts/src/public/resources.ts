@@ -256,7 +256,7 @@ export const StaticGeometrySchema = Type.Object({
 export type StaticGeometry = Static<typeof StaticGeometrySchema>;
 
 // The facts that readers expect and that some pages lack. `itemWithoutSource`: no known way to get the item.
-// `npcWithoutLocation`: no scanned spawner places the creature. `npcWithoutLevel`: the creature has a location but no
+// `npcWithoutLocation`: no scanned spawner places the creature, which is not an adventurer. `npcWithoutLevel`: the creature has a location but no
 // published level. `placeWithoutMap`: no reviewed game map shows the place. `unresolvedReference`: the page names
 // something that has no record. `recipeWithoutTeacher`: the recipe is not learned by default, and no captured item action
 // teaches it; other sources can still teach it. `recipeWithoutProduct`: the recipe makes no published item. A recipe gap
