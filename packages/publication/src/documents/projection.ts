@@ -322,8 +322,10 @@ export function mergeCounterpartRows<T extends { counterpart: Ref }>(rows: reado
   return [...merged.values()].map((same) => ({ ...same[0]!, counterpart: pageOrVariant(same.map((row) => row.counterpart), input) }));
 }
 
+// The game breaks some descriptions into lines by padding with a long run of spaces, so the next phrase wraps in its
+// narrow tooltip ("Mounted speed 40%" then "Can't be used indoors"). Such a run is a line break.
 export function description(entity: CatalogEntityRow, fallback?: string | null): string | null {
-  const value = plainText(entity.description ?? fallback ?? "");
+  const value = plainText(entity.description ?? fallback ?? "").replace(/(\S) {3,}(?=\S)/g, "$1\n");
   return value || null;
 }
 

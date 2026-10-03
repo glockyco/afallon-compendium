@@ -121,7 +121,7 @@
         <AnswerCard title="How to get it"><ItemSourceRoutes {document} {registry} /></AnswerCard>
       {:else if document.description || useEffects.length}
         <AnswerCard title="What it does">
-          {#if document.description}<p>{document.description}</p>{/if}
+          {#if document.description}<p class="description">{document.description}</p>{/if}
           {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% per use for a direct item effect, or per hit for an activated ability){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
           <p class="unknown-source">No known way to get this item.</p>
         </AnswerCard>
@@ -132,7 +132,7 @@
       <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel} {heroic}><svelte:fragment slot="ref" let:ref let:rankIndex let:plain><EntityLink {ref} {rankIndex} {registry} {plain} /></svelte:fragment></ItemTooltip></div>
       {#if facts.enchanting}
         <SideCard title="What it does" id="enchants">
-          {#if document.description}<p>{document.description}</p>{/if}
+          {#if document.description}<p class="description">{document.description}</p>{/if}
           <p>Applying it consumes the item. A successful enchantment replaces any different enchantment on the gear.</p>
           <FactList>
             <FactRow label="Fits">{facts.enchanting.fits.join(' or ')}</FactRow>
@@ -182,7 +182,7 @@
       {/if}
       {#if !facts.enchanting && hasSources && (document.description || facts.buyPrice)}
         <SideCard title="About this item">
-          {#if document.description}<p>{document.description}</p>{/if}
+          {#if document.description}<p class="description">{document.description}</p>{/if}
           {#if facts.buyPrice}<FactList><FactRow label="Buy price"><Price price={facts.buyPrice} showName /></FactRow></FactList>{/if}
         </SideCard>
       {/if}
@@ -364,6 +364,8 @@
 </article>
 
 <style>
+  /* A game description can hold line breaks, such as a mount's speed above its indoor restriction. */
+  .description { white-space: pre-line; }
   /* The versions are actions in one row; the chosen one takes the accent frame. Each radio stays in the tab order and the
      arrow keys move between them, while the label is what a reader sees and clicks. */
   .versions { display: flex; flex-wrap: wrap; gap: .35rem; scroll-margin-top: 1rem; }

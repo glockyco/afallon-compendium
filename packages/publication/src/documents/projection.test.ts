@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { CatalogFacts, CatalogRequirement, CatalogRequirementGroup, ProgressionEffect, ProgressionEffectRank } from "@afallon/contracts/catalog";
-import { grantedByActions, projectRequirementGroups, type DocumentProjectionInput } from "./projection";
+import { description, grantedByActions, projectRequirementGroups, type DocumentProjectionInput } from "./projection";
 import { summoningEffects } from "./npcs";
 import { rankActions } from "./effects";
 
@@ -82,4 +82,11 @@ test("requirement labels use resolved reference names and keep catalog compariso
   const withheld = projectRequirementGroups([group], () => ({ key: null, label: "Challenge Progress" }))[0]!.requirements[0]!;
   expect(withheld.label).toBe("Challenge Progress is active with 60 or more stacks");
   expect(withheld.spans).toEqual([{ ref: { key: null, label: "Challenge Progress" } }, { text: " is active with 60 or more stacks" }]);
+});
+
+test("a long run of spaces in a game description is a line break, ordinary spacing stays", () => {
+  const entity = (text: string) => ({ description: text }) as Parameters<typeof description>[0];
+  expect(description(entity(`Mounted speed 40%${" ".repeat(150)}Can't be used indoors`))).toBe("Mounted speed 40%\nCan't be used indoors");
+  expect(description(entity("Deals  double damage."))).toBe("Deals  double damage.");
+  expect(description(entity("   "))).toBeNull();
 });
