@@ -15,7 +15,7 @@
   import HowItWorks from '../HowItWorks.svelte';
   import { attunementBoosts, interpolateChance } from '../gathering-odds';
   import PlacesList from '../PlacesList.svelte';
-  import ReaderLevel from '../ReaderLevel.svelte';
+  import LevelControl from '../LevelControl.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -125,7 +125,7 @@
         </dl>
         {#if oddsGroups.length}
           <div class="odds">
-            <ReaderLevel id="node-skill-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} bind:level />
+            <LevelControl id="node-skill-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} Level`} min={1} max={skillCap} fallback={1} bind:level />
             <dl class="spawn-facts">
               {#each groupChances as row, index}<div><dt>{groupChances.length > 1 ? `Chance in group ${index + 1}, ${formatNumber(row.group.spawners)} spawners` : 'Chance that a spawner picks it'}</dt><dd>{row.percent === undefined ? '' : `${bonusPercent.format(Math.round(row.percent * 10) / 10)}%`}</dd></div>{/each}
             </dl>
@@ -150,7 +150,7 @@
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn Odds" id="spawn-odds" summary="Relative and Exact Chances by Skill Level">
         <p class="intro">Each spawner picks one of its options. The relative and exact chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance appears{/if}.</p>
-        {#if oddsGroups.length}<ReaderLevel id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} />{/if}
+        {#if oddsGroups.length}<LevelControl id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} Level`} min={1} max={skillCap} fallback={1} />{/if}
         <AttunementToggles attunements={document.attunements} {registry} bind:active />
         {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
         <div class="c-groups">

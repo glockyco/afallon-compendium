@@ -4,6 +4,7 @@
   import { formatNumber, npcLevelText, signedAmount } from '../format';
   import DetailsDisclosure from './DetailsDisclosure.svelte';
   import { calculateKillAward, creatureLevels, killsToNextLevel, nearestCreatureLevel } from './kill-calculator';
+  import LevelControl from './LevelControl.svelte';
 
   export let guide: CharacterProgression;
   export let registry: PublicKindEntry[];
@@ -80,17 +81,11 @@
     </div>
     <div class="setting-fields">
       {#if levels.length > 1}
-        <label class="field">Creature level
-          <select bind:value={creatureLevel}>{#each levels as level}<option value={level}>{formatNumber(level)}</option>{/each}</select>
-        </label>
+        <LevelControl id="kill-creature-level" label="Creature level" min={levels[0]!} max={levels[levels.length - 1]!} bind:level={creatureLevel} />
       {/if}
       <div class="numbers">
-        <label class="field">Living followers
-          <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} />
-        </label>
-        <label class="field">Experience bonus
-          <span class="suffixed"><input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /><span>%</span></span>
-        </label>
+        <LevelControl id="kill-followers" label="Living followers" min={0} max={10} bind:level={followers} />
+        <LevelControl id="kill-bonus" label="Experience bonus" min={0} max={Number.MAX_SAFE_INTEGER} sliderMax={100} bind:level={experienceBonus} allowFraction suffix="%" />
       </div>
       {#if guide.killCalculator.heroicMultiplier !== undefined}
         <label class="check"><input type="checkbox" bind:checked={heroic} /><span>Heroic creature</span><span class="dim">If eligible · ×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
@@ -114,8 +109,8 @@
 <style>
   .calculator { container: kill-calculator / inline-size; min-width: 0; display: grid; gap: 1rem; }
   .picker { display: grid; align-content: start; gap: .35rem; min-width: 0; }
-  .picker label, .field, .check { color: var(--c-text-strong); font-weight: 600; }
-  select, input[type='number'] { box-sizing: border-box; min-height: 2.75rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
+  .picker label, .check { color: var(--c-text-strong); font-weight: 600; }
+  select { box-sizing: border-box; min-height: 2.75rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
   .picker select { width: 100%; padding: .4rem .6rem; }
   .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1.5rem; margin: .75rem 0 1.25rem; }
   .facts div { display: flex; align-items: baseline; gap: .45rem; }
@@ -123,11 +118,7 @@
   .facts dd { margin: 0; color: var(--c-text); font-variant-numeric: tabular-nums; }
   .settings, .result { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
   .settings, .setting-fields { display: grid; align-content: start; gap: .7rem; }
-  .field { display: grid; justify-items: start; gap: .35rem; }
-  /* The settings fields match the number box of the level slider above them. */
-  .field select, .numbers input { width: 6rem; min-height: 2.3rem; padding: .35rem .5rem; }
   .numbers { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
-  .suffixed { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text); font-weight: 400; }
   .check { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr); align-items: start; column-gap: .55rem; row-gap: .2rem; }
   .check input { width: 1.3rem; height: 1.3rem; margin: .15rem 0 0; accent-color: var(--c-accent); }
   .check .dim { grid-column: 2; color: var(--c-text-dim); font-weight: 400; }

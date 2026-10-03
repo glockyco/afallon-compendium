@@ -4,6 +4,7 @@
   import type { ArtRef, EntityRef } from '@afallon/contracts/public';
   import CompendiumSearch from '$lib/CompendiumSearch.svelte';
   import EntityLink from '$lib/EntityLink.svelte';
+  import LevelControl from '$lib/detail/LevelControl.svelte';
   import { formatCalendarDate, formatNumber, rarityTone } from '$lib/format';
   import { iconNodeToSvg } from '$lib/icon-svg';
   import { kindGlyphSvg } from '$lib/kind-icon';
@@ -14,7 +15,7 @@
   import SeoHead from '$lib/SeoHead.svelte';
   import { STEAM_URL, STEAM_GUIDE_URL } from '$lib/seo';
   import { shownRowCount } from '$lib/detail/relation-table';
-  import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from '$lib/reader-levels';
+  import { CHARACTER_LEVEL, readerLevels } from '$lib/reader-levels';
   import type { PageData } from './$types';
   export let data: PageData;
 
@@ -47,13 +48,7 @@
   $: orderedPlaces = [...data.placeTiles].sort((left, right) => Number(!fits(left)) - Number(!fits(right))
     || Number(!(left.creatures || left.quests)) - Number(!(right.creatures || right.quests)));
   $: shownPlaces = orderedPlaces.slice(0, shownRowCount(orderedPlaces.length, showAllPlaces));
-  // The places follow each keystroke. An empty field forgets the level, and a value outside the levels is ignored.
-  function chooseLevel(event: Event): void {
-    const text = (event.currentTarget as HTMLInputElement).value.trim();
-    if (text === '') { clearReaderLevel(CHARACTER_LEVEL); return; }
-    const value = Number(text);
-    if (Number.isInteger(value) && value >= 1 && value <= data.levelScale) setReaderLevel(CHARACTER_LEVEL, value);
-  }
+
 </script>
 
 <SeoHead title="Afallon Wiki and Interactive Map · Afallon Compendium" description="Explore the Afallon Compendium wiki and interactive map for items, quests, classes, crafting, and places in this unofficial game reference." website />
@@ -130,7 +125,7 @@
       <div class="section-head">
         <h2 id="hub-places">Places by Level</h2>
         <div class="section-links">
-          <label class="your-level">Your Level <input type="number" inputmode="numeric" min="1" max={data.levelScale} value={yourLevel ?? ''} placeholder="Any" on:input={chooseLevel} /></label>
+          <LevelControl id="hub-your-level" label="Your Level" min={1} max={data.levelScale} level={yourLevel} readerId={CHARACTER_LEVEL} optional slider={false} />
           {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'Place', 'Places')}</a>{/if}
         </div>
       </div>
@@ -306,9 +301,7 @@
   .place-meta span { white-space: nowrap; }
   .place h3:last-child { margin-bottom: .9rem; }
   .show-more { margin-top: 1rem; }
-  .your-level { display: inline-flex; align-items: center; gap: .5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .your-level input { width: 4.25rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-0); color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
-  .your-level input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .section-links :global(.level-control) { color: var(--c-text-dim); }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
 

@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
+  import LevelControl from './detail/LevelControl.svelte';
   import { formatNumber } from './format';
   import { placeListName } from './place-list-name';
-  import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from './reader-levels';
+  import { CHARACTER_LEVEL, readerLevels, setReaderLevel } from './reader-levels';
   import { levelTicks, progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
 
   export let entries: ProgressionEntry[];
@@ -25,18 +26,47 @@
     return (level - 0.5) / end * 100;
   }
 
-  function chooseLevel(event: Event): void {
-    const value = (event.currentTarget as HTMLInputElement).value;
-    if (!value) { clearReaderLevel(levelId); return; }
-    const number = Number(value);
-    if (Number.isInteger(number) && number >= 1) setReaderLevel(levelId, number);
+  let dragging: number | null = null;
+
+  function dragLevel(event: PointerEvent): void {
+    const track = event.currentTarget as HTMLElement;
+    const rect = track.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    setReaderLevel(levelId, Math.max(1, Math.min(axisEnd, Math.ceil(fraction * axisEnd))));
+  }
+
+  function startDrag(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    dragging = event.pointerId;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    dragLevel(event);
+  }
+
+  function moveDrag(event: PointerEvent): void {
+    if (dragging === event.pointerId) dragLevel(event);
+  }
+
+  function stopDrag(event: PointerEvent): void {
+    if (dragging === event.pointerId) dragging = null;
+  }
+
+  function moveMarker(event: KeyboardEvent): void {
+    const current = selectedLevel ?? 1;
+    const next = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? current + 1
+      : event.key === 'ArrowDown' || event.key === 'ArrowLeft' ? current - 1
+      : event.key === 'PageUp' ? current + 10 : event.key === 'PageDown' ? current - 10
+      : event.key === 'Home' ? 1 : event.key === 'End' ? axisEnd : undefined;
+    if (next !== undefined) {
+      event.preventDefault();
+      setReaderLevel(levelId, Math.max(1, Math.min(axisEnd, next)));
+    }
   }
 </script>
 
 <div class="progression">
   <div class="intro">
     <p>{description}</p>
-    <label class="level-control">{levelLabel}<input type="number" min="1" step="1" inputmode="numeric" placeholder="Any" aria-label={levelLabel} value={selectedLevel ?? ''} on:input={chooseLevel} /></label>
+    <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={axisEnd} level={selectedLevel} readerId={levelId} optional slider={false} />
   </div>
   {#if groups.length}
     {#each groups as group, index (group.label)}
@@ -52,8 +82,12 @@
                 {/each}
                 {#if marker !== null}
                   <span class="axis-reader" style:left={`${marker}%`}></span>
-                  {#if index === 0}<span class="reader-flag" class:near-start={selectedLevel !== undefined && selectedLevel <= 3} class:near-end={selectedLevel !== undefined && selectedLevel >= axisEnd - 2} style:left={`${marker}%`}>You {formatNumber(selectedLevel!)}</span>{/if}
+                  {#if index === 0}
+                    <span class="reader-flag" style:left={`clamp(0px, calc(${marker}% - 2.6rem), calc(100% - 5.2rem))`}>You {formatNumber(selectedLevel!)}</span>
+                    <span class="flag-arrow" style:left={`${marker}%`} aria-hidden="true"></span>
+                  {/if}
                 {/if}
+                {#if index === 0}<div class="axis-drag" role="slider" tabindex="0" aria-label={`${levelLabel} on Level Axis`} aria-valuemin="1" aria-valuemax={axisEnd} aria-valuenow={selectedLevel ?? 1} on:pointerdown={startDrag} on:pointermove={moveDrag} on:pointerup={stopDrag} on:pointercancel={stopDrag} on:keydown={moveMarker}></div>{/if}
               </div>
             </div>
           {/if}
@@ -82,19 +116,19 @@
   .progression { min-width: 0; }
   .intro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 1.2rem; }
   .intro p { max-width: 44rem; margin: 0; color: var(--c-text-dim); line-height: 1.5; }
-  .level-control { display: flex; flex: none; align-items: center; gap: .55rem; color: var(--c-text-strong); font-size: var(--c-text-small); font-weight: 700; }
-  .level-control input { width: 5.1rem; min-height: 2.4rem; padding: .35rem .5rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
+  .intro :global(.level-control) { flex: none; }
   .axis, li { display: grid; grid-template-columns: minmax(16rem, 20rem) minmax(9rem, 1fr) 4.25rem 5.25rem 6rem; align-items: center; gap: .55rem; }
-  .axis { min-height: 3.5rem; padding: .35rem .85rem .2rem; border-bottom: 1px solid var(--c-line-strong); color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .axis { min-height: 4rem; padding: .35rem .85rem .2rem; border-bottom: 1px solid var(--c-line-strong); color: var(--c-text-dim); font-size: var(--c-text-small); }
   .axis-track { position: relative; grid-column: 2; align-self: stretch; min-width: 0; font-variant-numeric: tabular-nums; }
-  .baseline { position: absolute; top: 2.65rem; left: 0; right: 0; border-top: 1px solid var(--c-line-strong); }
-  .axis-tick { position: absolute; top: 1rem; height: 1.8rem; }
+  .baseline { position: absolute; top: 3.35rem; left: 0; right: 0; border-top: 1px solid var(--c-line-strong); }
+  .axis-tick { position: absolute; top: 2.1rem; height: 1.35rem; }
   .axis-tick span { position: absolute; top: 0; left: 0; transform: translateX(-50%); white-space: nowrap; }
-  .axis-tick::after { content: ''; position: absolute; top: 1.45rem; height: .35rem; border-left: 1px solid var(--c-line-strong); }
-  .axis-reader { position: absolute; top: 2.4rem; bottom: .35rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
-  .reader-flag { position: absolute; top: -.25rem; padding: .05rem .25rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-accent-surface); color: var(--c-accent-strong); font-size: var(--c-text-small); white-space: nowrap; transform: translateX(-50%); }
-  .reader-flag.near-start { transform: none; }
-  .reader-flag.near-end { transform: translateX(-100%); }
+  .axis-tick::after { content: ''; position: absolute; top: .95rem; height: .4rem; border-left: 1px solid var(--c-line-strong); }
+  .axis-reader { position: absolute; top: 3.1rem; bottom: .35rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
+  .reader-flag { position: absolute; top: .1rem; box-sizing: border-box; width: 5.2rem; padding: .05rem .2rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-accent-surface); color: var(--c-accent-strong); font-size: var(--c-text-small); text-align: center; white-space: nowrap; pointer-events: none; }
+  .flag-arrow { position: absolute; top: 1.65rem; width: 0; height: 0; border: .3rem solid transparent; border-top-color: var(--c-accent-strong); transform: translateX(-50%); pointer-events: none; }
+  .axis-drag { position: absolute; inset: 0; cursor: ew-resize; touch-action: none; }
+  .axis-drag:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .group { margin-bottom: 1.4rem; }
   .group h2 { display: flex; align-items: baseline; gap: .6rem; margin: 0 0 .35rem; padding: .4rem .85rem; color: var(--c-text-strong); font: 600 1.18rem/1.3 var(--c-serif); }
   .group h2 small { color: var(--c-text-dim); font: 500 var(--c-text-small)/1.3 var(--c-sans); }

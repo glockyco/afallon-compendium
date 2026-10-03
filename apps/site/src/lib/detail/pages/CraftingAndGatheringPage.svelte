@@ -10,7 +10,7 @@
   import GuideSection from '../GuideSection.svelte';
   import GuideStart from '../GuideStart.svelte';
   import LinkGrid from '../LinkGrid.svelte';
-  import ReaderLevel from '../ReaderLevel.svelte';
+  import LevelControl from '../LevelControl.svelte';
   import { planColumns, stateInHeading, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Sections from '../Sections.svelte';
@@ -139,7 +139,7 @@
                   {#if example}
                     <div class="odds c-stack">
                       <p class="dim">{formatNumber(example.spawners)} {example.spawners === 1 ? 'spawner uses' : 'spawners share'} these nodes. Change the level to see how the chances move.</p>
-                      <ReaderLevel id={`spawner-level-${index}`} readerId={skillLevelId(example.skill ?? { key: null, label: 'gathering' })} label={`${example.skill ? nameOf(example.skill) : 'Skill'} level`} max={example.skillCap} fallback={1} bind:level={levels[index]} />
+                      <LevelControl id={`spawner-level-${index}`} readerId={skillLevelId(example.skill ?? { key: null, label: 'gathering' })} label={`${example.skill ? nameOf(example.skill) : 'Skill'} Level`} min={1} max={example.skillCap} fallback={1} bind:level={levels[index]} />
                       <AttunementToggles attunements={relevantAttunements(example.options, document.attunements)} {registry} bind:active={active[index]} />
                       <SpawnerOdds options={example.options} skillCap={example.skillCap} level={levels[index] ?? 1} boosts={attunementBoosts(example.options, document.attunements, active[index] ?? [])} oddsVerified={example.oddsVerified} {registry} label={`${example.skill ? nameOf(example.skill) : 'Spawner'} nodes`} />
                     </div>

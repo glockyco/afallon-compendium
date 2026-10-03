@@ -205,7 +205,7 @@ body { font-size: 1rem; line-height: 1.5; }
 }
 
 /* A list row holds one line of values, so every cell centers on it, whatever the height of its icon or badge. */
-.c-table tbody td { vertical-align: middle; }
+.c-table:not(.c-table--calculator) tbody td { vertical-align: middle; }
 
 /* Computed column widths replace the content-driven automatic layout. The table may then be wider than its wrapper. */
 .c-table--fixed { table-layout: fixed; min-width: 0; }
@@ -244,6 +244,7 @@ body { font-size: 1rem; line-height: 1.5; }
 .c-table--calculator { min-width: 0; table-layout: fixed; font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
 .c-table--calculator caption { margin-bottom: .45rem; text-align: left; color: var(--c-text-strong); font-size: var(--c-text-body); font-weight: 600; }
 .c-table--calculator th, .c-table--calculator td { padding: .25rem .375rem; }
+.c-table--calculator th, .c-table--calculator td { vertical-align: top; }
 .c-table--calculator tbody th { color: var(--c-text-dim); font-weight: 500; text-align: left; overflow-wrap: break-word; }
 .c-table--calculator thead th { white-space: normal; }
 .c-table--calculator.c-table--comparison { width: min(100%, 48.25rem); }

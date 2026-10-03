@@ -5,7 +5,7 @@
   import { CHARACTER_LEVEL } from '../../reader-levels';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
-  import ReaderLevel from '../ReaderLevel.svelte';
+  import LevelControl from '../LevelControl.svelte';
   import { progressionExample } from '../kill-calculator';
   import { cumulativeExperience, journeyShares } from '../level-curve';
   import LevelCurve from './LevelCurve.svelte';
@@ -25,7 +25,7 @@
 
 <div class="progression-answer">
   <AnswerCard title="At Your Level">
-    <ReaderLevel id="progression-character-level" readerId={CHARACTER_LEVEL} label="Character level" min={1} max={guide.curve.cap} {fallback} bind:level />
+    <LevelControl id="progression-character-level" readerId={CHARACTER_LEVEL} label="Character level" min={1} max={guide.curve.cap} {fallback} bind:level />
     <div aria-live="polite" aria-atomic="true" class="answer">
       {#if example.toNext === undefined}
         <p class="amount">Level&nbsp;{formatNumber(level)} is the cap</p>

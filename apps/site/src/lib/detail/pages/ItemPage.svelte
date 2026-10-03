@@ -10,7 +10,7 @@
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
-  import LevelSlider from '../LevelSlider.svelte';
+  import LevelControl from '../LevelControl.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
   import { itemSourceLines, levelRangeText, packBandText, unboundLootTableNames } from '../item-sources';
   import { omitAlways, planColumns, shownRowCount, type RelationColumn } from '../relation-table';
@@ -169,7 +169,7 @@
             <p>Creatures drop it as Heroic gear while the Heroic tier is live, with {formatNumber(facts.heroic?.statBonusPercent ?? 0)}% higher fixed stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}.</p>
             {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
           {:else if version === 'corrupted' && facts.corruption}
-            <LevelSlider id="corruption-level" label="Corruption level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} readout={(level) => `+${level}`} valueText={(level) => `+${level}`} />
+            <LevelControl id="corruption-level" label="Corruption Level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} valueText={(level) => `+${level}`} />
             {#if facts.dungeonRewards?.length}<p>From the reward bags of {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
             {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
           {/if}

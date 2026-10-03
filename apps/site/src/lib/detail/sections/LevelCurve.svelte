@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { LevelCurve as LevelCurveData } from '@afallon/contracts/public';
   import { cumulativeExperience } from '../level-curve';
-  import LevelSlider from '../LevelSlider.svelte';
+  import LevelControl from '../LevelControl.svelte';
 
   export let curve: LevelCurveData;
   export let level = 1;
@@ -95,7 +95,7 @@
 </div>
 {#if !chartOnly}
   <div class="selector">
-    <LevelSlider id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level readout={format} />
+    <LevelControl id={`${uid}-level`} label={`${subject} Level`} min={1} max={curve.cap} bind:level />
     <dl class="totals">
       <div><dt>Experience to the next level</dt><dd>{format(next)}</dd></div>
       <div><dt>Total experience to reach level {format(level)}</dt><dd>{format(earned)}</dd></div>

@@ -8,8 +8,7 @@
   import { CHARACTER_LEVEL } from '../reader-levels';
   import { empoweredStrength } from './heroic-strength';
   import { calculateKillAward, creatureLevels, nearestCreatureLevel } from './kill-calculator';
-  import LevelSlider from './LevelSlider.svelte';
-  import ReaderLevel from './ReaderLevel.svelte';
+  import LevelControl from './LevelControl.svelte';
 
   export let guide: HeroicTier;
   export let registry: PublicKindEntry[];
@@ -71,13 +70,13 @@
           {/each}
         </select>
       </label>
-      <div class="character-control"><ReaderLevel id="heroic-character-level" readerId={CHARACTER_LEVEL} label="Your character level" min={1} max={progression.curve.cap} fallback={23} bind:level={characterLevel} /></div>
+      <div class="character-control"><LevelControl id="heroic-character-level" readerId={CHARACTER_LEVEL} label="Character level" min={1} max={progression.curve.cap} fallback={23} bind:level={characterLevel} /></div>
       {#if spawnLevels.length > 1}<label class="picker">Creature level
         <select value={creatureLevel} on:change={(event) => { creatureLevel = Number(event.currentTarget.value); }}>
           {#each spawnLevels as level}<option value={level}>{formatNumber(level)}</option>{/each}
         </select>
       </label>{/if}
-      <div class="score"><LevelSlider id="heroic-gear-score" label="Your equipped gear score" min={0} max={1250} level={score} onSelect={setReaderGearScore} /></div>
+      <div class="score"><LevelControl id="heroic-gear-score" label="Equipped gear score" min={0} max={1250} level={score} onSelect={(value) => { if (value !== undefined) setReaderGearScore(value); }} /></div>
     </div>
     <p class="source"><EntityLink ref={chosen.entry.creature} {registry} /> in <EntityLink ref={chosen.place} {registry} /> at level&nbsp;{formatNumber(creatureLevel)}.</p>
     <div class="comparison-card" aria-live="polite" aria-atomic="true">
@@ -85,7 +84,10 @@
         <colgroup><col style="width: 45%" /><col style="width: 27.5%" /><col style="width: 27.5%" /></colgroup>
         <thead><tr><th scope="col">Comparison</th><th scope="col" class="c-num">Normal</th><th scope="col" class="c-num">Heroic</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Kill experience</th><td class="c-num">{characterLevel >= progression.curve.cap ? 'Level cap' : normal ? xp(normal) : 'Unavailable'}</td><td class="c-num">{characterLevel >= progression.curve.cap ? 'Level cap' : empowered ? `${xp(empowered)} (${exact.format(settings.killExperienceMultiplier)}×)` : 'Unavailable'}</td></tr>
+          <tr><th scope="row">Kill experience</th>
+            <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if normal}<span class="no-break">{xp(normal)}</span>{:else}Unavailable{/if}</td>
+            <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if empowered}<span class="no-break">{xp(empowered)}</span> <span class="no-break">({exact.format(settings.killExperienceMultiplier)}×)</span>{:else}Unavailable{/if}</td>
+          </tr>
           <tr><th scope="row">Maximum health</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.health)}×</td></tr>
           <tr><th scope="row">Damage</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.damage)}×</td></tr>
         </tbody>
@@ -104,11 +106,11 @@
   .controls { display: grid; gap: 1rem; margin: 1rem 0; }
   .picker { display: grid; align-content: start; gap: .35rem; color: var(--c-text-strong); font-weight: 600; min-width: 0; }
   .picker select { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: .4rem .6rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
-  .character-control { min-width: 0; }
-  .character-control :global(.reader-level) { max-width: none; }
-  .score { min-width: 0; }
+  .character-control, .score { min-width: 0; }
+  .character-control :global(.level-control), .score :global(.level-control) { max-width: none; }
   .comparison-card { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
   .comparison-card :global(.c-table td.c-num) { white-space: normal; }
+  .no-break { white-space: nowrap; }
   .comparison-card p { margin: .8rem 0 0; line-height: 1.5; font-size: var(--c-text-small); }
   @media (min-width: 700px) { .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 699px) { .heroic-creature.loading { min-height: 45rem; } }
