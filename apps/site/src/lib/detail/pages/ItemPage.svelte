@@ -72,12 +72,12 @@
   const chestColumns: RelationColumn<PublicItem['whenUsed']['chests'][number]['rows'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
     { id: 'quantity', label: 'Quantity', hint: 'How many of the item drop. Every amount in the range is equally likely.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
-    { id: 'chance', label: 'Chance', hint: 'Each item rolls this chance on its own when the chest opens.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance per Open', hint: 'Each item rolls this chance on its own when the chest opens.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
   ];
   const fromItemColumns: RelationColumn<PublicItem['fromItems'][number]>[] = [
     { id: 'source', label: 'Item', value: (row) => row.source.name, sort: (row) => row.source.name },
     { id: 'quantity', label: 'Quantity', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
-    { id: 'chance', label: 'Chance', hint: 'The chest rolls this chance for the item on its own.', numeric: true, value: (row) => row.kind === 'chest' ? row.chance : undefined, sort: (row) => row.kind === 'chest' ? row.chance : undefined },
+    { id: 'chance', label: 'Chance per Open', hint: 'The chest rolls this chance for the item on its own.', numeric: true, value: (row) => row.kind === 'chest' ? row.chance : undefined, sort: (row) => row.kind === 'chest' ? row.chance : undefined },
     { id: 'band', label: 'Who can open it', value: (row) => row.kind === 'pack' ? packBandText(row) : undefined },
   ];
   $: fromItemPlan = planColumns(fromItemColumns, document.fromItems);
@@ -93,7 +93,7 @@
   $: pickupPlan = planColumns(pickupColumns, document.questPickups);
   const clothColumns: RelationColumn<NonNullable<PublicItem['clothDrop']>['levels'][number]>[] = [
     { id: 'level', label: 'Creature level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
-    { id: 'chance', label: 'Chance per kill', hint: 'The chance that one kill drops this cloth. Inside a range of levels, it moves steadily from the first value to the second.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
+    { id: 'chance', label: 'Base Rate', hint: 'The base cloth roll rate for this cloth before loot bonuses. Inside a range of levels, it changes steadily from the first value to the second. It is not your chance per kill.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
   ];
   const effectColumns: RelationColumn<PublicItem['appliesEffects'][number]>[] = [
     { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
@@ -217,7 +217,7 @@
                     <svelte:fragment slot="cell" let:row let:column>
                       {#if column === 'item'}<EntityLink ref={row.item} {registry} />
                       {:else if column === 'quantity'}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}
-                      {:else}{formatNumber(row.chance)}%{/if}
+                      {:else}{formatNumber(row.chance)}% per open{/if}
                     </svelte:fragment>
                   </RelationTable>
                 </div>
@@ -282,13 +282,13 @@
     {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
     {#if document.buys.length}<PurchasesSection id="buys" title="Buys" rows={document.buys} subjectCurrency={facts.currency} {registry} />{/if}
-    {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} {registry} />{/if}
+    {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} guide={document.placedRules.find((rule) => rule.target === 'dropped-by')} {registry} />{/if}
     {#if document.clothDrop}
       <Section id="cloth-loot" title="Cloth loot">
         <div class="c-stack">
-          <p>Killing a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature has a {formatNumber(document.clothDrop.chance)}% chance to drop {formatNumber(document.clothDrop.min)}–{formatNumber(document.clothDrop.max)} cloth. The creature's level decides which cloth it is.</p>
+          <p>Each kill of a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature rolls for cloth at a base rate of {formatNumber(document.clothDrop.chance)}% before loot bonuses. A successful roll gives {document.clothDrop.min === document.clothDrop.max ? formatNumber(document.clothDrop.min) : `${formatNumber(document.clothDrop.min)} to ${formatNumber(document.clothDrop.max)}`} {document.clothDrop.max === 1 ? 'piece' : 'pieces'}. The creature's level decides which cloth it is.</p>
           {#if clothGuide}<HowItWorks guide={clothGuide.guide} section={clothGuide.section} label="How cloth loot works" />{/if}
-          <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Chance per kill by creature level">
+          <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Base cloth rate by creature level">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'level'}{levelRangeText(row.minLevel, row.maxLevel)}
               {:else}{formatNumber(row.startChance)}%{#if row.endChance !== undefined}{' to '}{formatNumber(row.endChance)}%{/if}{/if}
@@ -353,7 +353,7 @@
             {#if column === 'source'}<EntityLink ref={row.source} {registry} />
             {:else if column === 'band'}{#if row.kind === 'pack'}{packBandText(row)}{/if}
             {:else if column === 'quantity'}{row.min === row.max ? formatNumber(row.min) : `${formatNumber(row.min)}–${formatNumber(row.max)}`}
-            {:else if column === 'chance'}{#if row.kind === 'chest'}{formatNumber(row.chance)}%{/if}{/if}
+            {:else if column === 'chance'}{#if row.kind === 'chest'}{formatNumber(row.chance)}% per open{/if}{/if}
           </svelte:fragment>
         </RelationTable>
       </Section>

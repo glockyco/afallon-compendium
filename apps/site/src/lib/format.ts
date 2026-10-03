@@ -95,11 +95,21 @@ export function creatureLevelText(level: CreatureLevel): string {
   return level.min <= 1 && level.max === undefined ? 'Any' : levelText(level);
 }
 
-type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'>;
+type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'> & Partial<Pick<DropRow, 'killChance'>>;
 
-// A kill rolls each loot list of a creature. `tableChance` is the share of kills that roll the list, and a missing
-// chance means every kill. The list then rolls each item at its own chance, stops at `tableLimit` items, and adds
-// items by their chances until it has `tableMinimum` items. The texts below say this without game terms.
+export const LISTED_RATE_HINT = 'The rate the game lists for this item. Higher rates drop more often. It is not your chance per kill.';
+
+export function dropRateLabel(row: Pick<DropRow, 'killChance'>): string {
+  return row.killChance === undefined ? 'Listed Rate' : 'Chance per Kill';
+}
+
+export function dropRateText(row: Pick<DropRow, 'chance' | 'killChance'>): string | undefined {
+  if (row.killChance !== undefined) {
+    if (row.killChance === 0) return '0% (no kills)';
+    return `${formatNumber(row.killChance)}% (${row.killChance === 100 ? 'every kill' : `about 1 in ${formatNumber(Math.round(100 / row.killChance))} kills`})`;
+  }
+  return row.chance === undefined ? undefined : `${formatNumber(row.chance)}%`;
+}
 
 /** How many items one kill drops from one loot list: "up to 3", "2", "1 or 2", "at least 1", or none without a rule. */
 function itemCount({ tableMinimum: least, tableLimit: most }: LootRoll): { amount: string; plural: boolean } | undefined {
@@ -115,47 +125,40 @@ function itemCountText(roll: LootRoll): string | undefined {
   return count && `${count.amount} ${count.plural ? 'items' : 'item'}`;
 }
 
-/** When a kill can drop from the loot list of a row, and how many items it drops: "Every kill, up to 3 items". */
+/** The list roll is a different event from an item's entry rate. */
 export function dropsPerKillText(roll: LootRoll): string {
-  const kills = roll.tableChance === undefined ? 'Every kill' : `${formatNumber(roll.tableChance)}% of kills`;
-  return `${kills}, ${itemCountText(roll) ?? 'any number of items'}`;
+  const count = itemCountText(roll);
+  const action = roll.tableMinimum !== undefined && count ? `drop ${count} from this loot list` : count ? `roll this loot list for ${count}` : 'roll this loot list';
+  return roll.tableChance === undefined || roll.tableChance === 100
+    ? `Each kill can ${action}.`
+    : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
 }
 
-/** The sentences above a group of an NPC's drops that share one loot list rule. `items` is the number of rows. */
-export function dropGroupText(roll: LootRoll, items: number): string {
-  const one = items === 1;
+/** The sentence above one NPC loot list, with the number of its actual published rows. */
+export function dropGroupText(roll: LootRoll, items: number, hasListedRates = true): string {
   const count = itemCount(roll);
-  const some = roll.tableChance === undefined ? undefined : `Only ${formatNumber(roll.tableChance)}% of kills`;
-  if (roll.tableMinimum !== undefined && count !== undefined) {
-    // A minimum makes the game add items by their chances, so a chance tells how often an item is among the drops.
-    if (items <= roll.tableMinimum) {
-      const all = one ? 'this item' : 'all of these items';
-      return some ? `${some} drop ${all}.` : `Every kill drops ${all}.`;
-    }
-    return some
-      ? `${some} drop items from this list. Such a kill drops ${count.amount} of them, and items with a higher chance drop more often.`
-      : `Every kill drops ${count.amount} of these items. Items with a higher chance drop more often.`;
-  }
-  const limit = roll.tableLimit !== undefined && roll.tableLimit < items ? roll.tableLimit : undefined;
-  const each = one ? 'this item' : 'each of these items';
-  const cap = limit === undefined ? '' : `, but one kill drops at most ${formatNumber(limit)} of them`;
-  if (some) return one ? `${some} can drop this item. Such a kill has the listed chance to drop it.` : `${some} can drop these items. Such a kill has the listed chance to drop each of them${cap}.`;
-  return `Every kill has the listed chance to drop ${each}${cap}.`;
+  const set = items === 1 ? 'this item' : `these ${formatNumber(items)} items`;
+  const guaranteed = roll.tableMinimum !== undefined && items <= roll.tableMinimum;
+  const action = guaranteed ? `drop ${items === 1 ? 'this item' : `all ${formatNumber(items)} items`}`
+    : count && roll.tableMinimum !== undefined ? `drop ${count.amount} of ${set}`
+    : count ? `roll for ${count.amount} from ${set}` : `roll for ${set}`;
+  const first = roll.tableChance === undefined || roll.tableChance === 100
+    ? `Each kill can ${action}.`
+    : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
+  return guaranteed || items === 1 || !hasListedRates ? first : `${first} Higher listed rates are picked more often.`;
 }
 
-/** The sentence above the sources of an item when all of them share one loot list rule. */
+/** The shared loot-list rule above an item's creature sources. */
 export function itemDropText(roll: LootRoll): string {
   const count = itemCountText(roll);
-  const share = roll.tableChance;
-  if (roll.tableMinimum !== undefined && count !== undefined) {
-    const kills = share === undefined ? 'Every kill drops' : `Only ${formatNumber(share)}% of kills drop`;
-    return `${kills} ${count} from the loot list that holds this item. Items with a higher chance in that list drop more often.`;
-  }
-  const limit = roll.tableLimit;
-  const cap = limit === undefined ? '' : `, but a kill drops at most ${formatNumber(limit)} ${limit === 1 ? 'item' : 'items'} from the same list`;
-  return share === undefined
-    ? `Every kill has the listed chance to drop this item${cap}.`
-    : `Only ${formatNumber(share)}% of kills can drop this item, and such a kill has the listed chance to drop it${cap}.`;
+  const action = count && roll.tableMinimum !== undefined ? `drop ${count} from the loot list that includes this item`
+    : count ? `roll the loot list that includes this item for ${count}`
+    : 'roll the loot list that includes this item';
+  const first = roll.tableChance === undefined || roll.tableChance === 100
+    ? `Each kill can ${action}.`
+    : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
+  if (roll.killChance !== undefined) return first;
+  return `${first} ${roll.tableMinimum === undefined ? 'The listed rate is not a chance per kill.' : 'Higher listed rates are picked more often.'}`;
 }
 
 /** A random spawn: "One of 3 random spots, 66.7% chance". A certain choice leaves out the chance. */

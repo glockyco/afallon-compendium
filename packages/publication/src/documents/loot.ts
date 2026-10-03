@@ -6,22 +6,6 @@ function tableChanceOf(row: CatalogDropRow): number | undefined {
   return row.tableRate !== null && row.tableRate < 100 ? optionalChance(Math.round(row.tableRate * 10) / 10) : undefined;
 }
 
-/**
- * A creature page groups its drops by their loot list rule: the share of kills that roll the list and the number of
- * items that the list gives. Two lists of one creature with the same rule and a limit or a minimum would merge into one
- * group whose item count is wrong, so publication stops instead.
- */
-export function assertDistinctLootRules(owner: string, rows: readonly CatalogDropRow[]): void {
-  const tableByRule = new Map<string, number>();
-  for (const row of rows) {
-    if (row.tableMinimum === null && row.tableLimit === null) continue;
-    const rule = JSON.stringify([tableChanceOf(row) ?? null, row.tableMinimum, row.tableLimit]);
-    const table = tableByRule.get(rule);
-    if (table === undefined) tableByRule.set(rule, row.lootTableId);
-    else if (table !== row.lootTableId) throw new Error(`${owner} has the loot lists ${table} and ${row.lootTableId} with the same drop rule ${rule}, so its Drops section would merge them.`);
-  }
-}
-
 // The fields that a drop row shares on the creature page and on the item page.
 export function lootFields(row: CatalogDropRow, conditions: ReadonlyMap<string, CatalogCondition>, input: DocumentProjectionInput) {
   const tableChance = tableChanceOf(row);

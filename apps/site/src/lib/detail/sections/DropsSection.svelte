@@ -1,10 +1,12 @@
 <script lang="ts">
-  import type { NpcDropRow, NpcVariant, PublicKindEntry } from '@afallon/contracts/public';
+  import type { NpcDropRow, NpcVariant, PlacedRule, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import MissingValue from '../../MissingValue.svelte';
   import Requirements from '../../Requirements.svelte';
+  import HowItWorks from '../HowItWorks.svelte';
+  import Hint from '../../Hint.svelte';
   import VariantLinks from '../../VariantLinks.svelte';
-  import { dropGroupText, formatNumber, nameOf, rangeText } from '../../format';
+  import { dropGroupText, dropRateLabel, dropRateText, LISTED_RATE_HINT, nameOf, rangeText } from '../../format';
   import { mergeRows, omitWhenShared, planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -15,16 +17,27 @@
   export let answer = false;
   /** The name of the NPC, which the empty state names. */
   export let name: string;
+  export let guide: PlacedRule | undefined = undefined;
 
   const columns: RelationColumn<NpcDropRow>[] = [
     { id: 'name', label: 'Item', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
     { id: 'quantity', label: 'Quantity', numeric: true, value: (row) => rangeText(row.min, row.max) ?? 'Unknown', sort: (row) => row.max ?? row.min, whenShared: omitWhenShared('1') },
-    { id: 'chance', label: 'Item chance', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'rate', label: 'Listed Rate', hint: LISTED_RATE_HINT, numeric: true, value: (row) => row.killChance ?? row.chance, sort: (row) => row.killChance ?? row.chance },
     { id: 'requirements', label: 'Requirement', value: (row) => row.requirements.length ? JSON.stringify(row.requirements) : undefined },
     { id: 'variant', label: 'Variant', value: (row) => row.variants?.join(' ') },
   ];
-  const ruleKey = (row: NpcDropRow) => JSON.stringify([row.tableChance ?? null, row.tableMinimum ?? null, row.tableLimit ?? null]);
+  const ruleKey = (row: NpcDropRow) => JSON.stringify([row.lootGroup ?? null, row.tableChance ?? null, row.tableMinimum ?? null, row.tableLimit ?? null]);
   $: groups = mergeRows(rows, ruleKey, (group) => [...group]);
+
+  function groupColumns(group: readonly NpcDropRow[]): RelationColumn<NpcDropRow>[] {
+    const known = group.filter((row) => row.killChance !== undefined).length;
+    const rate = columns.map((column) => {
+      if (column.id !== 'rate') return column;
+      return { ...column, label: known === group.length ? 'Chance per Kill' : known ? 'Rate' : 'Listed Rate',
+        hint: known === group.length ? undefined : LISTED_RATE_HINT };
+    });
+    return planColumns(rate, group).columns;
+  }
 </script>
 
 {#snippet tables()}
@@ -32,18 +45,19 @@
     <div class="groups">
       {#each groups as group, index}
         <div class="group">
-          {#if group[0]}<p class="group-line">{groups.length > 1 ? `Loot table ${index + 1}: ` : ''}{dropGroupText(group[0], group.length)}</p>{/if}
-          <RelationTable columns={planColumns(columns, group).columns} rows={group} label={groups.length > 1 ? `Loot table ${index + 1}` : 'Drops'} sort={{ id: 'chance', dir: 'desc' }}>
+          {#if group[0]}<p class="group-line">{#if groups.length > 1}<strong>Drop Group {index + 1}</strong>{/if}{dropGroupText(group[0], group.length, group.some((row) => row.killChance === undefined))}</p>{/if}
+          <RelationTable columns={groupColumns(group)} rows={group} label={groups.length > 1 ? `Drop Group ${index + 1}` : 'Drops'} sort={{ id: 'rate', dir: 'desc' }}>
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
               {:else if column === 'quantity'}{#if row.min !== undefined || row.max !== undefined}{rangeText(row.min, row.max)}{:else}<MissingValue explanation={nameOf(row.counterpart) === 'Gold' ? 'The game gives no valid gold amount for this drop' : 'Drop quantity unknown'} />{/if}
-              {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="Item drop chance unknown" />{:else}{formatNumber(row.chance)}%{/if}
+              {:else if column === 'rate'}{#if dropRateText(row) === undefined}<MissingValue explanation="Listed rate unknown" />{:else}{#if group.length === 1 || group.some((item) => item.killChance !== undefined) && group.some((item) => item.killChance === undefined)}{#if row.killChance === undefined}<Hint text={LISTED_RATE_HINT}>Listed Rate</Hint>{:else}{dropRateLabel(row)}{/if}{': '}{/if}{dropRateText(row)}{/if}
               {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />
               {:else if column === 'variant'}{#if row.variants}<VariantLinks anchors={row.variants} {variants} />{:else}All{/if}{/if}
             </svelte:fragment>
           </RelationTable>
         </div>
       {/each}
+      {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
     </div>
   {:else}<p class="empty">No drops are published for {name}.</p>{/if}
 {/snippet}
@@ -60,5 +74,6 @@
   .groups { display: grid; gap: 1.25rem; }
   .group { min-width: 0; }
   .group-line { margin: 0 0 .5rem; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.5; }
+  .group-line strong { display: block; color: var(--c-text-strong); font-weight: 600; }
   .empty { margin: 0; color: var(--c-text-dim); }
 </style>

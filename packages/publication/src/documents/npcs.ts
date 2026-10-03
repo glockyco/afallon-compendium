@@ -11,7 +11,7 @@ import { flightNetworks, npcFlights } from "../flight-network";
 import type { PublishedPage } from "../references";
 import { plainText } from "../text";
 import { shownNpcStats } from "../variants";
-import { assertDistinctLootRules, lootFields } from "./loot";
+import { lootFields } from "./loot";
 import { type DocumentProjectionInput, endpointOrUnknown, grantedByActions, mergeRefs, optionalFactRef, pageBase, projectAvailability, type RelationIndexes, requirementsFor } from "./projection";
 import { objectiveForRow } from "./quests";
 import { appliedEffectsByAbility } from "./effects";
@@ -225,8 +225,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   };
   const drops = attributedRows(records.map(({ member }) => {
     const rows = indexes.dropsByOwner.get(member.entity.entityKey) ?? [];
-    assertDistinctLootRules(member.entity.entityKey, rows);
-    return { anchor: member.anchor, rows: rows.map((row) => ({ counterpart: input.resolve(row.item), ...lootFields(row, conditions, input) })) };
+    return { anchor: member.anchor, rows: rows.map((row) => ({ counterpart: input.resolve(row.item), lootGroup: row.lootTableId, ...lootFields(row, conditions, input) })) };
   }));
   const sells = attributedRows(records.map(({ member }) => ({ anchor: member.anchor, rows: (indexes.vendorsByNpc.get(member.entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.item), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
@@ -244,7 +243,8 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const placedRuleKeys = new Set<string>();
   const roster = new Set((input.facts.adventurerInviteEffects ?? []).map((effect) => effect.adventurer.entityKey));
   const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve)
-    .filter((rule) => rule.target !== "adventurers" || roster.has(member.entity.entityKey)))
+    .filter((rule) => rule.target !== "adventurers" || roster.has(member.entity.entityKey))
+    .filter((rule) => rule.target !== "drops" || drops.length > 0))
     .filter((rule) => {
       const key = `${rule.target}\u0000${rule.guide.key}\u0000${rule.section}`;
       if (placedRuleKeys.has(key)) return false;

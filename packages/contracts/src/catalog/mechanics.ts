@@ -33,10 +33,10 @@ export const MECHANICS_TOPIC_DETAILS: Readonly<Record<MechanicsTopic, (typeof ME
 // rule the explanation of that label. `linked` places the rule only on the pages of the entities in its links. The
 // gathering node scopes `spawned` and `placed` limit a rule to nodes with that kind of source.
 export const RULE_PLACEMENT_TARGETS = {
-  items: { crafting: "section", teaches: "section", corruption: "section", "when-used": "section", "cloth-loot": "section", "collected-from": "section", "quest-pickups": "section", "dungeon-finder": "section", adventurers: "section" },
+  items: { crafting: "section", teaches: "section", corruption: "section", "when-used": "section", "cloth-loot": "section", "dropped-by": "section", "collected-from": "section", "quest-pickups": "section", "dungeon-finder": "section", adventurers: "section" },
   gatheringNodes: { "how-it-works": "section" },
   skills: { "how-to-gain-experience": "section" },
-  npcs: { experience: "fact", adventurers: "fact" },
+  npcs: { experience: "fact", adventurers: "fact", drops: "section" },
   quests: { experience: "fact" },
   classes: { "talent-points": "fact" },
 } as const;
@@ -46,7 +46,7 @@ export const RULE_PLACEMENT_SCOPES = {
 } as const satisfies Record<RulePlacementPage, readonly string[]>;
 export const RulePlacementSchema = Type.Object({
   page: Type.Union([Type.Literal("items"), Type.Literal("gatheringNodes"), Type.Literal("skills"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("classes")]),
-  target: Type.Union([Type.Literal("crafting"), Type.Literal("teaches"), Type.Literal("corruption"), Type.Literal("when-used"), Type.Literal("cloth-loot"), Type.Literal("collected-from"), Type.Literal("quest-pickups"), Type.Literal("dungeon-finder"), Type.Literal("how-it-works"), Type.Literal("how-to-gain-experience"), Type.Literal("experience"), Type.Literal("adventurers"), Type.Literal("talent-points")]),
+  target: Type.Union([Type.Literal("crafting"), Type.Literal("teaches"), Type.Literal("corruption"), Type.Literal("when-used"), Type.Literal("cloth-loot"), Type.Literal("dropped-by"), Type.Literal("drops"), Type.Literal("collected-from"), Type.Literal("quest-pickups"), Type.Literal("dungeon-finder"), Type.Literal("how-it-works"), Type.Literal("how-to-gain-experience"), Type.Literal("experience"), Type.Literal("adventurers"), Type.Literal("talent-points")]),
   scope: Type.Union([Type.Literal("all"), Type.Literal("linked"), Type.Literal("spawned"), Type.Literal("placed")]),
 }, { additionalProperties: false });
 export type RulePlacement = Static<typeof RulePlacementSchema>;

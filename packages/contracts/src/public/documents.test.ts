@@ -50,6 +50,8 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [] };
   Assert(DropRowSchema, drop);
   Assert(DropRowSchema, { ...drop, counterpart: boss, chance: 12.5, tableChance: 5, tableMinimum: 1, tableLimit: 2, creatureLevel: { min: 18 } });
+  Assert(DropRowSchema, { ...drop, chance: 12.5, killChance: 2.4 });
+  expect(() => Assert(DropRowSchema, { ...drop, killChance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, tableMinimum: 0 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, placements: [placement] })).toThrow();

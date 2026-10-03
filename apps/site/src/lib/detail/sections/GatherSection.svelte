@@ -33,7 +33,7 @@
               </div>
             </div>
             <span class="quantity">{#if row.min !== undefined}×{rangeText(row.min, row.max)}{/if}</span>
-            <span class="chance">{#if row.chance !== undefined}{formatNumber(row.chance)}%{/if}</span>
+            <span class="chance">{#if row.chance !== undefined}Chance per Use: {formatNumber(row.chance)}%{/if}</span>
             {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, 'gatheredFrom', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
           </div>
         {/if}
@@ -54,5 +54,5 @@
   .quantity, .chance, .spots { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .spots { min-height: 1.5rem; }
   .show-more { margin: .5rem .8rem; }
-  @media (max-width: 640px) { .source-row { grid-template-columns: minmax(0, 1fr) auto auto; } .source-main { grid-column: 1 / -1; } .quantity { grid-column: 1; } .spots { grid-column: 3; } }
+  @media (max-width: 640px) { .source-row { grid-template-columns: minmax(0, 1fr) auto; } .source-main { grid-column: 1 / -1; } .quantity { grid-column: 1; } .chance { grid-column: 1 / -1; grid-row: 3; } .spots { grid-column: 2; grid-row: 2; } }
 </style>

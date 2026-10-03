@@ -397,9 +397,10 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.droppedBy).toHaveLength(1);
   expect(npc.drops).toHaveLength(1);
   const { counterpart: itemCounterpart, ...itemValues } = item.droppedBy[0]!;
-  const { counterpart: npcCounterpart, ...npcValues } = npc.drops[0]!;
+  const { counterpart: npcCounterpart, lootGroup, ...npcValues } = npc.drops[0]!;
   expect(itemCounterpart).toMatchObject({ key: "npcs:2" });
   expect(npcCounterpart).toMatchObject({ key: "items:1" });
+  expect(lootGroup).toBe(4);
   expect(itemValues).toEqual(npcValues);
   expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5 });
   expect(itemValues).not.toHaveProperty("placements");
@@ -494,11 +495,13 @@ test("place service groups use the published station types", () => {
   ]);
 });
 
-test("stops when two loot lists of one creature share a limited rule, because its Drops section would merge them", () => {
+test("independent creature loot lists remain separate even with matching roll rules", () => {
   const drop = relations.drops[0]!;
-  const limited = (lootTableId: number, tableLimit: number) => ({ ...drop, lootTableId, tableLimit });
-  expect(() => project(entities, facts, { ...relations, drops: [limited(4, 3), limited(9, 3)] })).toThrow("the same drop rule");
-  expect(() => project(entities, facts, { ...relations, drops: [limited(4, 3), limited(9, 2)] })).not.toThrow();
+  for (const tableLimit of [null, 3]) {
+    const two = [4, 9].map((lootTableId) => ({ ...drop, lootTableId, tableLimit }));
+    const published = project(entities, facts, { ...relations, drops: two }).documents;
+    expect((published.get("npcs:2") as PublicNpc).drops.map((row) => row.lootGroup)).toEqual([4, 9]);
+  }
 });
 
 test("a place lists the properties whose for-sale signs stand in it", () => {
@@ -1399,6 +1402,22 @@ test("a linked When used rule appears on its item and not on unrelated items", (
     target: "when-used", guide: expect.objectContaining({ key: "mechanics:loot" }), section: "chests",
   }));
   expect((documents.get(other.entityKey) as PublicItem).placedRules.some((rule) => rule.target === "when-used")).toBe(false);
+});
+
+test("creature drop mechanics link both source and item pages only when drops exist", () => {
+  const rule: CatalogMechanicsRule = { ...ruleRow("creature-list-roll", "chests", {}), topic: "loot",
+    placements: [{ page: "npcs", target: "drops", scope: "all" }, { page: "items", target: "dropped-by", scope: "all" }] };
+  const source: CatalogFacts = { ...facts, progression: { ...facts.progression, mechanicsRules: [rule] } };
+  const withLoot = project(entities, source, relations).documents;
+  expect((withLoot.get("npcs:2") as PublicNpc).placedRules).toContainEqual({
+    target: "drops", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "chests",
+  });
+  expect((withLoot.get("items:1") as PublicItem).placedRules).toContainEqual({
+    target: "dropped-by", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "chests",
+  });
+  const empty = project(entities, source, { ...relations, drops: [] }).documents;
+  expect((empty.get("npcs:2") as PublicNpc).placedRules.some((entry) => entry.target === "drops")).toBe(false);
+  expect((empty.get("items:1") as PublicItem).placedRules.some((entry) => entry.target === "dropped-by")).toBe(false);
 });
 
 test("a cloth item gives its chance per kill by creature level and counts as sourced", () => {

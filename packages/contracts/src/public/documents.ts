@@ -133,11 +133,11 @@ export type Price = Static<typeof PriceSchema>;
 // Relation rows are shared by both endpoints: an NPC's `drops` and an item's `droppedBy` use the
 // same `DropRow` with `counterpart` pointing across.
 //
-// A drop row describes one item of a loot table. `chance` is the authored rate of the item's own roll, which is the
-// value that the Adventure Guide shows for creature loot. The table fields describe the roll of the whole table:
-// `tableChance` is the authored chance that a kill rolls the table, present only below 100. `tableMinimum` and
-// `tableLimit` are the fewest and the most items that one roll of the table gives. World loot has no creature of its
-// own: `creatureLevel` gives the creature levels that can drop the item, and an absent `max` leaves the range open.
+// A drop row describes one item of a loot table. `chance` is the authored entry rate shown in the Adventure Guide,
+// not the item's chance per kill. A separately verified `killChance` can be supplied when the full roll is known.
+// `tableChance` is the chance that a kill rolls the table, present only below 100. `tableMinimum` and `tableLimit`
+// bound the item count of that roll. World loot has no creature of its own: `creatureLevel` gives the eligible
+// creature levels, while the counterpart label can restrict their rank. An absent `max` leaves the range open.
 //
 // A row never carries placement ids. Each document already lists its own `locations`, and the
 // counterpart's locations belong to the counterpart's document, so repeating them per row would
@@ -149,7 +149,7 @@ const itemCount = Type.Integer({ minimum: 1 });
 export const CreatureLevelSchema = Type.Object({ min: count, max: optional(count) }, { additionalProperties: false });
 export type CreatureLevel = Static<typeof CreatureLevelSchema>;
 const dropRowFields = {
-  counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent),
+  counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent), killChance: optional(percent),
   tableChance: optional(percent), tableMinimum: optional(itemCount), tableLimit: optional(itemCount),
   creatureLevel: optional(CreatureLevelSchema), requirements,
 };
@@ -160,10 +160,10 @@ const vendorRowFields = { counterpart: RefSchema, price: PriceSchema, requiremen
 export const VendorRowSchema = Type.Object(vendorRowFields, { additionalProperties: false });
 export type VendorRow = Static<typeof VendorRowSchema>;
 
-// On a page with several variants, `variants` names the variants that a row applies to. It is absent when the row
-// applies to every variant that has rows of its kind.
+// On a creature page, `lootGroup` distinguishes independent loot lists even when their roll rules agree. It never
+// appears in reader text. `variants` names the grouped page variants to which the drop applies.
 const variantAnchors = optional(Type.Array(anchor, { minItems: 1, uniqueItems: true }));
-export const NpcDropRowSchema = Type.Object({ ...dropRowFields, variants: variantAnchors }, { additionalProperties: false });
+export const NpcDropRowSchema = Type.Object({ ...dropRowFields, lootGroup: optional(count), variants: variantAnchors }, { additionalProperties: false });
 export type NpcDropRow = Static<typeof NpcDropRowSchema>;
 export const NpcVendorRowSchema = Type.Object({ ...vendorRowFields, variants: variantAnchors }, { additionalProperties: false });
 export type NpcVendorRow = Static<typeof NpcVendorRowSchema>;
@@ -471,10 +471,10 @@ export const LootTableMembershipSchema = Type.Object({
 }, { additionalProperties: false });
 export type LootTableMembership = Static<typeof LootTableMembershipSchema>;
 
-// The supplemental cloth drops that give this cloth: the creature types that roll for cloth on a kill, the roll chance
-// and the count of one drop, and the chance that one kill gives this cloth over ranges of the creature's level. Inside a
-// range the chance moves one way from `startChance` at `minLevel` to `endChance` at `maxLevel`; `endChance` is absent
-// when both are equal. The last range has no `maxLevel`. All chances come before the loot drop multipliers.
+// Supplemental cloth drops: `chance` is the base cloth roll rate before loot bonuses. `startChance` and
+// `endChance` apportion that base rate to this cloth by the creature's level and the tiers' relative weights.
+// These derived rates are not the effective probability of obtaining the cloth on a kill. Within a level range
+// the rate changes steadily between endpoints; the last range has no maximum level.
 export const ClothDropSchema = Type.Object({
   creatureTypes: Type.Array(text, { minItems: 1, uniqueItems: true }), chance: percent, min: count, max: count,
   levels: Type.Array(Type.Object({ minLevel: count, maxLevel: optional(count), startChance: percent, endChance: optional(percent) }, { additionalProperties: false }), { minItems: 1 }),

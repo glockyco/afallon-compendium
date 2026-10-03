@@ -2,6 +2,7 @@
   import type { AvailabilityRule, ContainerRow, PlacedRule, PublicKindEntry } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
+  import Hint from '../../Hint.svelte';
   import { formatNumber, rangeText } from '../../format';
   import { itemSourceOnMap } from '../../map-links';
   import { shownRowCount } from '../relation-table';
@@ -34,10 +35,10 @@
               {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{:else if row.choiceLabel}<span>Choose {row.choiceLabel}</span>{/if}
               {#if row.prefabChoices}<span>Opens 1 of {formatNumber(row.prefabChoices)} {row.pickOne ? 'sets' : 'chests'} at random</span>{/if}
               {#if row.pickOne}<span>You pick 1 of {formatNumber(row.pickOne)} items</span>{/if}
-              {#if row.actionChance !== undefined}<span>Gives loot {formatNumber(row.actionChance)}% of the time</span>{/if}
+              {#if row.actionChance !== undefined}<span>Loot appears on {formatNumber(row.actionChance)}% of searches</span>{/if}
               {#if sourceAvailabilities[row.availabilityIndex]?.length}<Availability rules={sourceAvailabilities[row.availabilityIndex] ?? []} {registry} />{/if}
             </div></div>
-            <div class="source-values">{#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}{#if row.chance !== undefined}<span>{formatNumber(row.chance)}%</span>{/if}</div>
+            <div class="source-values">{#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}{#if row.chance !== undefined}<span>{#if id === 'collected-from'}<Hint text="The rate attached to this item in the object's loot list. It is not your chance per search.">Listed Rate</Hint>{:else}Chance per Open{/if}: {formatNumber(row.chance)}%</span>{/if}</div>
             {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, id === 'collected-from' ? 'collectedFrom' : 'inContainers', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
           </div>
         {/if}
@@ -56,8 +57,8 @@
   strong { color: var(--c-text-strong); font-weight: 600; overflow-wrap: anywhere; }
   .source-sub { display: flex; flex-wrap: wrap; gap: .25rem .6rem; margin-top: .2rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .source-sub :global(.availability li) { font-size: var(--c-text-small); }
-  .source-values { display: flex; gap: .7rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .source-values { display: flex; flex-wrap: wrap; gap: .25rem .7rem; justify-content: flex-end; font-variant-numeric: tabular-nums; }
   .spots { min-height: 1.5rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .show-more { margin: .5rem .8rem; }
-  @media (max-width: 640px) { .source-row { grid-template-columns: minmax(0, 1fr) auto; } .spots { grid-column: 2; } .source-values { grid-column: 2; grid-row: 1; justify-content: flex-end; } }
+  @media (max-width: 640px) { .source-row { grid-template-columns: minmax(0, 1fr) auto; } .source-main { grid-column: 1 / -1; } .source-values { grid-column: 1; grid-row: 2; justify-content: flex-start; white-space: normal; } .spots { grid-column: 2; grid-row: 2; } }
 </style>

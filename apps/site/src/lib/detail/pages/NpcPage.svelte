@@ -102,7 +102,7 @@
       </AnswerCard>
     {:else if answer === 'drops'}
       <AnswerCard title="Drops" id="drops">
-        <DropsSection rows={document.drops} variants={document.variants} name={document.ref.name} {registry} answer />
+        <DropsSection rows={document.drops} variants={document.variants} name={document.ref.name} guide={document.placedRules.find((rule) => rule.target === 'drops')} {registry} answer />
       </AnswerCard>
     {:else if answer === 'gear' && gear}
       <AnswerCard title="Gear" id="gear">

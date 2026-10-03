@@ -2,7 +2,8 @@
   import { base } from '$app/paths';
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber } from '../../format';
+  import Hint from '../../Hint.svelte';
+  import { dropRateLabel, dropRateText, formatNumber, LISTED_RATE_HINT } from '../../format';
   import CraftExperience from '../CraftExperience.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { itemSourceLines, lineHref, type SummaryLine } from '../item-sources';
@@ -23,6 +24,7 @@
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting' && rule.section === 'crafting-experience')
     ?? document.placedRules.find((rule) => rule.target === 'crafting');
   $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'dungeon-rewards');
+  $: dropGuide = document.placedRules.find((rule) => rule.target === 'dropped-by');
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
   function routeHref(entry: SummaryLine): string | undefined {
@@ -34,6 +36,7 @@
 {#if sources.length}
   <ul class="routes">
     {#each sources as entry}
+      {@const rate = entry.drop && dropRateText(entry.drop)}
       <li class="route" class:primary={entry === sources[0]} id={entry.id === 'crafting' || (entry.id === 'dropped-by' && singleDropInAnswer) ? entry.id : undefined}>
         {#if entry.id !== 'crafting' || sources.length > 1}<div class="route-head"><strong class="route-label">{entry.label}</strong>{#if entry.spotCount}<span class="route-count">{formatNumber(entry.spotCount)} map spots</span>{/if}</div>{/if}
         {#if entry.id === 'crafting' && craft}
@@ -59,7 +62,21 @@
           </ul>
           {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How dungeon rewards work" />{/if}
         {:else}
-          <p>{#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} />{/if}{#if entry.detail}{' · '}{entry.detail}{/if}{#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}</p>
+          <p>
+            {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} />{/if}
+            {#if entry.id === 'dropped-by' && (rate || entry.detail)}{entry.text?.endsWith('.') ? ' ' : '. '}{/if}
+            {#if rate && entry.drop}
+              {#if entry.drop.killChance === undefined}<Hint text={LISTED_RATE_HINT}>Listed Rate</Hint>{:else}{dropRateLabel(entry.drop)}{/if}{': '}{rate}.
+            {/if}
+            {#if entry.detail}
+              {#if entry.id === 'dropped-by'}{rate ? ' ' : ''}
+              {:else if entry.id === 'cloth-loot'}{' '}
+              {:else if entry.id === 'gathered-from' || entry.id === 'from-items'}{'. '}
+              {:else}{' · '}{/if}{entry.detail}
+            {/if}
+            {#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}
+          </p>
+          {#if entry.id === 'dropped-by' && singleDropInAnswer && dropGuide}<HowItWorks guide={dropGuide.guide} section={dropGuide.section} label="How creature drops work" />{/if}
           {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={routeHref(entry)}>{entry.linkText ?? `See full ${entry.label.toLowerCase()} sources`}</a>{/if}{/if}
         {/if}
       </li>

@@ -17,6 +17,8 @@ export interface SummaryLine {
   guaranteedYield?: number;
   spotCount?: number;
   detail?: string;
+  /** A creature item's rate, kept separate from the loot list roll. */
+  drop?: Pick<DropRow, 'chance' | 'killChance'>;
   /** The text of the link to the full source section, when "See full <label> sources" reads badly. */
   linkText?: string;
 }
@@ -44,11 +46,19 @@ function lowestPrice(rows: readonly VendorRow[]): Price | undefined {
   return [...rows].sort((left, right) => left.price.amount - right.price.amount)[0]?.price;
 }
 function worldLootLine(rows: readonly DropRow[]): SummaryLine | undefined {
-  const levels = [...new Set(rows.flatMap((row) => row.creatureLevel ? [creatureLevelText(row.creatureLevel)] : []))];
+  const world = rows.filter((row) => row.creatureLevel);
+  const levels = [...new Set(world.map((row) => creatureLevelText(row.creatureLevel!)))];
   if (!levels.length) return undefined;
-  return { id: 'dropped-by', label: 'World loot', names: [], more: 0,
-    text: levels.includes('Any') ? 'Creatures of any level' : `Creatures of level ${levels.join(' or ')}`,
-    detail: rows[0]?.chance !== undefined ? `${formatNumber(rows[0].chance)}% item chance${rows[0].tableMinimum !== undefined || rows[0].tableChance !== undefined ? ` · ${dropsPerKillText(rows[0])}` : ''}` : undefined };
+  const rank = nameOf(world[0]!.counterpart);
+  const restriction = levels.includes('Any') ? '' : `${rank && rank !== 'Any creature' ? ' at levels ' : ' of level '}${levels.join(' or ').replaceAll('–', ' to ')}`;
+  const subject = rank && rank !== 'Any creature' ? rank : 'Creatures';
+  const text = `${subject}${restriction || (subject === 'Creatures' ? ' of any level' : '')} can drop it as world loot.`;
+  const first = world[0]!;
+  const sameRoll = world.every((row) => row.tableChance === first.tableChance && row.tableMinimum === first.tableMinimum && row.tableLimit === first.tableLimit);
+  const sameRate = world.every((row) => row.chance === first.chance && row.killChance === first.killChance);
+  return { id: 'dropped-by', label: 'World Loot', names: [], more: 0, text,
+    ...(sameRoll ? { detail: dropsPerKillText(first) } : {}),
+    ...(sameRate ? { drop: first } : {}) };
 }
 function startingGearLine(item: PublicItem): SummaryLine | undefined {
   const classes = item.startingGearOf.map((row) => ({ ...row.class, variant: 'starting-gear' })).filter((ref) => ref.slug);
@@ -63,7 +73,7 @@ export function packBandText(band: { classes: readonly Ref[]; minLevel?: number;
   return `${classes} · ${levels}`;
 }
 
-/** "Humanoid or Undead creatures", with the best chance per kill and the first creature level that has it. */
+/** "Humanoid or Undead creatures", with the highest base cloth rate before loot bonuses. */
 function clothLootLine(item: PublicItem): SummaryLine | undefined {
   const cloth = item.clothDrop;
   if (!cloth) return undefined;
@@ -71,8 +81,8 @@ function clothLootLine(item: PublicItem): SummaryLine | undefined {
     ? [{ levels: levelRangeText(row.minLevel, undefined), chance: row.startChance }]
     : [{ levels: levelRangeText(row.minLevel, row.minLevel), chance: row.startChance }, { levels: levelRangeText(row.maxLevel, row.maxLevel), chance: row.endChance ?? row.startChance }]);
   const best = points.reduce((top, point) => point.chance > top.chance ? point : top);
-  return { id: 'cloth-loot', label: 'Cloth loot', names: [], more: 0, text: `${cloth.creatureTypes.map(categoryLabel).join(' or ')} creatures`,
-    detail: `Up to ${formatNumber(best.chance)}% chance per kill, at creature ${best.levels.toLowerCase()}` };
+  return { id: 'cloth-loot', label: 'Cloth Loot', names: [], more: 0, text: `${cloth.creatureTypes.map(categoryLabel).join(' or ')} creatures can drop this cloth.`,
+    detail: `The base rate is up to ${formatNumber(best.chance)}% at creature ${best.levels.toLowerCase()} before loot bonuses.` };
 }
 
 /** "Level 8", "Levels 8–14", or "Levels 40 and higher". */
@@ -83,7 +93,7 @@ export function levelRangeText(minLevel: number, maxLevel: number | undefined): 
 
 function fromItemsDetail(row: FromItemRow | undefined): string | undefined {
   if (!row) return undefined;
-  return row.kind === 'chest' ? `${formatNumber(row.chance)}% item chance` : packBandText(row);
+  return row.kind === 'chest' ? `Chance per Open: ${formatNumber(row.chance)}%.` : packBandText(row);
 }
 
 export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[], base: string): string | undefined {
@@ -96,6 +106,7 @@ export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[
 export function itemSourceLines(item: PublicItem): SummaryLine[] {
   const creatureDrops = item.droppedBy.filter((row) => !row.creatureLevel);
   const firstDrop = byChance(creatureDrops)[0];
+  const commonDropRate = firstDrop && creatureDrops.every((row) => row.chance === firstDrop.chance && row.killChance === firstDrop.killChance) ? firstDrop : undefined;
   const firstGather = byChance(item.gatheredFrom)[0];
   const vendors = sortRows(item.soldBy, (row): SortValue => row.price.amount, { id: 'price', dir: 'asc' });
   const quests = itemQuestSourceRows(item.rewardedBy, item.givenBy);
@@ -116,8 +127,8 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     dungeon,
     item.crafting && { id: 'crafting', label: 'Craft', names: [], more: 0, guaranteedYield: item.crafting.product?.count,
       text: [item.crafting.skill ? nameOf(item.crafting.skill) : undefined, item.crafting.ranks[0] ? `level ${item.crafting.ranks[0].requiredLevel}` : undefined, item.crafting.station ? `at ${nameOf(item.crafting.station)} station` : undefined].filter(Boolean).join(' ') || item.crafting.recipe.name },
-    line('gathered-from', firstGather?.skill && nameOf(firstGather.skill).toLowerCase() === 'mining' ? 'Mine' : 'Gather', byChance(item.gatheredFrom).map(gatherName), { spotCount: spotTotal(item.gatheredFrom), detail: firstGather?.chance !== undefined ? `${firstGather.chance}% chance per gathering` : undefined }),
-    loot ? { ...loot, detail: [firstDrop?.chance !== undefined ? `${firstDrop.chance}% item chance` : undefined, world?.text ? `Also ${world.text.toLowerCase()}` : undefined].filter(Boolean).join(' · ') || undefined } : world && { ...world, label: 'Loot' },
+    line('gathered-from', firstGather?.skill && nameOf(firstGather.skill).toLowerCase() === 'mining' ? 'Mine' : 'Gather', byChance(item.gatheredFrom).map(gatherName), { spotCount: spotTotal(item.gatheredFrom), detail: firstGather?.chance !== undefined ? `Chance per Use: ${formatNumber(firstGather.chance)}%.` : undefined }),
+    loot ? { ...loot, ...(commonDropRate ? { drop: commonDropRate } : {}), detail: world?.text ? `Also, ${world.text.charAt(0).toLowerCase()}${world.text.slice(1)}` : undefined } : world && { ...world, label: 'Loot' },
     search,
     line('sold-by', 'Buy', vendors.map((row) => ({ ref: row.counterpart })), { lowestPrice: lowestPrice(vendors) }),
     line('from-quests', 'Quest reward', quests.map((row) => ({ ref: row.quest })), { guaranteedYield: Math.max(0, ...item.givenBy.map((row) => row.count), ...item.rewardedBy.filter((row) => !row.choice).map((row) => row.count)) || undefined }),

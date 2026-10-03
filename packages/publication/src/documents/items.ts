@@ -487,6 +487,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
       .filter((rule) => rule.target !== "adventurers" || adventurers.length > 0)
+      .filter((rule) => rule.target !== "dropped-by" || droppedBy.length > 0)
       .concat(enchanting ? [{ target: "enchants", guide: topicRef("crafting-and-gathering"), section: "enchanting" }] : [])
       .concat(heroic ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "heroic-gear" }]
         : heroicPausedIn ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "entering" }] : [])
