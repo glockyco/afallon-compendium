@@ -117,7 +117,7 @@ test("starter inventory, direct item gain and loot-table membership keep unbound
     item("items:1", [action("Gain", belt.entityKey)]),
     item(belt.entityKey, [action("Remove", belt.entityKey)]),
     item(candy.entityKey, [action("Remove", candy.entityKey)]),
-  ], itemLootTables: [table(95, "Halloween Loot", candy.entityKey), table(96, "Guardian Loot", belt.entityKey)] };
+  ], itemLootTables: [table(95, "Halloween loot", candy.entityKey), table(96, "Guardian loot", belt.entityKey)] };
   const { documents } = project([...entities, belt, candy], source, { ...relations, drops: [], gathers: [], containers: [], placements: [] },
     new Map(), new Map(), new Map(), new Map(), new Map(), undefined, {
       adventurerStartingItems: new Map([[belt.entityKey, ["npcs:2"]]]),

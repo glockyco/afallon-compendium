@@ -5,7 +5,7 @@ The catalog records starting equipment, summoned creatures, object spawners, gam
 ## What Changes
 
 - Publish proven summon, spawner, starting inventory, and ability grant relationships on the corresponding detail pages.
-- Identify loot-table membership without claiming an unbound table drops anywhere, and distinguish an item's self-consumption from an acquisition route.
+- Identify unbound loot-list membership in plain language only on items with no known acquisition route. Keep bound table relationships in publication for source classification without repeating the reader-facing drop details.
 - Render missing travel destinations without displaying raw scene identifiers or suggesting a scene exists in this game version.
 - Add boundary tests and verify representative published pages.
 

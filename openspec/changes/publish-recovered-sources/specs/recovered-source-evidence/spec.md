@@ -16,7 +16,7 @@ Creature pages SHALL identify effects whose pet ranks summon the creature and sc
 - **THEN** the effect is not listed as a summoner.
 
 ### Requirement: Item Acquisition Evidence
-Item pages SHALL identify starting equipment of named adventurers and enumerate loot tables containing the item. A table without a bound drop source SHALL not be presented as a way to obtain the item. Consuming an item SHALL not be treated as a source for that item.
+Item pages SHALL identify starting equipment of named adventurers and preserve catalog loot-table bindings for source classification. An item without a known acquisition route SHALL identify its unbound loot-list membership in plain language. An item with an acquisition route SHALL not repeat internal table names beside its drop sources. Consuming an item SHALL not be treated as a source for that item.
 
 #### Scenario: Adventurer's Starting Equipment
 - **WHEN** an adventurer's initial inventory contains an item
@@ -24,7 +24,11 @@ Item pages SHALL identify starting equipment of named adventurers and enumerate 
 
 #### Scenario: Unbound Loot Table
 - **WHEN** an item occurs only in a loot table with no binding
-- **THEN** its page names the loot table but makes clear no source for the table is known.
+- **THEN** its page names the loot list in player-facing language and makes clear that nothing in this game version drops that list.
+
+#### Scenario: Existing Acquisition Route
+- **WHEN** an item has a known acquisition route, including a creature drop or an item that opens its loot table
+- **THEN** its page shows that route without an additional loot-list section repeating table membership or displaying internal table names.
 
 #### Scenario: Self-Consumption Is Not Acquisition
 - **WHEN** using an item removes that same item

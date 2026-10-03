@@ -145,6 +145,11 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     .sort((a, b) => (b.guaranteedYield ?? 0) - (a.guaranteedYield ?? 0) || (b.spotCount ?? 0) - (a.spotCount ?? 0) || routes.indexOf(a) - routes.indexOf(b));
 }
 
+/** An unbound loot list adds context only when the item has no published acquisition route. */
+export function unboundLootTableNames(item: PublicItem, hasSources: boolean): string[] {
+  return hasSources ? [] : [...new Set(item.lootTables.filter((table) => !table.source && !table.world).map((table) => table.name))];
+}
+
 export function summaryText(entry: SummaryLine): string {
   if (entry.text) return entry.text;
   const names = entry.names.map((name) => 'ref' in name ? nameOf(name.ref) : name.text);

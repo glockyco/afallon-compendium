@@ -443,9 +443,9 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const lootTables = (input.facts.itemLootTables ?? []).filter((table) => table.entries.some((entry) => entry.item.entityKey === entity.entityKey))
     .flatMap((table) => {
       const bindings = input.lootBindings?.filter((binding) => binding.tableId === table.id) ?? [];
-      if (!bindings.length) return [{ name: plainText(table.name) }];
+      if (!bindings.length) return [{ name: displayName(table.name) }];
       return bindings.map((binding) => ({
-        name: plainText(table.name), ...(binding.sourceKey ? { source: input.resolve({ entityKey: binding.sourceKey, label: binding.sourceKey }) } : {}),
+        name: displayName(table.name), ...(binding.sourceKey ? { source: input.resolve({ entityKey: binding.sourceKey, label: binding.sourceKey }) } : {}),
         ...(binding.world ? { world: true } : {}),
       }));
     });

@@ -12,7 +12,7 @@
   import HowItWorks from '../HowItWorks.svelte';
   import LevelSlider from '../LevelSlider.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
-  import { itemSourceLines, levelRangeText, packBandText } from '../item-sources';
+  import { itemSourceLines, levelRangeText, packBandText, unboundLootTableNames } from '../item-sources';
   import { omitAlways, planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import LinkGrid from '../LinkGrid.svelte';
@@ -63,6 +63,7 @@
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
   $: questUses = itemQuestUseRows(document.usedInQuests);
   $: hasSources = itemSourceLines(document).length > 0 || document.adventurers.length > 0;
+  $: unboundLootTables = unboundLootTableNames(document, hasSources);
   $: itemChanges = document.whenUsed.itemChanges.filter((change) => change.item.key !== document.ref.key);
   $: useEffects = document.appliesEffects.filter((row) => row.trigger === 'Use');
   $: hitEffects = document.appliesEffects.filter((row) => row.trigger !== 'Use');
@@ -337,11 +338,11 @@
         <LinkGrid refs={document.gainedFromItems} {registry} />
       </Section>
     {/if}
-    {#if document.lootTables.length}
-      <Section id="loot-tables" title="Loot Tables" count={document.lootTables.length}>
+    {#if unboundLootTables.length}
+      <Section id="loot-tables" title={unboundLootTables.length === 1 ? 'Loot List' : 'Loot Lists'} count={unboundLootTables.length}>
         <div class="c-stack">
-          {#each document.lootTables as table}
-            <p>{table.name}: {#if table.source}Dropped by <EntityLink ref={table.source} {registry} />.{:else if table.world}World loot.{:else}No source for this loot table is known.{/if}</p>
+          {#each unboundLootTables as name}
+            <p>It is in the {name} list, which nothing in this version drops.</p>
           {/each}
         </div>
       </Section>

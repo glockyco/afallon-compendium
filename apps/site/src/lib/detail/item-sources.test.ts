@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { DropRow, EntityRef, PublicItem, PublicKindEntry, VendorRow } from '@afallon/contracts/public';
-import { itemSourceLines, lineHref, summaryText } from './item-sources';
+import { itemSourceLines, lineHref, summaryText, unboundLootTableNames } from './item-sources';
 
 const npc = (id: number, name: string): EntityRef => ({ key: `npcs:${id}`, kind: 'npcs', name, slug: name.toLowerCase().replaceAll(' ', '-') });
 const gold: EntityRef = { key: 'currencies:0', kind: 'currencies', name: 'Gold Coin' };
@@ -54,6 +54,20 @@ test('unbound loot tables and consuming an item are not acquisition routes, but 
   unbound.startingGearOfAdventurers = [npc(412, 'Agra Emberhide')];
   expect(itemSourceLines(unbound).map((route) => [route.label, summaryText(route)]))
     .toEqual([['Adventurer Starting Gear', 'Agra Emberhide']]);
+});
+
+test('loot-list context is only shown when the page cannot explain an acquisition route', () => {
+  const bulwark = item([drop(npc(8, 'Footman'), 25)], []);
+  bulwark.lootTables = [{ name: 'World Loot Level 1 to 10', world: true }];
+  expect(unboundLootTableNames(bulwark, itemSourceLines(bulwark).length > 0)).toEqual([]);
+  const candy = item([], []);
+  candy.lootTables = [{ name: 'Halloween Loot' }, { name: 'Halloween Loot' }, { name: 'Known Creature Table', source: npc(9, 'Wraith') }];
+  expect(unboundLootTableNames(candy, itemSourceLines(candy).length > 0)).toEqual(['Halloween Loot']);
+  candy.fromItems = [{ kind: 'pack', source: bulwark.ref, classes: [], min: 1, max: 1 }];
+  expect(unboundLootTableNames(candy, itemSourceLines(candy).length > 0)).toEqual([]);
+  const intestine = item([], []);
+  intestine.lootTables = [{ name: 'Grave' }];
+  expect(unboundLootTableNames(intestine, itemSourceLines(intestine).length > 0)).toEqual(['Grave']);
 });
 
 test('craft output outranks chance routes and links its own section', () => {
