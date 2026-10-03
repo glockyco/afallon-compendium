@@ -38,7 +38,7 @@
 <div class="item-preview">
   <ItemSearchPicker id="heroic-item" {options} selectedKey={selected?.ref.key ?? ''} onSelect={(choice) => { void choose(choice); }} {loading} {error} emptyText="No Heroic gear matches." />
   {#if item}
-    <p class="context"><EntityLink ref={item.ref} {registry} tooltip={false} rarity={item.facts.rarity} /> can drop as Heroic from creatures while the Heroic tier is on. {#if item.droppedBy.length}<a class="c-link" href={`${base}/items/${item.ref.slug}/`}>See its drop sources.</a>{/if}</p>
+    <p class="context"><EntityLink ref={item.ref} {registry} tooltip={false} rarity={item.facts.rarity} /> can drop as Heroic from creatures while the Heroic tier is on. {#if item.droppedBy.length}<a class="c-link" href={`${base}/items/${item.ref.slug}/`}>See Drop Sources</a>{/if}</p>
   {/if}
   <ItemComparison {item} {registry} {loading} {error} beforeLabel="Normal" afterLabel="Heroic" afterHeroic tableLabel="Heroic Item Stat Changes" />
   <p class="context">Only fixed stats and weapon damage gain the Heroic bonus. Random rolls, gems and enchantments do not.</p>

@@ -85,7 +85,7 @@
             {:else}<span class="kind-icon" aria-hidden="true">{@html itemGlyph}</span>{/if}
           </span>
           <span class="selected-name" id={`${id}-chosen`} data-rarity={selected.rarity?.toLocaleLowerCase()}>{selected.ref.name}</span>
-        {:else}<span id={`${id}-chosen`}>Select an item</span>{/if}
+        {:else}<span id={`${id}-chosen`}>Select an Item</span>{/if}
         <span class="chevron" aria-hidden="true"></span>
       </button>
     {/if}
