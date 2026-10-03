@@ -85,6 +85,9 @@ button, select { cursor: pointer; }
   .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
   .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: color-mix(in srgb, var(--c-surface-deep) 88%, transparent); color: var(--c-text-dim); font-size: var(--c-text-small); }
   .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: break-word; padding: .45rem .6rem; background: var(--c-surface-2); border: 1px solid var(--c-frame-strong); box-shadow: 0 3px 12px var(--c-shadow); font-size: var(--c-text-small); text-align: center; pointer-events: none; }
+  .hover-preview.has-guide { pointer-events: auto; }
+  .preview-description { margin: .45rem 0 .25rem; line-height: 1.45; }
+  .preview-guide { display: inline-block; margin-top: .2rem; }
   .preview-title { display: flex; align-items: center; justify-content: center; gap: .4rem; }
   .preview-title strong { min-width: 0; }
   .preview-meta { display: block; margin-top: .15rem; color: var(--c-text-soft); }

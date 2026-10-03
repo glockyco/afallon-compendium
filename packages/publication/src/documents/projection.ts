@@ -42,6 +42,8 @@ export interface DocumentProjectionInput {
   /** The published placements that the map links to each entity key, such as the for-sale signs of a property. */
   placementIdsByKey: ReadonlyMap<string, readonly string[]>;
   placeVariants?: ReadonlyMap<string, PlaceVariant>;
+  /** Console spots whose scanned hierarchy names this place, including zones within a larger scene. */
+  heroicConsolesByPlace?: ReadonlyMap<string, readonly PlacementRef[]>;
   excluded?: ReadonlySet<string>;
   /** The weapon types that each class can use, as the game names them. */
   classWeapons?: ReadonlyMap<string, readonly string[]>;

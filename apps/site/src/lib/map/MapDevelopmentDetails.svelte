@@ -33,7 +33,7 @@
 </script>
 
 <aside class="details-panel" bind:this={detailsPanel} aria-label="Development selection details">
-  <div class="details-header"><div>{#if kindLabel}<span class="eyebrow">{kindLabel}</span>{/if}<h2 tabindex="-1">{page?.document.ref.name ?? selectedPlacement?.label ?? 'Selection'}</h2>{#if pageHref}<a class="page-link" href={pageHref}>Open page</a>{/if}</div>{#if page || selectedPlacement || staleSelection}<button type="button" class="close-button" on:click={onClose}>Close</button>{/if}</div>
+  <div class="details-header"><div>{#if kindLabel && kindLabel !== (page?.document.ref.name ?? selectedPlacement?.label)}<span class="eyebrow">{kindLabel}</span>{/if}<h2 tabindex="-1">{page?.document.ref.name ?? selectedPlacement?.label ?? 'Selection'}</h2>{#if pageHref}<a class="page-link" href={pageHref}>Open page</a>{/if}</div>{#if page || selectedPlacement || staleSelection}<button type="button" class="close-button" on:click={onClose}>Close</button>{/if}</div>
   {#if staleSelection}<div class="stale-warning" role="alert"><p>{staleSelection}</p></div>{/if}
   {#if error}<div class="stale-warning" role="alert"><p>{error}</p><button type="button" class="inline-link" on:click={onRetry}>Retry details</button></div>{/if}
   {#if loading && !page}<p class="muted" role="status">Loading document…</p>{/if}

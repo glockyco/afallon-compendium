@@ -2,6 +2,7 @@
   import type { HeroicTier, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
+  import { spotOnMap } from '../../map-links';
   import CompareTable from '../CompareTable.svelte';
   import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -30,7 +31,7 @@
 
   $: rules = new Map(document.sections.flatMap((section) => section.rules).filter((rule) => rule.status === 'verified').map((rule) => [rule.id, rule]));
   const value = (id: string, operand: string) => rules.get(id)?.operands[operand];
-  $: consoles = rules.get('heroic-tier-console-locations')?.links ?? [];
+  $: consoles = document.consoles ?? [];
   $: level = value('heroic-tier-recommended-level', 'level');
   $: health = value('heroic-tier-creature-health-scaling', 'health');
   $: damage = value('heroic-tier-creature-damage-scaling', 'damage');
@@ -83,7 +84,12 @@
     {#if consoles.length}
       <div>
         <h2>Turn it on</h2>
-        <p>Use a Heroic Console in {#each consoles as place, index}{index ? (index === consoles.length - 1 ? (consoles.length === 2 ? ' or ' : ', or ') : ', ') : ''}<EntityLink ref={place} {registry} />{/each}, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
+        <p>Use a Heroic Console in one of these places, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
+        <nav class="console-spots opening-spots" aria-label="Find a Heroic Console">
+          {#each consoles as console (console.spot.placementId)}
+            <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
+          {/each}
+        </nav>
         <a class="c-link more" href="#entering">Turning it on and off</a>
       </div>
     {/if}
@@ -108,6 +114,13 @@
       <GuidePart id={part.id} title={part.title}>
         {#each part.sections as section (section.id)}
           <GuideSection {section} {registry} level={3}>
+            {#if section.id === 'entering' && consoles.length}
+              <nav class="console-spots" aria-label="Heroic Console locations">
+                {#each consoles as console (console.spot.placementId)}
+                  <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
+                {/each}
+              </nav>
+            {/if}
             {#if section.id === 'empowered-creatures' && strength.length}
               <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>
                 <svelte:fragment slot="corner">Your gear score</svelte:fragment>
@@ -135,6 +148,10 @@
   p { margin: 0; line-height: 1.55; }
   .more { width: fit-content; font-size: var(--c-text-small); }
   .note { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .console-spots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .35rem 1.25rem; line-height: 1.5; }
+  .console-spots.opening-spots { grid-template-columns: 1fr; }
+  .console-spots span { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; min-width: 0; }
+  .console-spots span > :global(a:last-child) { flex: none; font-size: var(--c-text-small); }
   /* A gear score is one short number, so it never breaks across lines. */
   .score { white-space: nowrap; }
 </style>

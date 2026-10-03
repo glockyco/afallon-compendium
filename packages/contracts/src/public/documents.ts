@@ -686,7 +686,7 @@ export type PlaceStartingRace = Static<typeof PlaceStartingRaceSchema>;
 export const PublicPlaceSchema = Type.Object({
   ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]), variantOf: optional(RefSchema),
   bosses: refs, creatures: Type.Array(CreatureRowSchema), npcs: Type.Array(CreatureRowSchema),
-  services: Type.Array(PlacementGroupSchema), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema), lootObjects: Type.Array(PlaceLootObjectSchema),
+  services: Type.Array(PlacementGroupSchema), heroicConsoles: optional(placements), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema), lootObjects: Type.Array(PlaceLootObjectSchema),
   quests: refs, questObjectives: refs, properties: refs, entrances: Type.Array(PlaceEntranceSchema), placesToEnter: Type.Array(PlaceToEnterSchema),
   startingRaces: Type.Array(PlaceStartingRaceSchema, { uniqueItems: true }), allPlayableRacesStartHere: Type.Boolean(),
   regions: refs, parent: optional(RefSchema), challengeStoneStart: optional(ChallengeStoneStartSchema),
@@ -915,8 +915,10 @@ export const EssenceExampleSchema = Type.Object({
   rows: Type.Array(Type.Object({ rank: Type.Union([Type.Literal("other"), Type.Literal("elite"), Type.Literal("rare"), Type.Literal("boss")]), essence: Type.Array(number, { minItems: 1 }) }, { additionalProperties: false }), { minItems: 1 }),
 }, { additionalProperties: false });
 export type EssenceExample = Static<typeof EssenceExampleSchema>;
+export const HeroicConsoleLocationSchema = Type.Object({ place: EntityRefSchema, spot: PlacementRefSchema }, { additionalProperties: false });
+export type HeroicConsoleLocation = Static<typeof HeroicConsoleLocationSchema>;
 export const HeroicTierSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("heroic-tier"), settings: HeroicSettingsSchema, ...guide, example: optional(EssenceExampleSchema),
+  ...documentBase, topic: Type.Literal("heroic-tier"), settings: HeroicSettingsSchema, ...guide, example: optional(EssenceExampleSchema), consoles: optional(Type.Array(HeroicConsoleLocationSchema)),
 }, { additionalProperties: false });
 export type HeroicTier = Static<typeof HeroicTierSchema>;
 // The most common spawner group of each gathering skill, as an example of weighted node selection. An example names no

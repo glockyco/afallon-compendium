@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, MECHANICS_TOPIC_DETAILS, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import { isEntityRef, type AdventurerGear, type AdventurerRosterRow, type AdventurersGuide, type CombatGuide, type FactionsGuide, type ChallengeStoneUse, type CharacterProgression, type CorruptionGuide, type CraftingAndGathering, type EntityRef, type ExperienceSources, type HeroicTier, type LootGuide, type PlacementRef, type PublicDocument, type PublicFaction, type PublicItem, type PublicLevel, type PublicMechanics, type PublicNpc, type PublicQuest, type PublicSkill, type Ref, type TalentPoints, type TravelGuide, type WorldQuestsGuide } from "@afallon/contracts/public";
+import { isEntityRef, type AdventurerGear, type AdventurerRosterRow, type AdventurersGuide, type CombatGuide, type FactionsGuide, type ChallengeStoneUse, type CharacterProgression, type CorruptionGuide, type CraftingAndGathering, type EntityRef, type ExperienceSources, type HeroicConsoleLocation, type HeroicTier, type LootGuide, type PlacementRef, type PublicDocument, type PublicFaction, type PublicItem, type PublicLevel, type PublicMechanics, type PublicNpc, type PublicQuest, type PublicSkill, type Ref, type TalentPoints, type TravelGuide, type WorldQuestsGuide } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import { flightNetworks } from "./flight-network";
@@ -218,7 +218,7 @@ function essenceExample(settings: Exclude<HeroicTier["settings"], { unavailable:
   })) };
 }
 
-function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier {
+function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver, consoles: readonly HeroicConsoleLocation[]): HeroicTier {
   const fact = facts.progression.facts.find((candidate) => candidate.entityKey === HEROIC_TIER_KEY);
   let settings: HeroicTier["settings"];
   if (fact?.kind !== "heroicTier") settings = { unavailable: "Heroic tier settings are unavailable." };
@@ -230,7 +230,7 @@ function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier
   if (example) verifiedRule(facts, "essence-rank-multiplier");
   return {
     ref: topicRef("heroic-tier"), description: MECHANICS_TOPIC_DETAILS["heroic-tier"].description, art: {}, topic: "heroic-tier", settings,
-    ...guide(facts, "heroic-tier", resolve), ...(example ? { example } : {}),
+    ...guide(facts, "heroic-tier", resolve), ...(example ? { example } : {}), ...(consoles.length ? { consoles: [...consoles] } : {}),
   };
 }
 
@@ -406,11 +406,11 @@ function worldQuestLinks(documents: ReadonlyMap<string, PublicDocument>): WorldQ
 /** Project reviewed guides and the guide derived from captured Corruption facts. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
   entityDocuments: ReadonlyMap<string, PublicDocument>, bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
-  rewards?: CorruptionRewards): ReadonlyMap<string, PublicMechanics> {
+  rewards?: CorruptionRewards, consoles: readonly HeroicConsoleLocation[] = []): ReadonlyMap<string, PublicMechanics> {
   const topics = new Set(facts.progression.mechanicsRules.flatMap((rule) => rule.topic === null ? [] : [rule.topic]));
   const documents: PublicMechanics[] = [
     ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve, entityDocuments)] : []),
-    ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
+    ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve, consoles)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve, entityDocuments)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
     ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_DETAILS.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),

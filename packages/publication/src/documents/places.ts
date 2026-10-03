@@ -243,6 +243,7 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
     ...(variant ? { variantOf: input.resolve({ entityKey: variant.hostKey, label: variant.hostKey }) } : {}),
     bosses: mergeRefs((fact?.bosses ?? []).filter((boss) => !variant || npcPlacedHere(boss.entityKey)).map((boss) => input.resolve(boss)), input), creatures: creaturesForPlace(placePlacements, input, indexes, true), npcs: creaturesForPlace(placePlacements, input, indexes, false),
     services: placementGroups(placePlacements, SERVICE_CATEGORIES, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
+    ...(input.heroicConsolesByPlace?.get(entity.entityKey)?.length ? { heroicConsoles: [...input.heroicConsolesByPlace.get(entity.entityKey)!] } : {}),
     lootObjects: lootObjects(entity.entityKey, variant ? { key: variant.hostKey, here } : undefined, input, indexes, conditions),
     quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
     properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),

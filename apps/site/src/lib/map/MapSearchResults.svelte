@@ -30,7 +30,7 @@
     {#if !pending && !error && placementCount === 0}<p class="empty">{searching ? 'No map locations match this search.' : 'No map locations are visible with the selected categories.'}</p>{:else}
       <ol class="result-list">{#each displayedResults as placement (placement.placementId)}
         {@const summary = summaryFor(placement)}
-        <li><button data-result type="button" class:selected-result={placement.placementId === selectedPlacementId} on:click={(event) => onSelectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => onHover(placement)} on:mouseleave={onClearHover} on:focus={() => onHover(placement)} on:blur={onClearHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
+        <li><button data-result type="button" class:selected-result={placement.placementId === selectedPlacementId} on:click={(event) => onSelectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => onHover(placement)} on:mouseleave={onClearHover} on:focus={() => onHover(placement)} on:blur={onClearHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong>{#if summary.categories !== placement.label}<small>{summary.categories}</small>{/if}</span></button></li>
       {/each}</ol>
     {/if}
   </div>

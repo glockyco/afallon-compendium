@@ -387,6 +387,8 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
       const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement), ...stationKeys])].sort();
       const serviceData = recordKeys.map((key) => record(gameplayByEntity.get(key)));
       const foundCategories = new Set(markerCategories(placement.roles, serviceData.map(creatureServices)));
+      // A typed console source identifies its map spot even when no player-facing placement role is present.
+      if (placement.sourceDetails.some((detail) => detail.family === "heroicConsole")) foundCategories.add("heroicConsole");
       const stoneName = heartChallengeStoneName(placement);
       if (stoneName) foundCategories.add("interactiveObject");
       if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(stationId, craftingStationNames));
@@ -394,7 +396,8 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
       const pageNames = [...new Set(recordKeys.map((key) => pageOf.get(key)?.name).filter((name): name is string => Boolean(name)))];
-      const label = stoneName || serviceLabel || readableName(placement.label) || pageNames.join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
+      const label = foundCategories.has("heroicConsole") ? CATEGORY_LABELS.heroicConsole
+        : stoneName || serviceLabel || readableName(placement.label) || pageNames.join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
       const levels = npcLevelsAt(placement, gameplayByEntity);
       if (levels.size > 0) npcLevels.set(placement.placementId, levels);
       const level = placementLevel(placement, levels);

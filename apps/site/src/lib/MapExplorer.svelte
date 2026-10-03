@@ -521,7 +521,7 @@
       {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close map controls" on:click={togglePanel}></button>{/if}
 
       <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker}
+        <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker} previewSelected={Boolean(previewPlacement && selectedId === previewPlacement.placementId)}
           countsPending={resultsPending} matchingCount={matchingPlacements.length} viewportCount={resultPlacements.length} showsExtraSelection={Boolean(extraSelection)}
           onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}

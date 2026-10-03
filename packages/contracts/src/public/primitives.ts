@@ -22,6 +22,7 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "questGiver",
   "townsfolk",
   "corruptionAltar",
+  "heroicConsole",
   "challengeStone",
   "craftingStation",
   "alchemyStation",
@@ -52,7 +53,7 @@ export const PUBLIC_MARKER_CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory
   herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive Object",
   town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon Entrance",
   // Only flight master characters carry the flight point category, so the label names the character, as the map does.
-  corruptionAltar: "Altar of Corruption", challengeStone: "Challenge Stone", graveyard: "Graveyard", flightPoint: "Flight Master", travelPoint: "Travel Point",
+  corruptionAltar: "Altar of Corruption", heroicConsole: "Heroic Console", challengeStone: "Challenge Stone", graveyard: "Graveyard", flightPoint: "Flight Master", travelPoint: "Travel Point",
 };
 export const publicMarkerCategory = Type.Union([
   Type.Literal("boss"),
@@ -64,6 +65,7 @@ export const publicMarkerCategory = Type.Union([
   Type.Literal("questGiver"),
   Type.Literal("townsfolk"),
   Type.Literal("corruptionAltar"),
+  Type.Literal("heroicConsole"),
   Type.Literal("challengeStone"),
   Type.Literal("craftingStation"),
   Type.Literal("alchemyStation"),

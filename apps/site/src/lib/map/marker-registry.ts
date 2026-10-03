@@ -11,6 +11,7 @@ import {
   House,
   Landmark,
   PawPrint,
+  Power,
   Scissors,
   ScrollText,
   Skull,
@@ -36,6 +37,7 @@ export const MARKER_IDS = [
   "questGiver",
   "townsfolk",
   "corruptionAltar",
+  "heroicConsole",
   "challengeStone",
   "alchemyStation",
   "cookingStation",
@@ -96,6 +98,8 @@ export interface MarkerDefinition {
   defaultVisible: boolean;
   layer: MarkerLayer;
   matches: (row: MarkerRow) => boolean;
+  description?: string;
+  guide?: { label: string; href: string };
 }
 
 const markerLayer: MarkerLayer = { id: "map-placement-markers", kind: "icon" };
@@ -512,6 +516,22 @@ export const markerRegistry = {
     defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("corruptionAltar"),
+  },
+  heroicConsole: {
+    id: "heroicConsole",
+    section: "objects",
+    label: "Heroic Console",
+    pluralLabel: "Heroic Consoles",
+    icon: Power,
+    color: [192, 132, 252],
+    iconSize: { base: 22, min: 17, max: 46 },
+    precedence: 549,
+    renderOrder: 566,
+    defaultVisible: true,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("heroicConsole"),
+    description: "Use this console to turn Heroic Tier on or off.",
+    guide: { label: "How Heroic Tier works", href: "/mechanics/heroic-tier/#entering" },
   },
   property: {
     id: "property",

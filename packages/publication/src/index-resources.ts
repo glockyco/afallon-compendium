@@ -10,6 +10,7 @@ import {
   StaticSearchIndexSchema,
   artEdges,
   type EntityRef,
+  type HeroicConsoleLocation,
   type PublicLevel,
   type PublicDocument,
   type PublicItem,
@@ -82,6 +83,33 @@ function worldEffectSources(db: Database): EffectWorldSource[] {
       place: { entityKey, label: name ?? entityKey }, placementIds: [], label: name });
   }
   return [...bySource.values()];
+}
+
+/** A typed console's observed zone names its place; its catalog placement supplies the map spot. */
+function heroicConsoleLocations(db: Database, placements: ReadonlyMap<string, PublishedPlacement>, refs: ReadonlyMap<string, EntityRef>): HeroicConsoleLocation[] {
+  const observations = db.query<{ placementId: string; zoneName: string | null }, []>(`
+    SELECT DISTINCT d.placement_id AS placementId,
+      json_extract(d.data_json, '$.source.source.hierarchyNodes[1].name') AS zoneName,
+      json_extract(d.data_json, '$.source.source.hierarchyNodes[1].siblingIndex') AS zoneOrder
+    FROM source_details d JOIN placements p ON p.placement_id = d.placement_id
+    WHERE d.family = 'heroicConsole'
+      AND json_extract(d.data_json, '$.source.sourceScene.nativeId') = p.scene_native_id
+    ORDER BY zoneOrder, placementId
+  `).all();
+  const zones = new Map<string, EntityRef[]>();
+  for (const ref of refs.values()) if (ref.kind === "places") {
+    const name = displayName(ref.name);
+    zones.set(name, [...zones.get(name) ?? [], ref]);
+  }
+  const locations: HeroicConsoleLocation[] = [];
+  for (const { placementId, zoneName } of observations) {
+    const spot = placements.get(placementId);
+    if (!spot || !spot.categories.includes("heroicConsole")) continue;
+    const places = zoneName === null ? [] : zones.get(displayName(zoneName)) ?? [];
+    if (places.length !== 1) throw new Error(`Heroic Console ${placementId} does not have one published place for its scanned zone.`);
+    locations.push({ place: places[0]!, spot: { placementId: spot.placementId, mapSpaceId: spot.mapSpaceId, label: spot.label } });
+  }
+  return locations;
 }
 
 /** Keep world-only requirement owners grouped by their recorded scene or source, not by raw occurrence. */
@@ -237,6 +265,9 @@ export async function generateIndexResources(
     const area = displayName(catalogPlacement?.area ?? "");
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
+  const consoleLocations = heroicConsoleLocations(db, publishedPlacements, refs);
+  const heroicConsolesByPlace = new Map<string, HeroicConsoleLocation["spot"][]>();
+  for (const { place, spot } of consoleLocations) heroicConsolesByPlace.set(place.key, [...heroicConsolesByPlace.get(place.key) ?? [], spot]);
   const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
     requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
@@ -255,10 +286,10 @@ export async function generateIndexResources(
   const stoneUses = projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes);
   const challengeStones = new Map((stoneUses ?? []).flatMap((use) => use.spot ? use.destinations.map((destination) => [destination.key, use.spot!] as const) : []));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
-    resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
+    resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants, heroicConsolesByPlace,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
     worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards), ...nodeDocuments]);
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();

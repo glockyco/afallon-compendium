@@ -184,3 +184,13 @@ test("names an object by its readable authored name and ignores placeholder name
   ]);
   expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old Gate"], ["placeholder", PUBLIC_MARKER_CATEGORY_LABELS.interactiveObject]]);
 });
+
+test("publishes a typed Heroic Console without a placement role even when its area has another name", async () => {
+  const placements = await publishCraftingPlacements([], [
+    { id: "console", family: "heroicConsole", roles: [], label: "Oakenvale", details: [{ source: { sourceScene: { nativeId: 1 },
+      source: { hierarchyNodes: [{ name: "World", siblingIndex: 0 }, { name: "Coalway woods", siblingIndex: 1 }] } } }] },
+  ]);
+  expect(placements.map((placement) => [placement[0], placement[1], placement[3], placement[4]])).toEqual([
+    ["console", [0, 0], "Heroic Console", ["heroicConsole"]],
+  ]);
+});

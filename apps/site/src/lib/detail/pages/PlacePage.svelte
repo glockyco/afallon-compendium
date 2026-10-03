@@ -27,7 +27,7 @@
   $: inhabitants = placeCreatureRows(document.bosses, document.creatures);
   $: quests = placeQuestRows(document.quests, document.questObjectives);
   $: hasSide = document.startingRaces.length > 0 || document.challengeStoneStart !== undefined || document.entrances.length > 0
-    || document.dungeonFinder !== undefined || document.timedDungeon !== undefined || document.services.length > 0;
+    || document.dungeonFinder !== undefined || document.timedDungeon !== undefined || document.services.length > 0 || Boolean(document.heroicConsoles?.length);
   $: identity = [
     ...(facts.levelRange ? [{ label: 'Levels', text: levelText(facts.levelRange) }] : []),
     ...(facts.guideIncluded ? [{ text: 'In the Adventure Guide' }] : []),

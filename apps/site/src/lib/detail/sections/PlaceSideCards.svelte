@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PlacementRef, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber, listText, nameOf, roleLabel, timerText } from '../../format';
@@ -56,17 +57,22 @@
   </SideCard>
 {/if}
 
-{#if services.length}
+{#if services.length || document.heroicConsoles?.length}
   <SideCard id="services" title="Services">
     <FactList>
       {#each services as service}
         <FactRow label={roleLabel(service.category).toLowerCase().replace(/^./, (initial) => initial.toUpperCase())}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
       {/each}
+      {#each document.heroicConsoles ?? [] as console, index (console.placementId)}
+        <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on map</a></FactRow>
+      {/each}
     </FactList>
+    {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier works</a></p>{/if}
   </SideCard>
 {/if}
 
 <style>
+  .console-context { margin: .75rem 0 0; line-height: 1.5; font-size: var(--c-text-small); }
   ul { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; line-height: 1.5; }
   li + li { padding-top: .65rem; border-top: 1px solid var(--c-line-soft); }
   .entrance { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .75rem; }
