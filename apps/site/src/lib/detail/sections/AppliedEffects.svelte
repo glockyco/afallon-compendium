@@ -19,7 +19,7 @@
   };
   const context = (row: AbilityAppliedEffect) => [
     row.rank === undefined ? undefined : `Rank ${row.rank + 1}`,
-    row.chance === undefined ? undefined : `${formatNumber(row.chance)}% per application attempt`,
+    row.chance === undefined ? undefined : `${formatNumber(row.chance)}% chance per hit`,
     row.target === 'Target' ? 'on the target' : row.target === 'Caster' ? 'on the caster' : row.target ? `on ${row.target.toLocaleLowerCase()}` : undefined,
     row.endless ? 'Ongoing' : row.durationSeconds ? duration(row.durationSeconds) : undefined,
   ].filter(Boolean).join(' · ');
@@ -28,7 +28,7 @@
 {#if rows.length}
   <div class="applied-effects">
     {#if heading}<h3>Applies effects</h3>{/if}
-    <p class="chance-note">Each chance is rolled when this ability tries to apply that effect to a target after its requirements are met. Targets hit and pulses can add attempts.</p>
+    <p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>
     <ul>
       {#each rows.slice(0, shown) as row, index (index)}
         {@const details = context(row)}

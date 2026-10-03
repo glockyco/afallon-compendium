@@ -98,7 +98,7 @@
   const effectColumns: RelationColumn<PublicItem['appliesEffects'][number]>[] = [
     { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
     { id: 'trigger', label: 'When', value: (row) => row.trigger, whenShared: omitAlways },
-    { id: 'chance', label: 'Chance', hint: 'Direct item effects roll once per use. Effects from an activated ability roll for each eligible application attempt. On-hit effects roll only after their stat triggers.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance', hint: 'Direct item effects roll once per use. Effects from an activated ability roll each time it hits a target. On-hit effects roll only after their stat triggers.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
     { id: 'duration', label: 'Duration', numeric: true, value: (row) => row.durationSeconds, sort: (row) => row.durationSeconds },
   ];
   $: useEffectPlan = planColumns(effectColumns, useEffects);
@@ -121,7 +121,7 @@
       {:else if document.description || useEffects.length}
         <AnswerCard title="What it does">
           {#if document.description}<p>{document.description}</p>{/if}
-          {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% per use for a direct item effect, or per application attempt for an activated ability){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
+          {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% per use for a direct item effect, or per hit for an activated ability){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
           <p class="unknown-source">No known way to get this item.</p>
         </AnswerCard>
       {:else}<p class="unknown-source">No known way to get this item.</p>{/if}
@@ -242,7 +242,7 @@
       </Section>
     {/if}
     {#if hitEffects.length}
-      <Section id="on-hit-effects" title="On-hit effects" count={hitEffects.length} line="On an eligible hit, the current value of the linked stat determines whether it triggers. Each listed chance rolls only after that stat triggers.">
+      <Section id="on-hit-effects" title="On-hit effects" count={hitEffects.length} line="When you hit, the linked stat's value is its chance to trigger. Each chance below is rolled only after it triggers.">
         <RelationTable columns={hitEffectPlan.columns} rows={hitEffects} label="Effects on hit">
           <svelte:fragment slot="cell" let:row let:column>
             {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />

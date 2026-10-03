@@ -26,7 +26,7 @@
     { id: 'source', label: 'Source', value: (row) => 'name' in row.source ? row.source.name : row.source.label, sort: (row) => 'name' in row.source ? row.source.name : row.source.label },
     { id: 'via', label: 'How', value: (row) => row.via, sort: (row) => row.via, whenShared: omitWhenShared('Ability') },
     { id: 'rank', label: 'Rank', numeric: true, value: (row) => row.rank === undefined ? undefined : row.rank + 1, sort: (row) => row.rank ?? -1, whenShared: omitWhenShared(1) },
-    { id: 'chance', label: 'Chance', hint: 'Abilities roll each eligible application attempt on a target. Item actions roll per use. On-hit stats roll this effect chance only after the stat triggers.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance', hint: 'Abilities roll each time they hit a target. Item actions roll per use. On-hit stats roll this effect chance only after the stat triggers.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
     { id: 'target', label: 'Target', value: (row) => row.target, sort: (row) => row.target, whenShared: omitWhenShared('Target') },
   ];
   const worldColumns: RelationColumn<World>[] = [
@@ -104,7 +104,7 @@
           {#if column === 'source'}<EntityLink ref={row.source} {registry} />
           {:else if column === 'via'}{row.via === 'Stat On Hit' ? 'On hit' : row.via === 'Item Use' ? 'Using item' : row.via === 'Item Ability' ? 'Item ability' : row.via === 'NPC Ability' ? 'Creature ability' : row.via === 'Caster Ability' ? 'Caster ability' : `${row.via.charAt(0)}${row.via.slice(1).toLowerCase()}`}
           {:else if column === 'rank'}{row.rank === undefined ? '' : formatNumber(row.rank + 1)}
-          {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}% ${row.via === 'Stat On Hit' ? 'when stat triggers' : row.via === 'Item Use' ? 'per use' : 'per application attempt'}`}
+          {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}% ${row.via === 'Stat On Hit' ? 'when stat triggers' : row.via === 'Item Use' ? 'per use' : 'per hit'}`}
           {:else if column === 'target'}{row.target ?? ''}{/if}
         </svelte:fragment></RelationTable>
       </Section>{/if}
