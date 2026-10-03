@@ -200,33 +200,6 @@
   </svelte:fragment>
 
   <Sections>
-    {#if hasCombatStats}
-      <Section id="combat-stats" title="Combat Stats" line={statSource?.level ? `In ${statSource.label}, level ${npcLevelText({ ...statSource.level, scales: false })}` : undefined} actionVisible={Boolean(variableStatLevel)}>
-        <svelte:fragment slot="action">
-          {#if variableStatLevel && statSource}
-            <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={creatureLevelId} label="Creature level" min={statMin} max={statMax} fallback={spawnLevel !== undefined ? Math.min(statMax, Math.max(statMin, spawnLevel)) : statMin} compact slider={false} bind:level={statLevel} /></span>
-          {/if}
-        </svelte:fragment>
-        <dl class="combat-stats" style={`--stat-columns: ${Math.min(4, primaryStats.length)}; --phone-columns: ${primaryStats.length === 4 ? 2 : primaryStats.length}`}>
-          {#each primaryStats as stat}
-            <div><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
-          {/each}
-        </dl>
-        <details class="stat-method c-disclosure">
-          <summary>How these are calculated</summary>
-          <p class="stat-formula">Each stat starts at a value that every creature shares. This creature adds its own bonus to that, and gains more with each level.</p>
-          <RelationTable columns={statColumns} rows={primaryStats} label="How combat stats are calculated" mobileLabelNumbers>
-            <svelte:fragment slot="cell" let:row let:column>
-              {#if column === 'stat'}{statLabel(row)}
-              {:else if column === 'start'}{formatNumber(row.startingValue ?? 0)}
-              {:else if column === 'bonus'}{npcStatAmount(row.amount, row.isPercent)}
-              {:else}{npcStatAmount(row.perLevel ?? 0, row.isPercent)}{/if}
-            </svelte:fragment>
-          </RelationTable>
-        </details>
-        {#if statGroups.other.length}<p class="stat-extra">It also has {listText(statGroups.other.map((stat) => `${npcStatAmount(stat.amount, stat.isPercent)} ${statLabel(stat)}`))}.</p>{/if}
-      </Section>
-    {/if}
     {#if !answer && !document.summonedBy.length && !document.spawnedBy.length && !document.recruitedByActions.length && !document.appliedEffects.length && !document.sells.length && !document.quests.length && !document.usedInQuests.length && !document.abilityPhases.some((phase) => phase.abilities.length) && !document.locations.length && !adventurer && !variantTable}
       <p class="empty">No location or services are known for this NPC.</p>
     {/if}
@@ -257,6 +230,34 @@
     {#if document.locations.length || adventurer}
       <LocationsSection {document} {registry} {variantTable}
         emptyText={adventurerGuide ? `Once ${document.ref.name} has joined, find them with Find in the Friends panel.` : undefined} />
+    {/if}
+    <!-- A reader finds the creature first, then learns how to fight it: combat stats sit with its abilities and effects. -->
+    {#if hasCombatStats}
+      <Section id="combat-stats" title="Combat Stats" line={statSource?.level ? `In ${statSource.label}, level ${npcLevelText({ ...statSource.level, scales: false })}` : undefined} actionVisible={Boolean(variableStatLevel)}>
+        <svelte:fragment slot="action">
+          {#if variableStatLevel && statSource}
+            <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={creatureLevelId} label="Creature level" min={statMin} max={statMax} fallback={spawnLevel !== undefined ? Math.min(statMax, Math.max(statMin, spawnLevel)) : statMin} compact slider={false} bind:level={statLevel} /></span>
+          {/if}
+        </svelte:fragment>
+        <dl class="combat-stats" style={`--stat-columns: ${Math.min(4, primaryStats.length)}; --phone-columns: ${primaryStats.length === 4 ? 2 : primaryStats.length}`}>
+          {#each primaryStats as stat}
+            <div><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
+          {/each}
+        </dl>
+        <details class="stat-method c-disclosure">
+          <summary>How these are calculated</summary>
+          <p class="stat-formula">Each stat starts at a value that every creature shares. This creature adds its own bonus to that, and gains more with each level.</p>
+          <RelationTable columns={statColumns} rows={primaryStats} label="How combat stats are calculated" mobileLabelNumbers>
+            <svelte:fragment slot="cell" let:row let:column>
+              {#if column === 'stat'}{statLabel(row)}
+              {:else if column === 'start'}{formatNumber(row.startingValue ?? 0)}
+              {:else if column === 'bonus'}{npcStatAmount(row.amount, row.isPercent)}
+              {:else}{npcStatAmount(row.perLevel ?? 0, row.isPercent)}{/if}
+            </svelte:fragment>
+          </RelationTable>
+        </details>
+        {#if statGroups.other.length}<p class="stat-extra">It also has {listText(statGroups.other.map((stat) => `${npcStatAmount(stat.amount, stat.isPercent)} ${statLabel(stat)}`))}.</p>{/if}
+      </Section>
     {/if}
     {#if adventurer}
       <Section id="talents" title="Talents">
