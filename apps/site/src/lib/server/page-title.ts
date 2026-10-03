@@ -37,26 +37,28 @@ function effectOutcomeLabel(effect: PublicEffect): string {
   const destination = actions.find((action) => action.label === 'Destination Scene' && action.target)?.target;
   if (destination) return `travels to ${nameOf(destination)}`;
   const weapon = actions.find((action) => action.label === 'Weapon Damage Modifier' && action.amount !== undefined);
-  if (weapon?.amount !== undefined) return `${formatNumber(weapon.amount)} weapon damage modifier`;
+  if (weapon?.amount !== undefined) return `${formatNumber(weapon.amount)} weapon modifier`;
   return effectImpact(effect).split(' · ')[0]!.replace(/[.!?]$/, '');
 }
 
-function effectContext(effect: PublicEffect, peers: readonly PublicEffect[]): string | undefined {
+function effectContext(effect: PublicEffect, peers: readonly PublicEffect[], maxLength: number): string | undefined {
   if (peers.every((other) => other === effect || other.stackLimit !== effect.stackLimit)) {
     return `stacks up to ${effect.stackLimit}`;
   }
   if (effect.ranks.length > 1 && peers.every((other) => other === effect || other.ranks.length !== effect.ranks.length)) {
     return `${effect.ranks.length} ranks`;
   }
+  let sourceFallback: string | undefined;
   for (const row of effect.appliedBy) {
     const source = nameOf(row.source);
     if (source.length <= 35 && !/(?:\bNPC\b|^Chance to )/.test(source) && peers.every((other) => other === effect || !other.appliedBy.some((candidate) => nameOf(candidate.source) === source))) {
-      return source;
+      if (source.length <= maxLength) return source;
+      if (!sourceFallback || source.length < sourceFallback.length) sourceFallback = source;
     }
   }
   const outcome = effectOutcomeLabel(effect);
   if (outcome && peers.every((other) => other === effect || effectOutcomeLabel(other) !== outcome)) {
-    return outcome;
+    return sourceFallback && outcome.length > maxLength && sourceFallback.length < outcome.length ? sourceFallback : outcome;
   }
   const stacksDiffer = peers.some((other) => other.stackLimit !== effect.stackLimit);
   if (stacksDiffer && outcome && peers.every((other) => other === effect || other.stackLimit !== effect.stackLimit || effectOutcomeLabel(other) !== outcome)) {
@@ -65,10 +67,11 @@ function effectContext(effect: PublicEffect, peers: readonly PublicEffect[]): st
   for (const row of effect.worldSources) {
     const place = row.place && nameOf(row.place);
     if (place && place.length <= 35 && peers.every((other) => other === effect || !other.worldSources.some((candidate) => candidate.place && nameOf(candidate.place) === place))) {
-      return place;
+      if (place.length <= maxLength) return place;
+      if (!sourceFallback || place.length < sourceFallback.length) sourceFallback = place;
     }
   }
-  return undefined;
+  return sourceFallback;
 }
 
 export async function pageTitle(
@@ -83,6 +86,7 @@ export async function pageTitle(
   const label = page.kind === 'mechanics' ? 'Mechanics' : registry.find((kind) => kind.kind === page.kind)?.label;
   if (!label) throw new Error(`No reader-facing kind for ${page.kind}.`);
   const siblings = peers.filter((entry) => entry.ref.kind === page.kind);
+  const kindPrefix = peers.some((entry) => entry.ref.kind !== page.kind) ? `${label}, ` : '';
   let context: string | undefined;
   if (siblings.length > 1) {
     if (page.kind !== 'effects') throw new Error(`${name} has multiple ${page.kind} pages without a visible distinction.`);
@@ -91,9 +95,9 @@ export async function pageTitle(
       if (sibling.kind !== 'effects') throw new Error(`Expected effect for ${entry.ref.key}.`);
       return sibling.document;
     }));
-    context = effectContext(page.document, effects);
+    context = effectContext(page.document, effects, 60 - `${name} (${kindPrefix}) | Afallon Wiki`.length);
     if (!context) throw new Error(`${name} has several effect pages with no distinct player-facing facts.`);
   }
-  const kindContext = context ? `${label}, ${context}` : label;
+  const kindContext = context ? `${kindPrefix}${context}` : label;
   return { title: `${name} (${kindContext}) | Afallon Wiki`, effectSubtitle: context };
 }

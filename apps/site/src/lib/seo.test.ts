@@ -20,8 +20,8 @@ test('a world drop from any creature states its actual eligible levels', () => {
 });
 
 test('uses an available container source before creature drops and never invents absent sources', () => {
-  expect(entityDescription(item({ inContainers: [{ label: 'Locked Wooden Treasure Chest' }] }))).toContain('Find it in Locked Wooden Treasure Chest. Forest Scout can drop it at levels 6–14.');
-  expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/can drop|sells it|Find it in/);
+  expect(entityDescription(item({ collectedFrom: [{ label: 'Wooden Treasure Chest (Locked)' }] }))).toContain('Found in locked wooden treasure chests. Forest Scout can drop it at levels 6–14.');
+  expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/can drop|sells it|Found in/);
 });
 
 test('uses only known NPC level and place, without inventing a location for an unplaced NPC', () => {
@@ -29,19 +29,19 @@ test('uses only known NPC level and place, without inventing a location for an u
     ref: { name: 'Training Dummy' }, facts: { npcType: 'Creature', level: { min: 5, max: 5 } },
     locations, places: [], drops: [],
   } }) as unknown as StaticDocument;
-  expect(entityDescription(npc([{ label: 'Oakwood Training Grounds' }]))).toContain('creature, level 5 in Afallon. Find Training Dummy in Oakwood Training Grounds.');
-  expect(entityDescription(npc([]))).not.toContain('Find Training Dummy in');
+  expect(entityDescription(npc([{ label: 'Oakwood Training Grounds' }]))).toContain('creature, level 5 in Afallon. Found in Oakwood Training Grounds.');
+  expect(entityDescription(npc([]))).not.toContain('Found in');
   const scalingNpc = { kind: 'npcs', document: {
     ref: { name: 'Training Dummy' }, facts: { npcType: 'MOB', creatureType: 'MECHANICAL', level: { min: 15, max: 30, scales: true }, roles: [] },
     locations: [{ label: 'Oakenvale' }], places: [], drops: [],
   } } as unknown as StaticDocument;
-  expect(entityDescription(scalingNpc)).toContain('mechanical creature in Afallon. Find Training Dummy in Oakenvale. Its level adjusts to your character.');
+  expect(entityDescription(scalingNpc)).toContain('mechanical creature in Afallon. Found in Oakenvale. Its level adjusts to your character.');
 });
 
 test('an oversized source does not cut a fact in half', () => {
   const description = entityDescription(item({ inContainers: [{ label: 'A '.repeat(100) + 'Treasure' }] }));
   expect(description).toContain('uncommon shield in Afallon.');
-  expect(description).not.toContain('Find it in A');
+  expect(description).not.toContain('Collected from A');
 });
 
 test('equipment and quest summaries use complete player-facing facts', () => {
@@ -54,6 +54,35 @@ test('equipment and quest summaries use complete player-facing facts', () => {
     starts: [{ kind: 'npc', npc: { key: 'npcs:58', kind: 'npcs', name: 'Esko' } }],
   } } as unknown as StaticDocument;
   expect(entityDescription(quest)).toContain('Collect Funnel Weaver Egg (10 needed). Start it with Esko.');
+});
+
+test('related names do not substitute for abilities, places, and stat facts', () => {
+  const ability = { kind: 'abilities', document: {
+    ref: { name: 'Summon Priest' }, description: null, versions: [{
+      appliedEffects: [{ effect: { key: 'effects:409', kind: 'effects', name: 'Summon Thamiel Priest Companion' } }],
+      ranks: [{ lines: [{ spans: [{ tone: 'effect', text: 'Summons Thamiel' }] }] }],
+      learnedBy: [], usedBy: [],
+    }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(ability)).toContain('It summons Thamiel.');
+  expect(entityDescription(ability)).not.toContain('It applies Summon Thamiel Priest Companion');
+  const sameNameAbility = { kind: 'abilities', document: { ref: { name: 'Cleave' }, description: null,
+    versions: [{ learnedBy: [], usedBy: [], ranks: [], appliedEffects: [{ effect: { key: 'effects:0', kind: 'effects', name: 'Cleave' } }] }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(sameNameAbility)).not.toContain('It applies Cleave');
+  const station = { kind: 'craftingStations', document: { ref: { name: 'Alchemy' },
+    skills: [{ key: 'skills:8', kind: 'skills', name: 'Alchemy' }],
+    places: [{ label: 'Chillwind Heights' }], recipes: [{ product: { name: 'Elixir' } }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(station)).toContain('Make 1 recipe at an Alchemy station in Afallon. Find one in Chillwind Heights.');
+  const place = { kind: 'places', document: {
+    ref: { name: 'Sanctum of the Veilpiercer' }, facts: { placeType: 'zone' }, description: null,
+    bosses: [], entrances: [{ place: { key: 'scenes:47', kind: 'places', name: 'Afallon' },
+      placements: [{ label: 'Veilpiercer Staging Grounds' }] }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(place)).toContain('Enter from Veilpiercer Staging Grounds in Afallon.');
+  const stat = { kind: 'stats', document: { ref: { name: 'Health' }, description: 'Death occurs when reaching 0.', category: 'General' } } as unknown as StaticDocument;
+  expect(entityDescription(stat)).toBe('Health is an Afallon stat. Death occurs when reaching 0.');
 });
 
 test('canonical URLs ignore query and preserve slash paths', () => {

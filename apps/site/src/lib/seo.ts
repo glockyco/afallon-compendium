@@ -84,6 +84,7 @@ function openingSentence(description: string | null, limit = 135): string | unde
     : /^Earned by /.test(sentence) ? `It is earned by ${sentence.slice(10)}`
     : /^Chance on hit: Restores /.test(sentence) ? `On hit, it can restore ${sentence.slice(24)}`
     : /^The amount of /.test(sentence) ? `It measures ${sentence[0]!.toLowerCase()}${sentence.slice(1)}`
+    : /^The percentage /.test(sentence) ? `It measures ${sentence[0]!.toLowerCase()}${sentence.slice(1)}`
     : /^Seconds between /.test(sentence) ? `It measures the ${sentence[0]!.toLowerCase()}${sentence.slice(1)}`
     : /^(?:Calls|Summons|Unleashes|Restores|Deals|Grants|Changes) /.test(sentence)
       ? `It ${sentence[0]!.toLowerCase()}${sentence.slice(1)}` : sentence;
@@ -125,7 +126,15 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const dropSentence = dropSource === 'Any creature'
         ? `It can drop from creatures${dropLevels}.`
         : dropSource ? `${dropSource} can drop it${dropLevels}.` : undefined;
-      const obtained = source ? `Find it in ${source}.`
+      const locked = source?.match(/^(.+) \(Locked\)$/);
+      const pickaxe = source?.match(/^(.+) \(Pickaxe\)$/);
+      const obtained = source === name ? undefined
+        : locked ? `Found in locked ${locked[1]!.toLowerCase()}s.`
+        : source === 'Backpack' ? 'Found in backpacks.'
+        : source === 'Chest' ? 'Found in chests.'
+        : source === 'Object' ? 'Collected from a world object.'
+        : pickaxe ? `Collected from ${pickaxe[1]!.toLowerCase()} with a pickaxe.`
+        : source ? `Collected from ${source.replace(/ \([^)]*\)$/, '')}.`
         : item.soldBy[0] ? `${nameOf(item.soldBy[0].counterpart)} sells it.`
         : item.crafting ? 'Find its crafting recipe on this page.' : undefined;
       return describe(paired ? `${name} is a pair of ${identity} in Afallon.` : `${name} is ${/^[aeiou]/i.test(identity) ? 'an' : 'a'} ${identity} in Afallon.`,
@@ -143,11 +152,12 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const level = npc.facts.level && !npc.facts.level.scales ? `, level ${levelText(npc.facts.level)}` : '';
       const place = npc.locations[0]?.label ?? npc.places[0]?.label;
       const roaming = npc.description?.match(/^A roaming (.+) adventurer\.$/i);
+      const firstDrop = npc.drops[0], secondDrop = npc.drops[1];
       return describe(roaming ? `${name} is a roaming ${roaming[1]} adventurer in Afallon.` : `${name} is ${/^[aeiou]/i.test(kind) ? 'an' : 'a'} ${kind}${level} in Afallon.`,
-        place ? `Find ${name} in ${place}.` : undefined,
+        place ? `Found in ${place}.` : undefined,
         npc.facts.level?.scales ? 'Its level adjusts to your character.' : undefined,
         roaming ? undefined : openingSentence(npc.description),
-        !place && npc.drops[0] ? `It can drop ${nameOf(npc.drops[0].counterpart)}.` : undefined);
+        !place && firstDrop ? `It can drop ${nameOf(firstDrop.counterpart)}${secondDrop ? ` and ${nameOf(secondDrop.counterpart)}` : ''}.` : undefined);
     }
     case 'quests': {
       const quest = page.document;
@@ -162,8 +172,10 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const place = page.document;
       const type = place.facts.placeType?.toLowerCase() ?? 'place';
       const level = place.facts.levelRange ? ` for levels ${levelText(place.facts.levelRange)}` : '';
+      const entrance = place.entrances[0];
       return describe(`${name} is an Afallon ${type}${level}.`,
         place.bosses[0] ? `Find ${nameOf(place.bosses[0])} among its bosses.` : undefined,
+        entrance?.placements[0] ? `Enter from ${entrance.placements[0].label}${entrance.placements[0].label === nameOf(entrance.place) ? '' : ` in ${nameOf(entrance.place)}`}.` : undefined,
         openingSentence(place.description));
     }
     case 'abilities': {
@@ -171,10 +183,15 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const version = ability.versions[0];
       const learner = version?.learnedBy[0]?.class;
       const user = version?.usedBy[0];
+      const opening = openingSentence(ability.description);
+      const summonLine = opening ? undefined : version?.ranks[0]?.lines?.find((line) => line.spans?.some((span) => span.tone === 'effect' && /^Summons /.test(span.text)));
+      const summon = summonLine?.spans?.find((span) => span.tone === 'effect' && /^Summons /.test(span.text))?.text;
+      const applied = version?.appliedEffects[0]?.effect;
       return describe(`${name} is an Afallon ability.`,
-        openingSentence(ability.description),
+        opening,
+        summon ? `It ${summon[0]!.toLowerCase()}${summon.slice(1).replace(/[.!?]$/, '')}.` : undefined,
         learner ? `${nameOf(learner)} can learn it.` : user ? `${nameOf(user)} uses it.` : undefined,
-        version?.appliedEffects[0] ? `It applies ${nameOf(version.appliedEffects[0].effect)}.` : undefined);
+        !opening && !summon && !learner && !user && applied && nameOf(applied) !== name ? `It applies ${nameOf(applied)}.` : undefined);
     }
     case 'effects': {
       const effect = page.document;
@@ -190,7 +207,7 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const outcome = change
         ? `It changes ${nameOf(change.target!)} by ${formatNumber(change.amount!)}${change.unit === '%' ? '%' : ''}.`
         : damage ? `It deals ${formatNumber(damage.amount!)}${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage.`
-        : summon ? `It summons ${nameOf(summon)}.`
+        : summon ? `It summons ${nameOf(summon) === name ? 'a companion' : nameOf(summon)}.`
         : weaponModifier !== undefined ? `Its weapon damage modifier is ${formatNumber(weaponModifier)}.`
         : destination ? `It leads to ${nameOf(destination)}.` : openingSentence(effect.description);
       const stacking = effectSubtitle?.startsWith('stacks up to')
@@ -198,7 +215,7 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
         : undefined;
       return describe(`${name} is an Afallon ${type} effect.`, stacking, outcome,
         effectSubtitle?.endsWith(' ranks') ? `Has ${formatNumber(effect.ranks.length)} ranks.` : undefined,
-        source ? `${nameOf(source)} applies it.` : undefined,
+        source && nameOf(source) !== name && nameOf(source).length <= 48 && !nameOf(source).startsWith('Chance to ') ? `${nameOf(source)} applies it.` : undefined,
         effect.isState && effect.durationSeconds > 0 && effect.durationSeconds < 86400 ? `Lasts ${durationWords(effect.durationSeconds)}.` : undefined);
     }
     case 'mechanics': {
@@ -234,10 +251,14 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
     }
     case 'craftingStations': {
       const station = page.document;
-      return describe(`${name} is an Afallon crafting station.`,
-        station.skills[0] ? `It is used for ${nameOf(station.skills[0])}.` : undefined,
-        station.places[0] ? `Find it in ${station.places[0].label}.` : undefined,
-        station.recipes.length ? `Make ${formatNumber(station.recipes.length)} recipes here.` : undefined);
+      const skill = station.skills[0] && nameOf(station.skills[0]);
+      const stationNoun = name === 'Furnace' ? 'furnace' : `${name} station`;
+      const article = /^[aeiou]/i.test(stationNoun) ? 'an' : 'a';
+      const lead = station.recipes.length
+        ? `Make ${formatNumber(station.recipes.length)} ${skill && skill !== name ? `${skill} ` : ''}${station.recipes.length === 1 ? 'recipe' : 'recipes'} at ${article} ${stationNoun} in Afallon.`
+        : `Use ${article} ${stationNoun} for ${skill ?? 'crafting'} in Afallon.`;
+      return describe(lead,
+        station.places[0] ? `Find one in ${station.places[0].label}.` : undefined);
     }
     case 'currencies': {
       const currency = page.document;
@@ -255,8 +276,7 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
     case 'stats': {
       const stat = page.document;
       return describe(`${name} is an Afallon stat.`,
-        openingSentence(stat.description),
-        stat.category ? `Its category is ${stat.category.toLowerCase()}.` : undefined);
+        openingSentence(stat.description));
     }
     case 'classes': {
       const characterClass = page.document;
