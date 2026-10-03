@@ -332,6 +332,10 @@
   .class-tile :global(.entity-link::after), .skill-tile :global(.entity-link::after) { content: ''; position: absolute; inset: 0; }
   .class-tile:has(:global(.entity-link:focus-visible)), .skill-tile:has(:global(.entity-link:focus-visible)) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .class-tile :global(.plain .name), .skill-tile :global(.plain .name), .dungeon-link :global(.plain .name), .boss-link :global(.plain .name), .band :global(.plain .name), .hero-caption :global(.plain .name) { text-decoration: none; }
+  /* A card's own highlight shows that it links, so the names that link dungeon, class, and skill cards gain no underline
+     on hover either. The stretched link is hovered anywhere on its card, so an underline would also flicker whenever the
+     pointer crossed a boss name. The repeated class outweighs the hover underline of a plain link. */
+  .dungeon-link.dungeon-link :global(.plain.entity-link:hover .name), .class-tile.class-tile :global(.plain.entity-link:hover .name), .skill-tile.skill-tile :global(.plain.entity-link:hover .name) { text-decoration: none; }
 
   /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
   .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .4rem; }
