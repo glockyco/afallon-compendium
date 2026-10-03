@@ -65,7 +65,7 @@
     {#if data.world?.artwork}<img class="hero-art" src={artUrl(data.world.artwork)} width={data.world.artwork.width} height={data.world.artwork.height} alt="" fetchpriority="high" />{/if}
     <div class="hero-inner">
       <h1 id="hub-title">Afallon Compendium</h1>
-      <p class="hero-intro">The Afallon wiki and interactive map are generated from the game's files. Afallon is a single‑player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers.</p>
+      <p class="hero-intro">Afallon is a single‑player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers. This&nbsp;wiki and interactive map are generated from the game's files.</p>
       <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the Map</a>
