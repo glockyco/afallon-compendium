@@ -85,7 +85,7 @@
       <div>
         <h2>Turn it on</h2>
         <p>Use a Heroic Console in one of these places, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
-        <nav class="console-spots opening-spots" aria-label="Find a Heroic Console">
+        <nav class="console-spots" aria-label="Find a Heroic Console">
           {#each consoles as console (console.spot.placementId)}
             <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
           {/each}
@@ -115,6 +115,7 @@
         {#each part.sections as section (section.id)}
           <GuideSection {section} {registry} level={3}>
             {#if section.id === 'entering' && consoles.length}
+              <p class="console-lead">Find each console on the map.</p>
               <nav class="console-spots" aria-label="Heroic Console locations">
                 {#each consoles as console (console.spot.placementId)}
                   <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
@@ -148,8 +149,8 @@
   p { margin: 0; line-height: 1.55; }
   .more { width: fit-content; font-size: var(--c-text-small); }
   .note { color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .console-spots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .35rem 1.25rem; line-height: 1.5; }
-  .console-spots.opening-spots { grid-template-columns: 1fr; }
+  .console-lead { margin-top: .5rem; color: var(--c-text-dim); }
+  .console-spots { display: grid; width: min(100%, 22rem); gap: .35rem; line-height: 1.5; }
   .console-spots span { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; min-width: 0; }
   .console-spots span > :global(a:last-child) { flex: none; font-size: var(--c-text-small); }
   /* A gear score is one short number, so it never breaks across lines. */
