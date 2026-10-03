@@ -62,7 +62,7 @@ export const EntityRefSchema = Type.Object({
 }, { additionalProperties: false });
 export type EntityRef = Static<typeof EntityRefSchema>;
 
-export const UnresolvedRefSchema = Type.Object({ key: Type.Null(), label: text }, { additionalProperties: false });
+export const UnresolvedRefSchema = Type.Object({ key: Type.Null(), label: text, icon: optional(ArtRefSchema) }, { additionalProperties: false });
 export type UnresolvedRef = Static<typeof UnresolvedRefSchema>;
 
 export const RefSchema = Type.Union([EntityRefSchema, UnresolvedRefSchema]);
@@ -1079,6 +1079,7 @@ export const PublicEffectSchema = Type.Object({
     group: optional(text), count: optional(count) }, { additionalProperties: false })),
   worldSources: Type.Array(Type.Object({ family: text, place: optional(RefSchema), sourceCount: count,
     labels: Type.Array(text) }, { additionalProperties: false })),
+  explainedBy: Type.Array(Type.Object({ guide: EntityRefSchema, section: anchor, title: text, rule: MechanicsRuleSchema }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type PublicEffect = Static<typeof PublicEffectSchema>;
 

@@ -2,6 +2,8 @@ import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts,
 import type { PublicEffect, Ref } from "@afallon/contracts/public";
 import type { PublishedPage } from "../references";
 import { displayName, plainText } from "../text";
+import { projectRule, topicRef } from "../placed-rules";
+import { GUIDES } from "../guide-sections";
 import { type DocumentProjectionInput, mergeRefs, pageBase } from "./projection";
 
 /** One scanned world source applying an effect. Keep source identity outside the published document. */
@@ -138,7 +140,7 @@ function namedChecks(relations: CatalogRelations): Map<string, CatalogCondition[
   return result;
 }
 
-/** Only effects with an observed application edge or a named requirement get pages. */
+/** An observed application, named requirement, or verified mechanics explanation makes an effect reachable. */
 export function effectPageKeys(facts: CatalogFacts, relations: CatalogRelations, worldSources: readonly EffectWorldSource[] = []): ReadonlySet<string> {
   const existing = new Set(facts.progression.facts.filter((fact) => fact.kind === "effects").map((fact) => fact.entityKey));
   const keys = new Set<string>();
@@ -148,6 +150,9 @@ export function effectPageKeys(facts: CatalogFacts, relations: CatalogRelations,
   for (const invite of facts.adventurerInviteEffects) add(keyOf(invite.effect));
   for (const source of worldSources) add(source.effectKey);
   for (const key of namedChecks(relations).keys()) add(key);
+  for (const rule of facts.progression.mechanicsRules) if (rule.status === "verified" && rule.topic !== undefined) {
+    for (const link of rule.links) add(keyOf(link));
+  }
   return keys;
 }
 
@@ -309,11 +314,17 @@ export function projectEffectPage(page: PublishedPage, input: EffectInput, _cond
   const fact = input.facts.progression.facts.find((candidate) => candidate.entityKey === key);
   if (fact?.kind !== "effects") throw new Error(`Missing effect facts for ${key}.`);
   const effect = fact.details;
+  const explainedBy: PublicEffect["explainedBy"] = input.facts.progression.mechanicsRules.flatMap((rule) => {
+    if (rule.status !== "verified" || !rule.topic || !rule.links.some((link) => link.entityKey === key)) return [];
+    const section = GUIDES[rule.topic].sections.find((entry) => entry.id === rule.section);
+    if (!section) throw new Error(`Rule ${rule.ruleId} names section ${rule.section}, which guide ${rule.topic} does not define.`);
+    return [{ guide: topicRef(rule.topic), section: rule.section, title: section.title, rule: projectRule(rule, input.resolve) }];
+  });
   return {
     ...pageBase(page, input), type: readable(effect.effectType.name), isState: effect.isState,
     durationSeconds: effect.duration, endless: effect.endless, pulses: effect.pulses, stackLimit: effect.stackLimit,
     persistent: effect.isPersistent, canBeManuallyRemoved: effect.canBeManuallyRemoved,
     ranks: effect.ranks.map((rank) => ({ rank: rank.rank, actions: rankActions(effect, rank, input), ...(rank.requiredEffect ? { requiredEffect: ref(rank.requiredEffect, input), requiredEffectDamageModifier: rank.requiredEffectDamageModifier } : {}) })),
-    appliedBy: applicationSources(key, input), checkedBy: checkedSources(key, input), worldSources: worldGroups(key, input),
+    appliedBy: applicationSources(key, input), checkedBy: checkedSources(key, input), worldSources: worldGroups(key, input), explainedBy,
   };
 }

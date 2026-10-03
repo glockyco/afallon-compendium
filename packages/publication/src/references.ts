@@ -363,7 +363,10 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   // An excluded record keeps its formatted name for text, like a class without a page, but gets no page and no slug.
   for (const entity of entities) {
     const kind = excluded.has(entity.entityKey) ? publicKindForCatalogKind(entity.kind) : null;
-    if (kind !== null) refs.push([entity.entityKey, { key: entity.entityKey, kind, name: baseName(entity, kind) }]);
+    if (kind !== null) {
+      const icon = kind === "effects" ? context.artByEntity?.get(entity.entityKey)?.icon : undefined;
+      refs.push([entity.entityKey, { key: entity.entityKey, kind, name: baseName(entity, kind), ...(icon ? { icon } : {}) }]);
+    }
   }
   // Recipes have no pages: their links use the product's Crafting section or the skill's anchored row. A link keeps the
   // recipe's own icon, because the game shows that icon for the recipe.
@@ -404,7 +407,7 @@ export function resolveCatalogEndpoint(refs: ReadonlyMap<string, EntityRef>, end
   if (endpoint.entityKey !== null) {
     const ref = refs.get(endpoint.entityKey);
     if (ref) return PUBLIC_KIND_BY_KIND[ref.kind].pages && !ref.slug
-      ? { key: null, label: ref.name } : ref;
+      ? { key: null, label: ref.name, ...(ref.kind === "effects" && ref.icon ? { icon: ref.icon } : {}) } : ref;
   }
   return { key: null, label: plainText(endpoint.label ?? endpoint.entityKey ?? "") || "Unknown" };
 }

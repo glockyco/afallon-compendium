@@ -94,6 +94,37 @@ test("connected effects get stable pages while orphan effects stay plain text", 
   expect(createReferenceResolver(refs)({ entityKey: "effects:301", label: "RESET RENT TIMER 2" })).toEqual({ key: null, label: "Reset Rent Timer 2" });
 });
 
+test("a verified mechanics link publishes an effect, but an unknown rule does not", () => {
+  const entities = [entity("effects", 515, "Beacon of Chaos"), entity("effects", 516, "Engorged")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, progression: {
+    ...emptyFacts.progression,
+    facts: entities.map((row) => ({ kind: "effects", entityKey: row.entityKey, name: row.name,
+      details: { effectType: { name: "EffectChecker" } } }) as CatalogProgressionFact),
+    mechanicsRules: entities.map((row, index) => ({
+      ruleId: `affix-${index}`, topic: "heroic-tier", section: "affixes", ordinal: index,
+      status: index === 0 ? "verified" : "unknown", phrase: "{#0} changes combat.", operands: {},
+      links: [{ entityKey: row.entityKey, label: row.name! }], sources: [], placements: [],
+    })),
+  } };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect(pages.get("effects:515")?.ref.slug).toBe("beacon-of-chaos");
+  expect(pages.has("effects:516")).toBe(false);
+  expect(refs.get("effects:516")).toMatchObject({ name: "Engorged" });
+  expect(refs.get("effects:516")).not.toHaveProperty("slug");
+});
+
+test("a withheld effect stays named and illustrated without gaining a page", () => {
+  const marker = entity("effects", 515, "Beacon of Chaos");
+  const icon = { url: "art/beacon.webp", sha256: "a".repeat(64), bytes: 12, width: 32, height: 32 };
+  const { refs, pages } = buildEntityReferences([marker], {
+    excluded: new Set([marker.entityKey]), artByEntity: new Map([[marker.entityKey, { icon }]]),
+  });
+  expect(pages.has(marker.entityKey)).toBe(false);
+  expect(createReferenceResolver(refs)({ entityKey: marker.entityKey, label: marker.name! })).toEqual({
+    key: null, label: marker.name!, icon,
+  });
+});
+
 test("different effects can share their authored name without displaying record numbers", () => {
   const entities = [entity("effects", 144, "Corruption"), entity("effects", 215, "Corruption")];
   const facts: CatalogFacts = { ...emptyFacts, entities, progression: {

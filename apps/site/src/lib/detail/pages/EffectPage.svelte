@@ -11,6 +11,7 @@
   import HowItWorks from '../HowItWorks.svelte';
   import { mergeRows, planColumns, omitWhenShared, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
+  import RulePhrase from '../sections/RulePhrase.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -71,9 +72,13 @@
     <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} effect`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
     <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
       {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
+      {:else if document.explainedBy.length}
+        {#each document.explainedBy as explanation (explanation.rule.id)}
+          <p class="impact"><RulePhrase rule={explanation.rule} {registry} /></p>
+        {/each}
       {:else if summon?.target}<p class="impact">Summons {summonCount && summonCount > 1 ? `${formatNumber(summonCount)} ` : ''}<EntityLink ref={summon.target} {registry} />{summonDuration ? ` for ${durationWords(summonDuration)}` : ''}.</p>
       {:else if leadImpact}<p class="impact">{leadImpact}</p>{/if}
-      {#if document.description && document.description !== impact}<p>{document.description}</p>{/if}
+      {#if document.description && document.description !== impact && !document.explainedBy.length}<p>{document.description}</p>{/if}
       {#if actions.length && !['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type)}
         <ul class="actions">{#each actions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
       {:else if detailActions.length}
@@ -81,9 +86,15 @@
           <ul class="actions">{#each detailActions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
         </DetailsDisclosure>
       {/if}
-      {#if duration && !side}<p>Lasts {duration}.</p>{/if}
+      {#if duration && !side}<p>Lasts {duration.toLowerCase()}.</p>{/if}
       {#if first?.requiredEffect}<p>Damage depends on <EntityLink ref={first.requiredEffect} {registry} />.</p>{/if}
-      <HowItWorks guide={combat} section="effects" label="How combat effects work" />
+      {#if document.explainedBy.length}
+        {#each document.explainedBy as explanation (explanation.rule.id)}
+          <HowItWorks guide={explanation.guide} section={explanation.section} label={`${explanation.guide.name}: ${explanation.title.toLowerCase()}`} />
+        {/each}
+      {:else}
+        <HowItWorks guide={combat} section="effects" label="How combat effects work" />
+      {/if}
     </AnswerCard></div>
     <svelte:fragment slot="side"><FactsCard {facts} title="At a glance" /></svelte:fragment>
     <Sections>

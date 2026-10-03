@@ -124,7 +124,7 @@
 {:else if resolved}
   <span class="entity-text" class:truncate class:plain={bare} data-rarity={rarity} title={truncate ? resolved.name : undefined}>{#if art && !bare}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{/if}<span class="name">{resolved.name}</span></span>
 {:else if ref.key === null}
-  <span class="entity-text">{ref.label}</span>
+  <span class="entity-text">{#if ref.icon}<img src={`${base}/data/${ref.icon.url}`} width={ref.icon.width} height={ref.icon.height} alt="" loading="lazy" />{/if}<span class="name">{ref.label}</span></span>
 {/if}
 
 <style>

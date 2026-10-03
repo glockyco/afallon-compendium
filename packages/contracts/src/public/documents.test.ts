@@ -149,7 +149,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     type: "Stat", isState: true, durationSeconds: 600, endless: false, pulses: 1, stackLimit: 1,
     persistent: false, canBeManuallyRemoved: true, ranks: [{ rank: 0, actions: [{ label: "Changes", amount: 10,
       target: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" } }] }],
-    appliedBy: [{ source: item, via: "Item Use" }], checkedBy: [], worldSources: [] } satisfies PublicEffect,
+    appliedBy: [{ source: item, via: "Item Use" }], checkedBy: [], worldSources: [], explainedBy: [] } satisfies PublicEffect,
 };
 
 test("every kind document validates and rejects unknown properties", () => {
