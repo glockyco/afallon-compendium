@@ -3,7 +3,7 @@
   import type { NpcStatRow, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, listText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, levelText, listText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -48,6 +48,7 @@
     ...(facts.tameable ? [{ label: 'Hunter Pet', text: 'Can Be Tamed' }] : []),
   ] satisfies TitleFact[];
   const combatOrder = ['Health', 'Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
+  const primaryStatNames = ['Health', 'Strength', 'Armor', 'Magic Armor'] as const;
   const combatRank = (name: string) => { const index = combatOrder.indexOf(name); return index < 0 ? combatOrder.length : index; };
   const statLabel = (stat: NpcStatRow) => { const name = nameOf(stat.stat); return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(); };
   function groupStats(stats: NpcStatRow[], level: number | undefined) {
@@ -66,13 +67,21 @@
   let statLevel = 1;
   $: statLevel = Math.min(statMax, Math.max(statMin, statLevel));
   $: statGroups = groupStats(combatStats, statSource ? statLevel : undefined);
-  $: health = statGroups.effective.find((stat) => nameOf(stat.stat).toLowerCase() === 'health');
+  $: primaryStats = primaryStatNames.map((name) => {
+    const stat = statGroups.effective.find((row) => nameOf(row.stat) === name);
+    const available = name !== 'Health' || !stat || (projectNpcStat(stat, statLevel) ?? 0) > 0;
+    return { label: name === 'Magic Armor' ? 'Magic armor' : name, stat: available ? stat : undefined };
+  });
+  $: health = primaryStats[0]?.stat;
+  $: boss = document.bossOf.length > 0 || facts.roles.some((role) => roleLabel(role) === 'Boss');
+  $: hasCombatStats = combat && !adventurer && document.locations.length > 0 && combatStats.length > 0;
+  $: variableStatLevel = statSource?.level && statMax > statMin && !boss;
   $: hours = adventurer?.joinAfterHours ?? 0;
   $: summaryFacts = adventurer ? [
     ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),
     { label: 'Party role', value: adventurer.role, ...(adventurer.defaultRole ? { note: 'By default' } : {}), ...(rosterGuide ? { guide: rosterGuide } : {}) },
   ] : [
-    ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
+    ...(facts.level?.min ? [{ label: 'Level', value: levelText(facts.level), ...(facts.level.scales ? { note: 'Scales with the player' } : {}) }] : []),
     ...(combat && document.locations.length && !kill && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(combat && document.locations.length && !document.adventurerGear && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ];
@@ -97,8 +106,8 @@
   $: rosterGuide = document.placedRules.find((rule) => rule.target === 'adventurer');
   // Lead with the NPC's actual service or loot. Empty drops and absent placements are not primary answers.
   $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
-  $: hasSide = Boolean(adventurer || combat && (combatStats.length || summaryFacts.length > 1 || kill) || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
-  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [`${summaryFacts[0]!.label} ${summaryFacts[0]!.value.replace(', scales with the player', ', Scales with the Player')}`] : [])].filter(Boolean).join(' · ');
+  $: hasSide = Boolean(adventurer || combat && summaryFacts.length > 1 || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
+  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level).replace(', scales with the player', ', Scales with the Player')}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
   const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type },
@@ -110,7 +119,7 @@
     <TitleBlock name={document.ref.name} typeLine={identityLine} facts={titleFacts} imageUrl={titleArt ? `${base}/data/${titleArt.url}` : undefined} portrait={Boolean(portrait)} mapHref={document.spotCount ? entityOnMap(document.ref.key) : undefined} {registry} />
     {#if !adventurer && answer === 'drops' && combat && facts.level?.min && health}
       <div class="mobile-combat" aria-label="Level and health">
-        <FactList><FactRow label="Level">{npcLevelText(facts.level)}</FactRow><FactRow label="Health">{npcStatDisplay(health, statLevel)}</FactRow></FactList>
+        <FactList><FactRow label="Level" note={facts.level.scales ? 'Scales with the player' : undefined}>{levelText(facts.level)}</FactRow><FactRow label="Health">{npcStatDisplay(health, statLevel)}</FactRow></FactList>
       </div>
     {/if}
   </svelte:fragment>
@@ -168,16 +177,46 @@
         {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" />{/if}
       </SideCard>
     {/if}
-    {#if kill && award && creatureLevel !== undefined}
-      <SideCard title="Experience per kill">
-        <LevelControl id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" min={1} max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} bind:level={characterLevel} />
-        <p><strong>{rangeText(award.low, award.high)}</strong> experience for a level {formatNumber(creatureLevel)} {document.ref.name}.</p>
-        {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and Bonuses in the Kill Calculator</a>{/if}
-      </SideCard>
-    {/if}
   </svelte:fragment>
 
   <Sections>
+    {#if hasCombatStats}
+      <Section id="combat-stats" title="Combat Stats" line={statSource?.level ? `In ${statSource.label}, level ${npcLevelText({ ...statSource.level, scales: false })}` : undefined} actionVisible={Boolean(variableStatLevel)}>
+        <svelte:fragment slot="action">
+          {#if variableStatLevel && statSource}
+            <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={`npc-level:${document.ref.key}:${statSource.label}`} label="Creature level" min={statMin} max={statMax} fallback={statMin} compact slider={false} bind:level={statLevel} /></span>
+          {/if}
+        </svelte:fragment>
+        <dl class="combat-tiles">
+          {#each primaryStats as entry}
+            <div class="combat-tile"><dt>{entry.label}</dt><dd class:unknown={!entry.stat}>{entry.stat ? npcStatDisplay(entry.stat, statLevel) : 'Unknown'}</dd></div>
+          {/each}
+        </dl>
+        {#if primaryStats.some((entry) => entry.stat)}<p class="stat-formula">Shown values use a shared starting value plus this creature's bonus and a gain per level.</p>{/if}
+        <details class="stat-method">
+          <summary>How these are calculated</summary>
+          <div class="c-table-scroll"><table class="c-table c-table--calculator">
+            <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per level</th></tr></thead>
+            <tbody>{#each combatStats as stat}
+              <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{stat.startingValue === undefined ? 'Unknown' : formatNumber(stat.startingValue)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{stat.perLevel === undefined ? 'Unknown' : npcStatAmount(stat.perLevel, stat.isPercent)}</td></tr>
+            {/each}</tbody>
+          </table></div>
+        </details>
+        {#if combatStats.some((stat) => nameOf(stat.stat) === 'Strength')}
+          <p class="stat-attack">A physical move that uses Strength adds it to that move's damage before defenses. The actual hit depends on the move and its target.</p>
+        {/if}
+        {#if statGroups.other.length}<p class="stat-extra">Also changes: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
+      </Section>
+    {/if}
+    {#if kill && award && creatureLevel !== undefined}
+      <Section id="experience-per-kill" title="Experience per kill">
+        <div class="experience-details">
+          <LevelControl id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" min={1} max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} bind:level={characterLevel} />
+          <p><strong>{rangeText(award.low, award.high)}</strong> experience for a level {formatNumber(creatureLevel)} {document.ref.name}.</p>
+          {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and bonuses in the kill calculator</a>{/if}
+        </div>
+      </Section>
+    {/if}
     {#if !answer && !document.summonedBy.length && !document.spawnedBy.length && !document.recruitedByActions.length && !document.appliedEffects.length && !document.sells.length && !document.quests.length && !document.usedInQuests.length && !document.abilityPhases.some((phase) => phase.abilities.length) && !document.locations.length && !adventurer && !variantTable}
       <p class="empty">No location or services are known for this NPC.</p>
     {/if}
@@ -227,15 +266,27 @@
 
 <style>
   .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
-  .stat-source { margin: 0 0 .7rem; color: var(--c-text-dim); }
-  .stat-formula, .stat-extra { margin: .65rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
-  .stat-method { margin-top: .85rem; font-size: var(--c-text-small); }
+  .combat-control { display: inline-flex; align-items: center; gap: .35rem; }
+  .mobile-level-label { display: none; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .combat-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin: 0; }
+  .combat-tile { display: flex; flex-direction: column-reverse; gap: .25rem; min-width: 0; padding: .85rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
+  .combat-tile dt { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .combat-tile dd { margin: 0; color: var(--c-text-strong); font: 700 clamp(1.35rem, 2vw, 1.7rem)/1.15 var(--c-serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stat-formula, .stat-extra, .stat-attack { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
+  .stat-method { font-size: var(--c-text-small); }
+  .experience-details { display: grid; justify-items: start; gap: .75rem; }
+  .experience-details p { margin: 0; }
   .stat-method summary { color: var(--c-accent); cursor: pointer; }
   .stat-method .c-table-scroll { margin-top: .6rem; }
   .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
   .mobile-combat { display: none; }
+  @media (max-width: 640px) {
+    .combat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mobile-level-label { display: inline; }
+    .combat-control :global(.level-control > label) { display: none; }
+  }
   @media (max-width: 1023px) {
     .mobile-combat { display: block; margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: var(--c-surface-1); }
     .mobile-combat :global(.fact-list dl) { grid-template-columns: max-content minmax(0, 1fr); }

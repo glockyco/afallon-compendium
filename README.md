@@ -123,6 +123,8 @@ Add `--candidate` to scan, capture, catalog, or publish to produce a verified re
 
 The NPC scan exports each authored stat's added value, per-level gain and overrides from the running game's database. Shared stat starting values come from the same canonical scan. Spawner level overrides and player-scaling bounds come from the world scans, not the NPC template's level range. An NPC page projects a total only when its stat and encounter level have enough evidence.
 
+On creature pages, Combat Stats follows Drops in the main column. Health, Strength, Armor, and Magic armor use the published encounter level, with a compact level control only for non-boss creatures that appear at multiple levels. Missing totals read Unknown while available authored bonuses remain visible. The related experience calculator follows the stat section rather than repeating its result in the sidebar.
+
 To rebuild the 0.16.3 data, use the configured research character and the reviewed scan arrivals. Give every plan and run output a new path. The [game-update procedure](.agent/skills/game-update/SKILL.md) covers authoring the full set of world scan, game-map, terrain capture, coverage review, and imagery plans:
 
 ```sh

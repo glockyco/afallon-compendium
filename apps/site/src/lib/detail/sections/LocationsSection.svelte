@@ -60,7 +60,7 @@
   });
 </script>
 
-<Section id="where-to-find" title="Where to Find" count={places.length || undefined}>
+<Section id="where-to-find" title="Where to Find" count={places.length || undefined} countUnit={places.length === 1 ? 'place' : 'places'}>
   {#if places.length}<PlacesList {places} {registry} />
   {:else if !locations.length}<p class="empty">{emptyText}</p>{#if emptyGuide}<HowItWorks guide={emptyGuide.guide} section={emptyGuide.section} label={emptyGuide.label} />{/if}{/if}
   {#if unknown.length}<p class="unknown">{unknown.length} {unknown.length === 1 ? 'location has' : 'locations have'} no identified place. Their spot details are below.</p>{/if}

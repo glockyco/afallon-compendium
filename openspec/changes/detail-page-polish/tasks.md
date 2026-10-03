@@ -19,3 +19,9 @@
 
 - [x] 4.1 Inspect warm viewport captures in Firefox and Chromium at 1440, 1100, and 390 px for every changed page and exercise section links.
 - [x] 4.2 Run production build, deployment assertion, strict OpenSpec validation, and staged repository verification.
+
+## 5. Creature Combat Stats
+
+- [x] 5.1 Move projected combat values and their explanation into a main-column Combat Stats section after Drops with a compact inline level control only for variable-level non-boss creatures; verify Fangchill, Bandit, and Aquarius at 1440, 1100, and 390 px.
+- [x] 5.2 Move kill experience beside or below combat stats, keep short side facts and scaling qualifiers readable, and retain adventurer identity without NPC combat stats; verify the four NPCs in Firefox and Chromium at each width.
+- [x] 5.3 Rebuild and assert deployment, validate OpenSpec strict, exercise level transitions and section links, and pass staged repository verification.
