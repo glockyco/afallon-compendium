@@ -28,7 +28,7 @@ Character, creature, skill, corruption, and gear-score adjustments SHALL use a l
 
 ### Requirement: Progression marker tracks the selected level
 
-On a Places level axis, the reader SHALL be able to drag the level marker to a whole level and adjust it with the same keyboard commands as the control. The marker's pointer SHALL remain centered on the precise selected tick. Near the chart edges, its label SHALL move inward without moving the pointer from that tick. Axis ticks SHALL have visible marks. When the reader's level equals a labelled tick, its number SHALL be hidden on the flagged axis because the flag already names that level. Otherwise the flag SHALL have at least six pixels of clear space above visible tick numbers.
+On a Places level axis, the reader SHALL be able to drag the level marker to a whole level and adjust it with the same keyboard commands as the control. The marker's pointer SHALL remain centered on the precise selected tick. Near the chart edges, its label SHALL move inward without moving the pointer from that tick. Axis ticks SHALL have visible marks. When the reader's level equals a labelled tick, its number SHALL be hidden on the flagged axis because the flag already names that level. Otherwise the flag SHALL have at least six pixels of clear space above visible tick numbers. A thin accent line SHALL connect the flag's arrow to the axis tick and align with the selected-level markers in the rows below.
 
 #### Scenario: Dragging the marker
 - **WHEN** a reader drags the level marker across the Places axis to the position of level 30
@@ -40,7 +40,7 @@ On a Places level axis, the reader SHALL be able to drag the level marker to a w
 
 #### Scenario: Selected tick stays clear
 - **WHEN** the reader selects level 10 on an axis with a labelled level-10 tick
-- **THEN** the flag shows You 10 directly above its tick, the separate 10 tick number is hidden, and the tick mark remains visible
+- **THEN** the flag shows You 10 directly above its tick, the separate 10 tick number is hidden, and an accent line connects its arrow to the visible tick mark and aligned row markers
 
 #### Scenario: Level between ticks
 - **WHEN** the reader selects level 15 or the upper bound just beyond a labelled tick

@@ -118,16 +118,16 @@
   .intro p { max-width: 44rem; margin: 0; color: var(--c-text-dim); line-height: 1.5; }
   .intro :global(.level-control) { flex: none; }
   .axis, li { display: grid; grid-template-columns: minmax(16rem, 20rem) minmax(9rem, 1fr) 4.25rem 5.25rem 6rem; align-items: center; gap: .55rem; }
-  .axis { min-height: 4.5rem; padding: .35rem .85rem .2rem; border-bottom: 1px solid var(--c-line-strong); color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .axis { min-height: 4.35rem; padding: .35rem .85rem .2rem; border-bottom: 1px solid var(--c-line-strong); color: var(--c-text-dim); font-size: var(--c-text-small); }
   .axis-track { position: relative; grid-column: 2; align-self: stretch; min-width: 0; font-variant-numeric: tabular-nums; }
-  .baseline { position: absolute; top: 3.8rem; left: 0; right: 0; border-top: 1px solid var(--c-line-strong); }
-  .axis-tick { position: absolute; top: 2.65rem; height: 1.55rem; }
-  .axis-tick span { position: absolute; top: 0; left: 0; transform: translateX(-50%); white-space: nowrap; }
+  .baseline { position: absolute; top: 3.35rem; left: 0; right: 0; border-top: 1px solid var(--c-line-strong); }
+  .axis-tick { position: absolute; top: 2.2rem; height: 1.55rem; }
+  .axis-tick span { position: absolute; z-index: 1; top: 0; left: 0; padding: 0 .1rem; transform: translateX(-50%); white-space: nowrap; }
   .axis-tick span.covered { visibility: hidden; }
   .axis-tick::after { content: ''; position: absolute; top: 1.15rem; height: .42rem; width: 2px; background: var(--c-line-strong); }
-  .axis-reader { position: absolute; top: 3.55rem; bottom: .35rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
-  .reader-flag { position: absolute; top: .1rem; box-sizing: border-box; width: 5.2rem; padding: .05rem .2rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-accent-surface); color: var(--c-accent-strong); font-size: var(--c-text-small); text-align: center; white-space: nowrap; pointer-events: none; }
-  .flag-arrow { position: absolute; top: 1.65rem; width: 0; height: 0; border: .3rem solid transparent; border-top-color: var(--c-accent-strong); transform: translateX(-50%); pointer-events: none; }
+  .axis-reader { position: absolute; top: 1.73rem; bottom: .15rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
+  .reader-flag { position: absolute; top: .05rem; box-sizing: border-box; width: 5.2rem; height: 1.5rem; padding: 0 .2rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-accent-surface); color: var(--c-accent-strong); font-size: var(--c-text-small); line-height: 1.5rem; text-align: center; white-space: nowrap; pointer-events: none; }
+  .flag-arrow { position: absolute; top: 1.55rem; width: 0; height: 0; border: .18rem solid transparent; border-top-color: var(--c-accent-strong); transform: translateX(-50%); pointer-events: none; }
   .axis-drag { position: absolute; inset: 0; cursor: ew-resize; touch-action: none; }
   .axis-drag:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .group { margin-bottom: 1.4rem; }
