@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { base } from '$app/paths';
   import { page } from '$app/stores';
   import { readerNoun } from '$lib/format';
@@ -17,13 +18,9 @@
   $: illustrated = GALLERY_KINDS.has(data.kind.kind);
 
   $: crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: data.kind.plural }];
-  $: placesView = data.kind.kind === 'places' && $page.url.searchParams.get('view') !== 'table';
-  function viewHref(view: 'levels' | 'table'): string {
-    const url = new URL($page.url);
-    if (view === 'table') url.searchParams.set('view', 'table');
-    else url.searchParams.delete('view');
-    return `${url.pathname}${url.search}`;
-  }
+  // Prerendering has no query string, so the levels view is the static default and the table view is chosen in the browser.
+  $: placesView = data.kind.kind === 'places' && !(browser && $page.url.searchParams.get('view') === 'table');
+  $: placesPath = `${base}/${data.kind.kind}/`;
 </script>
 
 <SeoHead title={`${data.kind.plural} · Afallon Compendium`} description={`Browse ${readerNoun(data.kind.plural)} in Afallon. Find names, game details, and related locations in the compendium.`} />
@@ -39,8 +36,8 @@
     </nav>
   {:else if data.kind.kind === 'places'}
     <nav class="views" aria-label="Places Views">
-      <a href={viewHref('levels')} class:active={placesView} aria-current={placesView ? 'page' : undefined}>By Level</a>
-      <a href={viewHref('table')} class:active={!placesView} aria-current={!placesView ? 'page' : undefined}>Full Table</a>
+      <a href={placesPath} class:active={placesView} aria-current={placesView ? 'page' : undefined}>By Level</a>
+      <a href={`${placesPath}?view=table`} class:active={!placesView} aria-current={!placesView ? 'page' : undefined}>Full Table</a>
     </nav>
   {/if}
   {#if illustrated && view === 'gallery'}
