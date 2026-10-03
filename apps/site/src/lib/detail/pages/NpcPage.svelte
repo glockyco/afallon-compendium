@@ -45,7 +45,7 @@
   $: titleFacts = [
     ...(document.bossOf.length ? [{ label: 'Boss of', refs: document.bossOf }] : []),
     ...(showFactionInTitle && facts.faction ? [{ label: 'Faction', refs: [facts.faction] }] : []),
-    ...(facts.tameable ? [{ label: 'Hunter Pet', text: 'Can Be Tamed' }] : []),
+    ...(facts.tameable ? [{ text: 'Hunter Pet' }, { text: 'Can be tamed' }] : []),
   ] satisfies TitleFact[];
   const combatOrder = ['Health', 'Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
   const primaryStatNames = ['Health', 'Strength', 'Armor', 'Magic Armor'] as const;
@@ -105,8 +105,8 @@
   $: rosterGuide = document.placedRules.find((rule) => rule.target === 'adventurer');
   // Lead with the NPC's actual service or loot. Empty drops and absent placements are not primary answers.
   $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
-  $: hasSide = Boolean(adventurer || combat && summaryFacts.length > 1 || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
-  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level).replace(', scales with the player', ', Scales with the Player')}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
+  $: hasSide = Boolean(adventurer || combat && summaryFacts.length > 1 || facts.level?.scales || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
+  $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level)}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
   const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type },
@@ -157,8 +157,8 @@
           {#if facts.faction && !showFactionInTitle}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
           {#if facts.family}<FactRow label="Family">{categoryLabel(facts.family)}</FactRow>{/if}
-          {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within 30 m</FactRow>{/if}
-          {#if combat && document.locations.length && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
+          {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within&nbsp;30&nbsp;m</FactRow>{/if}
+          {#if combat && document.locations.length && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)}&nbsp;m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
           {#if preference && !gear}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurers choose gear" />{/if}</FactRow>{/if}
           {#if document.factionRewards.length}<FactRow label="Faction standing per kill">{#each document.factionRewards as reward, index}{index ? ', ' : ''}<EntityLink ref={reward.counterpart} {registry} /> {signedAmount(reward.amount)}{/each}</FactRow>{/if}
@@ -196,7 +196,7 @@
           <p class="stat-formula">Shown values use a shared starting value plus this creature's bonus and a gain per level.</p>
           {#if statGroups.other.length}<p class="stat-extra">Other known bonuses, not complete stats: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
           <div class="c-table-scroll"><table class="c-table c-table--calculator">
-            <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per level</th></tr></thead>
+            <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per Level</th></tr></thead>
             <tbody>{#each primaryStats as stat}
               <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{formatNumber(stat.startingValue!)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{npcStatAmount(stat.perLevel!, stat.isPercent)}</td></tr>
             {/each}</tbody>

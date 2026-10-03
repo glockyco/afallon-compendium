@@ -18,6 +18,8 @@
   export let label: string;
   /** Show labels beside each numeric value on phones when two adjacent numbers need different units. */
   export let mobileLabelNumbers = false;
+  /** Align the name and the first two numeric columns to fixed shared tracks on phones. */
+  export let mobileAlignedNumbers = false;
   /** The first sort order. Without it, rows keep their published order until a reader sorts them. */
   export let sort: SortState | undefined = undefined;
   /** The anchors that a row holds, such as the variants of an NPC that stand at a location. */
@@ -100,7 +102,7 @@
   }
 </script>
 
-<div class="relation-table" class:labeled-numbers={mobileLabelNumbers}>
+<div class="relation-table" class:labeled-numbers={mobileLabelNumbers} class:aligned-numbers={mobileAlignedNumbers} class:three-values={besideName[2]}>
   <!-- A phone restyles the table as blocks, and some browsers then drop the table semantics. The explicit roles keep them. -->
   <!-- svelte-ignore a11y_no_redundant_roles -->
   <table role="table" aria-label={label}>
@@ -108,8 +110,8 @@
     <thead role="rowgroup" class:single={!sortable}>
       <!-- svelte-ignore a11y_no_redundant_roles -->
       <tr role="row">
-        {#each columns as column}
-          <th scope="col" role="columnheader" class:num={column.numeric} aria-sort={ariaSort(column)}>
+        {#each columns as column, columnIndex}
+          <th scope="col" role="columnheader" class:num={column.numeric} class:detail={columnIndex > 0 && !besideName[columnIndex]} aria-sort={ariaSort(column)}>
             {#if column.sort && sortable}
               {#if column.hint === KILL_CHANCE_HINT}
                 <LootChanceHint wrapsControl compact={false} let:control><button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></LootChanceHint>
@@ -178,12 +180,20 @@
   .static-rows li { display: flex; flex-wrap: wrap; gap: .25rem .85rem; padding: .5rem .75rem; border-top: 1px solid var(--c-line-soft); }
   .static-cell { min-width: 0; }
   .static-label { margin-right: .3em; color: var(--c-text-mute); font-size: var(--c-text-label); }
+  /* Treat a name and its icon as one compact link, letting only the text wrap. */
+  td.name .cell-value :global(.tooltip-anchor) { display: inline-flex; max-width: 100%; min-width: 0; vertical-align: middle; }
+  td.name .cell-value :global(.entity-link),
+  td.name .cell-value :global(.entity-text) { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; min-width: 0; vertical-align: middle; }
+  td.name .cell-value :global(img),
+  td.name .cell-value :global(.kind-icon) { flex: none; top: 0; }
+  td.name .cell-value :global(.name) { min-width: 0; }
 
   /* Keep the name and up to two comparison values across; any other fields stay as labeled detail lines. */
   @media (max-width: 640px) {
     table, tbody, tr, td { display: block; }
     thead { display: block; padding: .2rem .7rem; border-bottom: 1px solid var(--c-line-soft); }
     thead tr { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem; }
+    thead th { border-bottom: 0; }
     thead.single { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
     tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0 .6rem; padding: .45rem .7rem; border-top: 1px solid var(--c-line-soft); }
     tbody tr:first-child { border-top: 0; }
@@ -198,6 +208,17 @@
     td.detail .cell-label { display: block; color: var(--c-text-mute); }
     .cell-value { min-width: 0; }
     td.num .cell-value { font-variant-numeric: tabular-nums; }
+    /* The same tracks position comparison headings and every body row; a long rate heading wraps in its own column. */
+    .aligned-numbers thead { padding: .2rem .7rem; }
+    .aligned-numbers thead tr,
+    .aligned-numbers tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; gap: 0 .4rem; }
+    .aligned-numbers.three-values thead tr,
+    .aligned-numbers.three-values tbody tr { grid-template-columns: minmax(0, 1fr) 4.05rem 5.85rem; }
+    .aligned-numbers thead th { min-width: 0; padding: .2rem 0; }
+    .aligned-numbers thead th.num { text-align: right; white-space: normal; }
+    .aligned-numbers thead th.detail { grid-column: 1 / -1; text-align: left; }
+    .aligned-numbers tbody tr { padding: .45rem .7rem; }
+    .aligned-numbers td.num { white-space: normal; }
   }
   @media (max-width: 640px) {
     .labeled-numbers thead { display: none; }
@@ -206,5 +227,14 @@
     .labeled-numbers tbody td.num { display: grid; align-content: start; gap: .15rem; text-align: left; white-space: normal; }
     .labeled-numbers tbody td.num .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
     .labeled-numbers tbody td.num .cell-value { white-space: nowrap; }
+  }
+  /* At the narrowest phone widths, give the icon and name their own row rather than breaking creature names mid-word. */
+  @media (max-width: 360px) {
+    .aligned-numbers.three-values thead tr,
+    .aligned-numbers.three-values tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .aligned-numbers.three-values thead th:first-child,
+    .aligned-numbers.three-values tbody td.name { grid-column: 1 / -1; }
+    .aligned-numbers.three-values thead th:nth-child(2),
+    .aligned-numbers.three-values tbody td:nth-child(2) { grid-column: 1; }
   }
 </style>

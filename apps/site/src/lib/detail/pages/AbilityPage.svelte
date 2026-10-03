@@ -43,7 +43,7 @@
     <div slot="side"><SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard></div>
     <Sections>
       {#if hasSources}
-        <Section id="learners-and-users" title={grantOnly ? 'How It Is Granted' : 'Who Learns and Uses It'}>
+        <Section id="learners-and-users" title={grantOnly ? 'How it is granted' : 'Who learns and uses it'}>
           <div class="sources">
             <LearnedBySection versions={document.versions} {registry} />
             <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by'} onShowAll={() => (showAllUsers = true)} />

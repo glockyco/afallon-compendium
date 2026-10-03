@@ -35,5 +35,11 @@
 
 ## 7. Chance Help Mark
 
-- [x] 7.1 Use the round detail help mark beside kill chances before their closing punctuation, including chance-table context; inspect cleaver and Dropped by on phone and desktop.
-- [x] 7.2 Rebuild and assert the merged publication, validate OpenSpec, and pass staged repository verification.
+- [x] 7.1 Align the shared round help mark with the text x-height and remove trailing chance punctuation; inspect 2× close crops in Firefox and Chromium.
+- [x] 7.2 Rebuild and assert the current merged publication, validate OpenSpec, and pass staged repository verification.
+
+## 8. Mixed Rates and Phone Facts
+
+- [x] 8.1 Group mixed item drop rates with one shared context per kind, align icon-name cells and chance headers on phones, and inspect mixed, computed-only, and listed-only examples at 1440 and 390 px in both browsers.
+- [x] 8.2 Repair NPC title separators, sidebar level qualifier, place service casing, and gathering extra-yield wording; inspect Fangchill, Coalway Woods, and Aetherium Vein at 390 and 1440 px in both browsers.
+- [x] 8.3 Capture tight table and help crops, run production build and deployment assertion, and pass strict OpenSpec and staged repository verification.

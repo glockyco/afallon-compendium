@@ -44,15 +44,27 @@ A floating section navigator SHALL not overlap readable content at desktop or ph
 ### Requirement: Chances and ability outcomes have player context
 
 An item's concise kill-drop answer SHALL state its per-kill chance beside the source without stray punctuation or internal qualifiers. A linked hint on that answer and the full chance table SHALL explain the assumption of no Loot Chance, how Luck affects it in this version, and link to Loot Chance, Luck, and the loot mechanics explanation. Level restrictions SHALL remain visible. An ability SHALL link only effects with a player-facing name; fallback unnamed effect labels SHALL not appear in its answer or Versions table when its native description already explains the outcome.
-The chance hint SHALL use the same round help mark as other detail explanations and sit immediately after the chance, before the sentence's closing punctuation.
+The chance hint SHALL use the same round help mark and baseline alignment as other detail explanations, directly after the chance without a dangling period.
 
 #### Scenario: Boss item drop rate
 - **WHEN** a reader opens Mandrith Carapace Cleaver
-- **THEN** Kraath's route states 18.31% per kill followed by a round linked help mark before the period, without a detached separator or an unexplained 0 Loot Chance qualifier
+- **THEN** Kraath's route states 18.31% per kill followed by the baseline-aligned round linked help mark, without a detached separator, trailing period, or unexplained 0 Loot Chance qualifier
 
 #### Scenario: Ability with an internal effect
 - **WHEN** a reader opens Ambush
 - **THEN** its native description retains the teleport outcome, but no Unnamed Teleport Effect link appears in the answer or Versions comparison
+
+### Requirement: Phone detail facts retain their labels and columns
+
+The NPC identity line SHALL wrap at fact boundaries without starting a line with a separator or fusing two facts. On phones, loot column headings SHALL remain associated with their values, and creature icon and name SHALL stay in one aligned name cell. A mixed item-source table SHALL distinguish computed chances from listed rates once for each group, without repeating the rate kind in every cell. The shared relation table styling SHALL keep each heading over its values. Sidebar level ranges SHALL remain whole and place scaling on a separate muted line. Zone service labels SHALL use consistent title casing. Gathering instructions SHALL separate the required skill level, selected reader level, and extra-yield odds in plain sentences.
+
+#### Scenario: Mixed Wolf Fang drops
+- **WHEN** a reader opens Wolf Fang at 390 px
+- **THEN** listed rates and per-kill chances have distinct grouped context, each value reads as a percentage only, and icon, name, quantity, and rate remain aligned with their headings
+
+#### Scenario: Creature and zone facts on phones
+- **WHEN** a reader opens Fangchill, Coalway Woods, or Aetherium Vein at 390 px
+- **THEN** Fangchill's title facts separate cleanly and its level scaling has its own line, Coalway Woods shows consistently cased Services labels, and Aetherium Vein explains its requirement and selected-level extra yield separately
 
 ## MODIFIED Requirements
 

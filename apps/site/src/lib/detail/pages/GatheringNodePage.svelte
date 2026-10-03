@@ -92,7 +92,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={[document.facts.skill ? 'Node' : 'Gathering Node', document.facts.requiredLevel === undefined ? undefined : `Requires Level ${formatNumber(document.facts.requiredLevel)}`].filter(Boolean).join(' · ')} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry} />
+      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={document.facts.skill ? 'Node' : 'Gathering Node'} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry} />
     </div>
 
     <div slot="answer">
@@ -107,8 +107,16 @@
             </svelte:fragment>
           </RelationTable>
         {:else}<p>No known yields for this node.</p>{/if}
+        {#if document.facts.requiredLevel !== undefined}<p class="requirement">Requires {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)} to gather.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">{#if document.facts.requiredLevel !== undefined}You need {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)} to gather this node.{' '}{/if}{#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}At your selected {skillName ?? 'skill'} level {formatNumber(level)}, you cannot gather from it yet. Once you can gather, each item can yield one extra:{' '}{#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}.{:else}At your selected {skillName ?? 'skill'} level {formatNumber(level)}, each item has a <strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> chance to yield one extra.{/if}{' '}<HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
+          <p class="bonus">
+            {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}
+              At your selected {skillName ?? 'skill'} level {formatNumber(level)}, you cannot gather from this node yet.
+            {:else if bonusAtLevel !== undefined}
+              At your selected {skillName ?? 'skill'} level {formatNumber(level)}, each item has a <strong>{bonusPercent.format(bonusAtLevel)}%</strong> chance to yield one extra.
+            {/if}
+            The extra-item chance ranges from {#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' to ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}. <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" />
+          </p>
         {/if}
       </AnswerCard>
     </div>
@@ -188,7 +196,7 @@
 
 <style>
   .intro, .footnote, .explanation { color: var(--c-text-dim); line-height: 1.5; }
-  .bonus { line-height: 1.5; }
+  .bonus, .requirement { line-height: 1.5; }
   .guides { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; }
   .bonus strong { color: var(--c-text-strong); }
   .side-content { display: grid; align-content: start; gap: 1rem; min-width: 0; }

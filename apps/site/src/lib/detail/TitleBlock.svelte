@@ -36,10 +36,10 @@
     {#if imageUrl}<div class="identity-art" class:portrait><img src={imageUrl} alt="" /></div>{/if}
     <div class="identity">
       <h1 class:coloured={Boolean(rarity)}>{name}</h1>
-      <!-- What the entity is and the facts that place it share one line, so the title block stays two lines tall. -->
       {#if typeLine || typeRef || facts.length}
         <ul class="facts">
-          {#if typeLine || typeRef}<li class="type">{#if typeRef}<EntityLink ref={typeRef} {registry} />{/if}{#if typeLine}{typeRef ? ' ' : ''}{typeLine}{/if}</li>{/if}
+          {#if typeRef || typeLine}<li class="type">{#if typeRef}<EntityLink ref={typeRef} {registry} />{/if}{#if typeLine}{typeRef ? ' ' : ''}{typeLine.split(' · ')[0]}{/if}</li>{/if}
+          {#each typeLine?.split(' · ').slice(1) ?? [] as part}<li class="type">{part}</li>{/each}
           {#each facts as fact}
             <li>
               {#if fact.label}<span class="label">{fact.label}</span>{/if}
@@ -74,13 +74,15 @@
   .glyph :global(svg) { width: .95rem; height: .95rem; }
   .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
-  .facts .type { display: inline; color: var(--c-text-dim); }
-  .facts li:not(:last-child)::after { content: ' ·'; white-space: nowrap; margin-right: .55rem; color: var(--c-text-mute); }
+  .facts .type { color: var(--c-text-dim); }
+  .facts li:not(:first-child)::before { content: '·'; white-space: nowrap; margin: 0 .2rem 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
   .value { color: var(--c-text-strong); }
   @media (max-width: 640px) {
     .facts { column-gap: 1rem; }
-    .facts li:not(:last-child)::after { display: none; }
+    .facts li { flex: none; max-width: 100%; }
+    .facts li:not(.type) { flex-basis: 100%; }
+    .facts li:not(:first-child)::before { display: none; }
     .heading { grid-template-columns: auto minmax(0, 1fr); gap: .8rem; }
     .heading .identity-art:not(.portrait) { width: 3rem; height: 3rem; padding: .25rem; }
     .heading:has(.identity-art:not(.portrait)) h1 { font-size: 1.5rem; }

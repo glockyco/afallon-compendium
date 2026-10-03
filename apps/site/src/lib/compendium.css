@@ -294,6 +294,9 @@ body { font-size: 1rem; line-height: 1.5; }
 .c-link { color: var(--c-accent); text-underline-offset: .18em; }
 .c-link:hover { color: var(--c-accent-strong); }
 
+/* Detail help links and hint buttons use the same baseline-seated round mark. */
+.c-help-mark { display: inline-grid; place-items: center; flex: none; width: 1.3em; height: 1.3em; border: 1px solid currentColor; border-radius: 50%; font-size: var(--c-text-small); font-weight: 700; line-height: 1; }
+
 .c-price { color: var(--c-currency); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The coin scales with the text. `middle` centers it on the lower-case letters, and the lift moves it to the center of
    the whole line of letters. */

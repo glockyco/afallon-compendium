@@ -1,8 +1,8 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PlacementRef, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
+  import { categoryLabel, type PlacementRef, type PublicKindEntry, type PublicPlace } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber, listText, nameOf, readerNoun, roleLabel, timerText } from '../../format';
+  import { formatNumber, listText, nameOf, roleLabel, timerText } from '../../format';
   import { placeOnMap, spotOnMap } from '../../map-links';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
@@ -19,6 +19,8 @@
   const SERVICE_ORDER = ['banker', 'auctioneer', 'flightPoint', 'merchant', 'questGiver', 'craftingStation', 'alchemyStation', 'cookingStation', 'furnace', 'smithingStation', 'tailoringStation'];
   $: services = [...document.services].sort((left, right) => SERVICE_ORDER.indexOf(left.category) - SERVICE_ORDER.indexOf(right.category));
   const levels = (count: number) => `${formatNumber(count)} ${count === 1 ? 'level' : 'levels'}`;
+  const serviceLabel = (category: PublicPlace['services'][number]['category']) =>
+    category === 'furnace' ? 'Furnaces' : category === 'townsfolk' ? 'Townsfolk' : `${categoryLabel(roleLabel(category))}s`;
 </script>
 
 {#snippet spotLinks(placements: PlacementRef[], name: string)}
@@ -61,7 +63,7 @@
   <SideCard id="services" title="Services">
     <FactList>
       {#each services as service}
-        <FactRow label={readerNoun(roleLabel(service.category))}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on Map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
+        <FactRow label={serviceLabel(service.category)}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on Map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
       {/each}
       {#each document.heroicConsoles ?? [] as console, index (console.placementId)}
         <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on Map</a></FactRow>
