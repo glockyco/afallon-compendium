@@ -12,9 +12,17 @@ The Classes, Skills, Races, Factions, and Properties lists SHALL show linked til
 - **WHEN** a reader opens Classes
 - **THEN** each class shows its art, playstyle description, talent-tree count, and ability count and its whole tile opens the class page
 
+#### Scenario: Aligning Class Choices
+- **WHEN** classes with different-length descriptions share a row
+- **THEN** their artwork and names begin at the same vertical position
+
 #### Scenario: Browsing Skill Groups
 - **WHEN** a reader opens Skills
-- **THEN** skills appear under Crafting, Gathering, or Weapon headings using their published skill type, with relevant recipe, node, and highest-level facts where present
+- **THEN** skills appear under Crafting, Gathering, or Weapon headings using their published skill type without repeating the group on each card; relevant recipe and node counts and the published maximum level appear as labeled facts where present
+
+#### Scenario: Reading Tile Facts at Narrow Width
+- **WHEN** a fact cannot fit beside another fact in an illustrated tile
+- **THEN** each fact remains a readable unit without splitting a label or leaving a separator at the start of a line
 
 #### Scenario: Comparing Property Investments
 - **WHEN** a reader opens Properties
@@ -23,6 +31,10 @@ The Classes, Skills, Races, Factions, and Properties lists SHALL show linked til
 #### Scenario: Reading Other Small Catalogs
 - **WHEN** a reader opens Races, Factions, or Mechanics
 - **THEN** each entry remains linked and its facts or topic description reflect published data, including missing facts remaining unavailable rather than invented
+
+#### Scenario: Finding Creature Loot
+- **WHEN** a reader scans the Loot topic in the Mechanics index or menu
+- **THEN** the description identifies creature drops as a source covered by the topic
 
 ### Requirement: Accessible Alternate Comparison
 

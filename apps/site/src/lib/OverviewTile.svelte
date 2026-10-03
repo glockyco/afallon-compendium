@@ -22,7 +22,7 @@
   <span class="copy">
     <span class="name"><EntityLink {ref} {registry} tooltip={false} plain /></span>
     {#if description}<span class="description">{description}</span>{/if}
-    {#if facts.length}<span class="facts">{facts.join(' · ')}</span>{/if}
+    {#if facts.length}<span class="facts">{#each facts as fact, index}{#if index}<span class="separator" aria-hidden="true">{' · '}</span>{/if}<span class="fact">{fact}</span>{/each}</span>{/if}
     {#if metrics.length}<span class="metrics">{#each metrics as metric}<span class="metric"><span class="metric-label">{metric.label}</span><span class="metric-value" class:c-price={metric.value !== null}>{metric.value ?? 'Unknown'}</span>{#if metric.detail}<span class="metric-detail">{metric.detail}</span>{/if}</span>{/each}</span>{/if}
   </span>
 </div>
@@ -35,8 +35,9 @@
   .fallback :global(svg) { width: 45%; height: 45%; }
   .copy { display: grid; flex: 1 1 auto; align-content: center; gap: .22rem; min-width: 0; overflow-wrap: anywhere; }
   .name { color: var(--c-text-strong); font-size: var(--c-text-lead); font-weight: 600; }
-  .description { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.4; }
+  .description { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.4; text-wrap: balance; }
   .facts { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.4; font-variant-numeric: tabular-nums; }
+  .fact { white-space: nowrap; }
   .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin-top: .35rem; font-variant-numeric: tabular-nums; }
   .metric { display: grid; gap: .15rem; min-width: 0; }
   .metric-label { color: var(--c-text-mute); font-size: var(--c-text-label); }
@@ -44,7 +45,9 @@
   .metric-detail { color: var(--c-text-mute); font-size: var(--c-text-label); }
   .portrait { flex-direction: column; justify-content: flex-start; gap: .8rem; padding: 1.25rem .85rem 1rem; background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); text-align: center; }
   .portrait .art { width: 4.5rem; height: 4.5rem; border-radius: 14px; box-shadow: 0 8px 20px var(--c-shadow); }
-  .portrait .copy { justify-items: center; }
+  .portrait .copy { flex: 0 1 auto; align-content: start; justify-items: center; }
+  .compact:not(.home) { align-items: flex-start; }
+  .compact:not(.home) .copy { align-content: start; }
   .editorial { align-items: flex-start; padding: 1rem 1.1rem; }
   .editorial .copy { align-content: start; }
   .tile :global(.entity-link) { color: var(--c-text-strong); }
@@ -56,10 +59,14 @@
     .home.portrait .art { width: 3.25rem; height: 3.25rem; box-shadow: none; }
     .home.portrait .copy { justify-items: start; }
     .tile:not(.home) { padding: .7rem; }
+    .tile:not(.home) .facts { display: grid; gap: .1rem; }
+    .tile:not(.home) .separator { display: none; }
+    .tile:not(.home) .fact { white-space: nowrap; }
     .compact:not(.home) { flex-direction: column; align-items: flex-start; gap: .55rem; }
     .portrait:not(.home) { gap: .45rem; }
     .portrait:not(.home) .art { width: 3.25rem; height: 3.25rem; }
     .tile:not(.home) .name { font-size: var(--c-text-prose); }
+    .compact:not(.home) .name { font-size: var(--c-text-small); }
   }
   @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
 </style>
