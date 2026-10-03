@@ -14,6 +14,19 @@
   let activeId: string | undefined;
   let root: HTMLDivElement | undefined;
   let pill: HTMLButtonElement | undefined;
+  // Below this width the page margin cannot hold the button, so it withdraws while the reader scrolls down.
+  const MARGIN_FITS = '(min-width: 1280px)';
+  let withdrawn = false;
+  let lastY = 0;
+
+  function track(): void {
+    const y = window.scrollY;
+    const atEnd = y + window.innerHeight >= document.documentElement.scrollHeight - 2;
+    const engaged = open || Boolean(root?.contains(document.activeElement));
+    if (window.matchMedia(MARGIN_FITS).matches || engaged || atEnd || y < lastY) withdrawn = false;
+    else if (y > lastY + 4) withdrawn = true;
+    lastY = y;
+  }
 
   $: active = sections.find((section) => section.id === activeId) ?? sections[0];
 
@@ -38,7 +51,7 @@
 
   onMount(() => {
     let frame = 0;
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; select(); }); };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; select(); track(); }); };
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
     schedule();
@@ -71,7 +84,7 @@
 <svelte:window on:pointerdown={onPointerDown} on:keydown={onKeyDown} />
 
 {#if sections.length >= SECTION_LIST_MINIMUM && active}
-  <div class="lens" bind:this={root}>
+  <div class="lens" class:withdrawn bind:this={root} on:focusin={() => (withdrawn = false)}>
     {#if open}
       <nav class="menu" id="section-lens-menu" aria-label="On This Page">
         <button type="button" class="row top" on:click={toTop}>
@@ -90,7 +103,6 @@
     {/if}
     <button type="button" class="pill" bind:this={pill} aria-label={`On this page: ${active.title}`} aria-expanded={open} aria-controls="section-lens-menu" on:click={() => { if (!open) select(); open = !open; }}>
       <span class="glyph" aria-hidden="true">{@html glyph}</span>
-      <span class="inline-label">On this page</span>
       <span class="current">{active.title}</span>
       <span class="chevron" class:open aria-hidden="true">{@html chevron}</span>
     </button>
@@ -98,16 +110,19 @@
 {/if}
 
 <style>
-  /* Within the content width the control occupies its own row, so no scrolling text passes beneath it. */
-  .lens { position: relative; z-index: 40; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: .5rem; width: max-content; max-width: 100%; margin-bottom: var(--c-space-section); }
-  .pill { display: inline-flex; align-items: center; gap: .6rem; max-width: 100%; margin: 0; padding: .45rem .7rem; border: 1px solid var(--c-line); border-radius: 999px; background: color-mix(in oklab, var(--c-surface-2) 88%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--c-shadow); color: var(--c-text); font: inherit; font-size: var(--c-text-small); line-height: 1.2; cursor: pointer; transition: border-color .15s, background-color .15s; }
+  /* The control floats in the bottom corner, so the page keeps room below its last line. Below 1800 px it is a small
+     round button that stays in the page margin on desktop; wider screens have room for the current section's name. */
+  :global(body:has(.lens)) { padding-bottom: 4.5rem; }
+  .lens { position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; max-width: calc(100vw - 2.2rem); }
+  .pill { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; width: 2.75rem; height: 2.75rem; max-width: 100%; margin: 0; padding: 0; border: 1px solid var(--c-line); border-radius: 999px; background: color-mix(in oklab, var(--c-surface-2) 88%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--c-shadow); color: var(--c-text); font: inherit; font-size: var(--c-text-small); line-height: 1.2; cursor: pointer; transition: border-color .15s, background-color .15s; }
   .pill:hover, .pill[aria-expanded='true'] { border-color: var(--c-accent-line); }
+  .lens { transition: transform .2s ease-out, opacity .2s ease-out; }
+  .lens.withdrawn { opacity: 0; pointer-events: none; transform: translateY(calc(100% + 1.1rem)); }
   .pill:focus-visible, .row:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .glyph { display: flex; color: var(--c-accent); }
   .glyph :global(svg) { width: 1rem; height: 1rem; }
-  .inline-label, .current { min-width: 0; max-width: 16rem; overflow: hidden; color: var(--c-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-  .current { display: none; }
-  .chevron { display: flex; color: var(--c-text-mute); transition: transform .18s; }
+  .current { display: none; min-width: 0; max-width: 16rem; overflow: hidden; color: var(--c-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+  .chevron { display: none; color: var(--c-text-mute); transition: transform .18s; }
   .chevron :global(svg) { width: .9rem; height: .9rem; }
   .chevron.open { transform: rotate(180deg); }
   .menu { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: .75rem; width: max-content; min-width: min(18rem, 100%); max-width: min(22rem, 100%); max-height: min(70vh, 32rem); overflow-y: auto; padding: .4rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: color-mix(in oklab, var(--c-surface-2) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 14px 38px rgb(0 0 0 / .5); }
@@ -128,14 +143,11 @@
     .menu { animation: lens-in .16s ease-out; }
     .section { animation: row-in .24s ease-out backwards; animation-delay: calc(40ms + var(--i) * 30ms); }
   }
-  @media (prefers-reduced-motion: reduce) { .pill, .chevron { transition: none; } }
-  @media (max-width: 520px) { .current { max-width: 11rem; } }
+  @media (prefers-reduced-motion: reduce) { .lens, .pill, .chevron { transition: none; } }
   @media (min-width: 1800px) {
-    :global(body:has(.lens)) { padding-bottom: 4.5rem; }
-    .inline-label { display: none; }
-    .current { display: inline; }
-    .lens { position: fixed; right: 1.1rem; bottom: 1.1rem; flex-direction: column; align-items: flex-end; width: auto; max-width: 18rem; margin: 0; }
-    .menu { max-width: 18rem; }
+    .pill { justify-content: flex-start; width: auto; height: auto; padding: .45rem .7rem; }
+    .current, .chevron { display: flex; }
+    .lens, .menu { max-width: 18rem; }
   }
   @keyframes lens-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @keyframes row-in { from { opacity: 0; transform: translateX(7px); } to { opacity: 1; transform: none; } }

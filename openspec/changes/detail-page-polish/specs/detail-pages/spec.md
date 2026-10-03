@@ -35,11 +35,16 @@ A detail page SHALL not repeat a source, reward, experience amount, set piece to
 
 ### Requirement: Section controls never obscure detail content
 
-A floating section navigator SHALL not overlap readable content at desktop or phone widths during scrolling, including near the bottom of the page. The control SHALL still reach each rendered section. When placed directly before a section in document flow, it SHALL name its navigation purpose rather than repeating the section heading below it.
+The section navigator SHALL float in the lower-right corner at every width. Where the page margin can hold it, it SHALL rest in the margin without overlapping readable content. Where the margin cannot hold it, it SHALL withdraw while the reader scrolls down and return when the reader scrolls up, reaches the page end, or moves keyboard focus to it, so it never rests over text that the reader is moving through. The page SHALL leave room below its last line so the control never covers the end of the page. The control SHALL still reach each rendered section.
 
 #### Scenario: Scrolling a boss page on a phone
-- **WHEN** a reader scrolls Kraath the Hivebreaker's long loot section at 390 px
-- **THEN** the section control does not cover a loot row or its chance
+- **WHEN** a reader scrolls down Kraath the Hivebreaker's long loot section at 390 px
+- **THEN** the section control withdraws and does not cover a loot row or its chance
+- **AND** it returns when the reader scrolls up or reaches the page end
+
+#### Scenario: Reading a detail page on a desktop
+- **WHEN** a reader scrolls a detail page at 1440 px
+- **THEN** the section control stays visible in the page margin without overlapping the content columns
 
 ### Requirement: Chances and ability outcomes have player context
 

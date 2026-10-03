@@ -20,6 +20,7 @@ None.
 ### Modified Capabilities
 
 - `detail-pages`: Improve detail-page answer priority, responsive relation metadata, section navigation, and ability effect presentation.
+- `page-navigation`: The section control is a round button below 1800 px and withdraws while scrolling where the page margin cannot hold it.
 
 ## Impact
 
