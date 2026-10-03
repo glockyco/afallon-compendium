@@ -43,3 +43,9 @@
 - [x] 8.1 Group mixed item drop rates with one shared context per kind, align icon-name cells and chance headers on phones, and inspect mixed, computed-only, and listed-only examples at 1440 and 390 px in both browsers.
 - [x] 8.2 Repair NPC title separators, sidebar level qualifier, place service casing, and gathering extra-yield wording; inspect Fangchill, Coalway Woods, and Aetherium Vein at 390 and 1440 px in both browsers.
 - [x] 8.3 Capture tight table and help crops, run production build and deployment assertion, and pass strict OpenSpec and staged repository verification.
+
+## 9. Full-Width Phone Names
+
+- [x] 9.1 Put quantity below each full-width item or creature name while keeping chance headings unbroken in drops, Dropped by, item contents and source tables; verify Firefox and Chromium at 390 and 1440 px.
+- [x] 9.2 Omit the gathering level sentence when the To gather card states the same requirement, while preserving the selected-level chance and required level where no card exists; verify Aetherium Vein at level 1 and 150 in both browsers.
+- [x] 9.3 Rebuild and assert deployment from the rebased merged publication, validate strict OpenSpec, review 2× crops and full browser captures, and pass staged repository verification.

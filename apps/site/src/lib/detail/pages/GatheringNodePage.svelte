@@ -107,7 +107,7 @@
             </svelte:fragment>
           </RelationTable>
         {:else}<p>No known yields for this node.</p>{/if}
-        {#if document.facts.requiredLevel !== undefined}<p class="requirement">Requires {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)} to gather.</p>{/if}
+        {#if document.facts.requiredLevel !== undefined && !additionalRequirements}<p class="requirement">Requires {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)} to gather.</p>{/if}
         {#if bonus?.levelChances}
           <p class="bonus">
             {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}

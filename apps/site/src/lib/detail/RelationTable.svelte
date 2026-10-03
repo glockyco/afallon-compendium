@@ -45,9 +45,11 @@
   $: waitingAnchors = sorted.slice(builtRows.length).flatMap((row) => rowAnchors(row));
   // A table with one row has nothing to order, so its headings are plain text.
   $: sortable = rows.length > 1;
-  // On a phone, up to two numbers sit beside the name when no other column comes before them. Every other column is a
-  // labelled detail line below the name.
+  // By default a phone places up to two numeric values beside the name. Other fields become labeled detail lines.
   $: besideName = columns.map((column, index) => index > 0 && index <= 2 && columns.slice(1, index + 1).every((entry) => entry.numeric));
+  // A quantity plus a chance leaves too little room for names. Give the name the full first row and put both values
+  // beneath it, retaining their relationship with the chance heading.
+  $: quantityUnderName = columns[1]?.id === 'quantity' && columns[1]?.numeric === true && columns[2]?.numeric === true && (columns[2]?.id === 'chance' || columns[2]?.id === 'rate');
 
   // The address can name an anchor in a row that the limit hides. Such a row opens the table, is built, and scrolls into
   // view. A built row is already in the page, and the browser scrolls to it.
@@ -102,7 +104,7 @@
   }
 </script>
 
-<div class="relation-table" class:labeled-numbers={mobileLabelNumbers} class:aligned-numbers={mobileAlignedNumbers} class:three-values={besideName[2]}>
+<div class="relation-table" class:labeled-numbers={mobileLabelNumbers} class:aligned-numbers={mobileAlignedNumbers || quantityUnderName} class:quantityUnderName>
   <!-- A phone restyles the table as blocks, and some browsers then drop the table semantics. The explicit roles keep them. -->
   <!-- svelte-ignore a11y_no_redundant_roles -->
   <table role="table" aria-label={label}>
@@ -132,9 +134,9 @@
         <!-- svelte-ignore a11y_no_redundant_roles -->
         <tr role="row">
           {#each columns as column, columnIndex}
-            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && !besideName[columnIndex]}>
+            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && !besideName[columnIndex]} class:quantity={quantityUnderName && columnIndex === 1}>
               {#if columnIndex === 0}{#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
-              {#if columnIndex > 0}<span class="cell-label" aria-hidden={!mobileLabelNumbers}>{column.label}</span>{/if}
+              {#if columnIndex > 0}<span class="cell-label" aria-hidden={!mobileLabelNumbers && !(quantityUnderName && columnIndex === 1)}>{column.label}</span>{/if}
               <span class="cell-value"><slot name="cell" {row} column={column.id} /></span>
             </td>
           {/each}
@@ -188,7 +190,7 @@
   td.name .cell-value :global(.kind-icon) { flex: none; top: 0; }
   td.name .cell-value :global(.name) { min-width: 0; }
 
-  /* Keep the name and up to two comparison values across; any other fields stay as labeled detail lines. */
+  /* Phones keep comparable values aligned with their headings; a quantity/chance pair gives the whole first row to the name. */
   @media (max-width: 640px) {
     table, tbody, tr, td { display: block; }
     thead { display: block; padding: .2rem .7rem; border-bottom: 1px solid var(--c-line-soft); }
@@ -208,14 +210,12 @@
     td.detail .cell-label { display: block; color: var(--c-text-mute); }
     .cell-value { min-width: 0; }
     td.num .cell-value { font-variant-numeric: tabular-nums; }
-    /* The same tracks position comparison headings and every body row; a long rate heading wraps in its own column. */
+    /* Numeric headings and values share a right edge, while long names can take the full row when quantity moves below. */
     .aligned-numbers thead { padding: .2rem .7rem; }
     .aligned-numbers thead tr,
-    .aligned-numbers tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; gap: 0 .4rem; }
-    .aligned-numbers.three-values thead tr,
-    .aligned-numbers.three-values tbody tr { grid-template-columns: minmax(0, 1fr) 4.05rem 5.85rem; }
+    .aligned-numbers tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 0 .4rem; }
     .aligned-numbers thead th { min-width: 0; padding: .2rem 0; }
-    .aligned-numbers thead th.num { text-align: right; white-space: normal; }
+    .aligned-numbers thead th.num, .aligned-numbers thead th.num :global(.c-sort) { text-align: right; white-space: nowrap; }
     .aligned-numbers thead th.detail { grid-column: 1 / -1; text-align: left; }
     .aligned-numbers tbody tr { padding: .45rem .7rem; }
     .aligned-numbers td.num { white-space: normal; }
@@ -228,13 +228,19 @@
     .labeled-numbers tbody td.num .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
     .labeled-numbers tbody td.num .cell-value { white-space: nowrap; }
   }
-  /* At the narrowest phone widths, give the icon and name their own row rather than breaking creature names mid-word. */
-  @media (max-width: 360px) {
-    .aligned-numbers.three-values thead tr,
-    .aligned-numbers.three-values tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .aligned-numbers.three-values thead th:first-child,
-    .aligned-numbers.three-values tbody td.name { grid-column: 1 / -1; }
-    .aligned-numbers.three-values thead th:nth-child(2),
-    .aligned-numbers.three-values tbody td:nth-child(2) { grid-column: 1; }
+  @media (max-width: 640px) {
+    .quantityUnderName thead:not(.single) { display: block; }
+    .quantityUnderName thead tr,
+    .quantityUnderName tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 0 .6rem; }
+    .quantityUnderName thead th:nth-child(2) { display: none; }
+    .quantityUnderName thead th:nth-child(3) { grid-column: 2; text-align: right; white-space: nowrap; }
+    .quantityUnderName tbody td.name { grid-column: 1 / -1; grid-row: 1; }
+    .quantityUnderName tbody td.quantity { grid-column: 1; grid-row: 2; color: var(--c-text-mute); font-size: var(--c-text-small); text-align: left; white-space: nowrap; }
+    .quantityUnderName tbody td.quantity .cell-value::before { content: '× '; }
+    .quantityUnderName tbody td.quantity:has(:global(.missing-value)) .cell-value::before { content: 'Quantity '; }
+    .quantityUnderName tbody td.quantity .cell-label { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .quantityUnderName tbody td:nth-child(3) { grid-column: 2; grid-row: 2; align-self: center; text-align: right; white-space: nowrap; }
+    .quantityUnderName tbody td:nth-child(3) .cell-label { display: none; }
+    .quantityUnderName tbody td.detail { grid-column: 1 / -1; grid-row: auto; }
   }
 </style>

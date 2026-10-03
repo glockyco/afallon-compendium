@@ -57,14 +57,19 @@ The chance hint SHALL use the same round help mark and baseline alignment as oth
 ### Requirement: Phone detail facts retain their labels and columns
 
 The NPC identity line SHALL wrap at fact boundaries without starting a line with a separator or fusing two facts. On phones, loot column headings SHALL remain associated with their values, and creature icon and name SHALL stay in one aligned name cell. A mixed item-source table SHALL distinguish computed chances from listed rates once for each group, without repeating the rate kind in every cell. The shared relation table styling SHALL keep each heading over its values. Sidebar level ranges SHALL remain whole and place scaling on a separate muted line. Zone service labels SHALL use consistent title casing. Gathering instructions SHALL separate the required skill level, selected reader level, and extra-yield odds in plain sentences.
+On phones, a table with a name, quantity, and chance SHALL give the name its own full-width row, put the quantity below it as a muted × amount, and keep the chance right-aligned under an unbroken one-line heading. The hidden quantity heading SHALL remain available to assistive technology. Desktop SHALL retain the three side-by-side columns. When a To gather card already states a node's level requirement, the yield answer SHALL not repeat it; without that card, the answer SHALL retain the requirement.
 
 #### Scenario: Mixed Wolf Fang drops
 - **WHEN** a reader opens Wolf Fang at 390 px
-- **THEN** listed rates and per-kill chances have distinct grouped context, each value reads as a percentage only, and icon, name, quantity, and rate remain aligned with their headings
+- **THEN** listed rates and per-kill chances have distinct grouped context, each value reads as a percentage only, each icon and full name share a row, quantities appear beneath the names, and the chance heading stays on one line above right-aligned values
 
 #### Scenario: Creature and zone facts on phones
 - **WHEN** a reader opens Fangchill, Coalway Woods, or Aetherium Vein at 390 px
-- **THEN** Fangchill's title facts separate cleanly and its level scaling has its own line, Coalway Woods shows consistently cased Services labels, and Aetherium Vein explains its requirement and selected-level extra yield separately
+- **THEN** Fangchill's title facts separate cleanly and its level scaling has its own line, Coalway Woods shows consistently cased Services labels, and Aetherium Vein shows the gathering requirement once alongside its selected-level extra-yield explanation
+
+#### Scenario: Content and gathering yields on a phone
+- **WHEN** a reader opens Soaked Bag contents or Aetherium Vein yields at 390 px
+- **THEN** item names take a full row, × quantities follow under them, chance headings remain legible above right-aligned values, and desktop tables retain their original columns
 
 ## MODIFIED Requirements
 
