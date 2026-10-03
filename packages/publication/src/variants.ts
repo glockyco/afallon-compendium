@@ -22,9 +22,9 @@ export function abilityVersions(members: readonly AbilityFacts[]): AbilityFacts[
 
 const endpointKey = (endpoint: CatalogEndpoint | null) => endpoint === null ? null : endpoint.entityKey ?? plainText(endpoint.label ?? "");
 
-/** The stats that a page shows for an NPC record: a stat of zero tells a player nothing, so a page leaves it out. */
-export function shownNpcStats<Row extends { amount: number }>(stats: readonly Row[]): Row[] {
-  return stats.filter((row) => row.amount !== 0);
+/** Preserve a flat NPC stat when its base, bonus, or per-level growth is meaningful. */
+export function shownNpcStats<Row extends { amount: number; perLevel?: number | null; startingValue?: number | null }>(stats: readonly Row[]): Row[] {
+  return stats.filter((row) => row.amount !== 0 || row.perLevel !== null && row.perLevel !== undefined && row.perLevel !== 0 || row.startingValue !== null && row.startingValue !== undefined && row.startingValue !== 0);
 }
 
 // The same members in another order are the same list for a player.
@@ -39,7 +39,7 @@ function fieldValues(fact: CatalogNpcFacts, abilityVersion: (key: string | null)
     family: plainText(fact.family ?? "") || null,
     faction: endpointKey(fact.faction), species: endpointKey(fact.species),
     respawn: [fact.minRespawn, fact.maxRespawn], experience: [fact.minExperience, fact.maxExperience],
-    stats: unordered(shownNpcStats(recordStats(fact)).map((row) => [endpointKey(row.stat), row.amount, row.isPercent])),
+    stats: unordered(shownNpcStats(recordStats(fact)).map((row) => [endpointKey(row.stat), row.amount, row.isPercent, row.startingValue, row.perLevel, row.minValue, row.maxValue, row.startPercentage])),
     immunities: [fact.immuneToStun, fact.immuneToSlow], aggroRange: fact.aggroRange, lootSpecialization: fact.lootSpecialization,
     abilityPhases: phaseAbilities(fact).map((phase) => [phase.phaseIndex, phase.name, phase.requirement, phase.abilities.map((ability) => [abilityVersion(ability.ability.entityKey), ability.rankIndex])]),
     factionRewards: unordered(fact.factionRewards.map((reward) => [endpointKey(reward.faction), reward.amount])),

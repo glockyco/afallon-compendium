@@ -533,6 +533,14 @@ const killExperience = Type.Object({
   min: count, max: count, perLevel: count,
   levelDifference: optional(Type.Object({ higher: number, lower: number }, { additionalProperties: false })), levelCap: optional(count),
 }, { additionalProperties: false });
+// NPC records keep authored stat bonuses and growth distinct from the common starting stat.
+// A missing input remains absent rather than implying a complete in-game total.
+export const NpcStatRowSchema = Type.Object({
+  stat: RefSchema, amount: number, isPercent: Type.Boolean(),
+  startingValue: optional(number), perLevel: optional(number),
+  minValue: optional(number), maxValue: optional(number), startPercentage: optional(number),
+}, { additionalProperties: false });
+export type NpcStatRow = Static<typeof NpcStatRowSchema>;
 export const NpcFactsSchema = Type.Object({
   level: optional(PublicLevelSchema),
   npcType: optional(text), creatureType: optional(text), tameable: optional(Type.Boolean()), family: optional(text),
@@ -540,7 +548,7 @@ export const NpcFactsSchema = Type.Object({
   roles: Type.Array(markerCategory, { uniqueItems: true }),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
   experience: optional(killExperience),
-  stats: Type.Array(StatRowSchema), immunities: Type.Array(text, { uniqueItems: true }), aggroRange: optional(number),
+  stats: Type.Array(NpcStatRowSchema), immunities: Type.Array(text, { uniqueItems: true }), aggroRange: optional(number),
   lootSpecialization: optional(LootSpecializationSchema),
 }, { additionalProperties: false });
 export type NpcFacts = Static<typeof NpcFactsSchema>;
@@ -557,7 +565,7 @@ export const NpcVariantFactsSchema = Type.Object({
   npcType: optional(text), creatureType: optional(text), tameable: optional(Type.Boolean()), family: optional(text), faction: optional(RefSchema), species: optional(RefSchema),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
   experience: optional(killExperience),
-  stats: optional(Type.Array(StatRowSchema)), immunities: optional(Type.Array(text, { uniqueItems: true })), aggroRange: optional(number),
+  stats: optional(Type.Array(NpcStatRowSchema)), immunities: optional(Type.Array(text, { uniqueItems: true })), aggroRange: optional(number),
   lootSpecialization: optional(LootSpecializationSchema), abilityPhases: optional(Type.Array(AbilityPhaseSchema)),
   factionRewards: optional(Type.Array(FactionRewardRowSchema)), linkedNpc: optional(RefSchema),
 }, { additionalProperties: false });

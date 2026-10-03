@@ -12,7 +12,7 @@ const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], 
 function npcFact(entityKey: string, health = 100): CatalogNpcFacts {
   return { entityKey, minLevel: 100, maxLevel: 100, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
     faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
-    minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [{ stat: { entityKey: "stats:1", label: "Health" }, amount: health, isPercent: false }], abilityPhases: [],
+    minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [{ stat: { entityKey: "stats:1", label: "Health" }, amount: health, isPercent: false, startingValue: null, perLevel: null, minValue: null, maxValue: null, startPercentage: null }], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: null };
 }
 
@@ -46,7 +46,7 @@ test("names the variant in a record reference when the variants differ in facts 
 
 test("does not treat stats in another order or a stat of zero as a difference between variants", () => {
   const entities = [entity("npcs", 76, "Outlaw Rogue"), entity("npcs", 77, "Outlaw Rogue")];
-  const stat = (entityKey: string, label: string, amount: number) => ({ stat: { entityKey, label }, amount, isPercent: false });
+  const stat = (entityKey: string, label: string, amount: number) => ({ stat: { entityKey, label }, amount, isPercent: false, startingValue: null, perLevel: null, minValue: null, maxValue: null, startPercentage: null });
   const first = { ...npcFact("npcs:76"), stats: [stat("stats:1", "Health", 687.2), stat("stats:2", "Strength", 9)] };
   const second = { ...npcFact("npcs:77"), stats: [stat("stats:2", "Strength", 9), stat("stats:1", "Health", 687.2), stat("stats:3", "Spirit", 0)] };
   const { pages } = buildEntityReferences(entities, { facts: { ...emptyFacts, entities, npcs: [first, second] }, relations: emptyRelations });

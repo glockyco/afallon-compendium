@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { CharacterProgression, EntityRef, HeroicTier, PublicKindEntry } from '@afallon/contracts/public';
+  import type { CharacterProgression, EntityRef, HeroicTier, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import EntityLink from '../EntityLink.svelte';
   import { clientMapLoader } from '../client-publication';
-  import { formatNumber, npcLevelText } from '../format';
+  import { formatNumber, nameOf, npcLevelText } from '../format';
   import { readerGearScore, setReaderGearScore } from '../reader-gear-score';
   import { CHARACTER_LEVEL } from '../reader-levels';
   import { empoweredStrength } from './heroic-strength';
   import { calculateKillAward, creatureLevels, nearestCreatureLevel } from './kill-calculator';
+  import { projectNpcStat } from './npc-stats';
   import LevelControl from './LevelControl.svelte';
 
   export let guide: HeroicTier;
@@ -16,10 +17,13 @@
   type Choice = { id: string; group: Group; place: EntityRef; entry: Group['creatures'][number] };
   let progression: CharacterProgression | undefined;
   let choices: Choice[] = [];
+  let loading = true;
   let selected = '';
   let characterLevel = 23;
   let creatureLevel = 23;
-  let loading = true;
+  let healthDocument: PublicNpc | undefined;
+  let healthChoice = '';
+  let healthLoading = false;
   let error = '';
   const excluded = guide.sections.flatMap((section) => section.rules)
     .find((rule) => rule.id === 'heroic-tier-excluded-areas' && rule.status === 'verified')?.links ?? [];
@@ -31,12 +35,40 @@
   $: strength = settings && empoweredStrength(settings, score);
   $: normal = chosen ? calculateKillAward(chosen.entry, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
   $: empowered = chosen && settings ? calculateKillAward(chosen.entry, creatureLevel, characterLevel, settings.killExperienceMultiplier, 0, 0).award : undefined;
+  $: healthVariant = healthDocument && chosen
+    ? chosen.entry.creature.variant
+      ? healthDocument.variants.find((variant) => variant.anchor === chosen.entry.creature.variant)
+      : healthDocument.variants.find((variant) => healthDocument!.locations.some((location) =>
+          location.variants.length === 1 && location.variants[0] === variant.anchor &&
+          (location.label === chosen.place.name || location.placements.some((placement) => placement.label === chosen.place.name))))
+    : undefined;
+  $: healthStat = healthDocument?.facts.stats.find((stat) => nameOf(stat.stat).toLowerCase() === 'health')
+    ?? healthVariant?.facts.stats?.find((stat) => nameOf(stat.stat).toLowerCase() === 'health');
+  $: normalHealth = healthChoice === selected && healthStat ? projectNpcStat(healthStat, creatureLevel) : undefined;
+  $: heroicHealth = normalHealth !== undefined && strength ? normalHealth * strength.health : undefined;
   const exact = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
   const xp = (range: { low: number; high: number }): string => range.low === range.high ? formatNumber(range.low) : `${formatNumber(range.low)}–${formatNumber(range.high)}`;
+  async function loadHealth(choice: Choice): Promise<void> {
+    healthDocument = undefined;
+    healthChoice = '';
+    healthLoading = true;
+    try {
+      const page = choice.entry.creature.slug ? await clientMapLoader()?.loadDocument('npcs', choice.entry.creature.slug) : undefined;
+      if (selected === choice.id && page?.kind === 'npcs') {
+        healthDocument = page.document;
+        healthChoice = choice.id;
+      }
+    } catch {
+      // A creature without a published page still has its experience comparison.
+    } finally {
+      if (selected === choice.id) healthLoading = false;
+    }
+  }
   function selectCreature(id: string): void {
     selected = id;
     const choice = choices.find((option) => option.id === id);
     if (choice && progression) creatureLevel = nearestCreatureLevel(choice.entry.level, characterLevel, progression.curve.cap);
+    if (choice) void loadHealth(choice);
   }
   onMount(() => {
     void (async () => {
@@ -88,7 +120,10 @@
             <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if normal}<span class="no-break">{xp(normal)}</span>{:else}Unavailable{/if}</td>
             <td class="c-num">{#if characterLevel >= progression.curve.cap}Level cap{:else if empowered}<span class="no-break">{xp(empowered)}</span> <span class="no-break">({exact.format(settings.killExperienceMultiplier)}×)</span>{:else}Unavailable{/if}</td>
           </tr>
-          <tr><th scope="row">Maximum health</th><td class="c-num">—</td><td class="c-num">{formatNumber(strength.health)}×</td></tr>
+          <tr><th scope="row">Maximum health</th>
+            <td class="c-num">{normalHealth === undefined ? healthLoading ? 'Loading…' : 'Unavailable' : formatNumber(normalHealth)}</td>
+            <td class="c-num">{#if heroicHealth === undefined}{healthLoading ? 'Loading…' : 'Unavailable'}{:else}<span class="no-break">{formatNumber(heroicHealth)}</span> <span class="no-break">({exact.format(strength.health)}×)</span>{/if}</td>
+          </tr>
           <tr><th scope="row">Damage</th><td class="c-num">—</td><td class="c-num">{formatNumber(strength.damage)}×</td></tr>
         </tbody>
       </table></div>

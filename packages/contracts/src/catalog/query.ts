@@ -125,7 +125,7 @@ export interface NormalizedNpcFact {
   hunterTamable: boolean; hunterBeastRole: string | null; equipmentAppearanceSelections: string | null; adventurer: NormalizedNpcAdventurer | null; flightNetwork: NormalizedNpcFlightNetwork | null;
   lootSpecialization: { armorType: string | null; weaponTypes: string[]; stat: NormalizedReference | null } | null; provenance: ProvenanceReference[];
 }
-export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
+export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; startingValue?: number | null; perLevel?: number | null; minValue?: number | null; maxValue?: number | null; startPercentage?: number | null; provenance: ProvenanceReference[] }
 export interface NormalizedNpcAbilityPhase { entityKey: string; phaseIndex: number; name: string | null; requirement: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedNpcPhaseAbility { entityKey: string; phaseIndex: number; abilityIndex: number; sourceIndex: number; ability: NormalizedReference; rankIndex: number; provenance: ProvenanceReference[] }
 export interface NormalizedNpcFactionReward { entityKey: string; rewardIndex: number; faction: NormalizedReference; amount: number; provenance: ProvenanceReference[] }

@@ -6,6 +6,7 @@
   import NpcLevel from '../../NpcLevel.svelte';
   import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, levelText, nameOf, npcTypeName } from '../../format';
   import CompareTable from '../CompareTable.svelte';
+  import { npcStatDisplay } from '../npc-stats';
   import HowItWorks from '../HowItWorks.svelte';
   import { omitAlways, planColumns, type RelationColumn } from '../relation-table';
   import Section from '../Section.svelte';
@@ -30,7 +31,8 @@
 
   type StatRow = NonNullable<NpcVariant['facts']['stats']>[number];
   const statId = (stat: StatRow) => `stat:${stat.stat.key ?? nameOf(stat.stat)}${stat.isPercent ? ':percent' : ''}`;
-  const statText = (amount: number, isPercent: boolean) => `${formatNumber(amount)}${isPercent ? '%' : ''}`;
+  const statText = (stat: StatRow, level: number | undefined) => npcStatDisplay(stat, level, true);
+  const sourceLevel = (variant: NpcVariant) => document.locations.find((location) => location.variants.includes(variant.anchor))?.level?.min;
   const abilities = (variant: NpcVariant) => variant.facts.abilityPhases?.flatMap((phase) => phase.abilities) ?? [];
 
   /** The comparable text of one differing fact of a version, or `undefined` when the version lacks it. */
@@ -71,7 +73,10 @@
     ...FIELD_ORDER.filter((field) => fields.has(field)).map((field): RelationColumn<NpcVariant> => ({ id: field, label: FIELD_LABELS[field], value: (variant) => fieldValue(variant, field), whenShared: omitAlways })),
     ...stats.map((stat): RelationColumn<NpcVariant> => ({
       id: statId(stat), label: nameOf(stat.stat), whenShared: omitAlways,
-      value: (variant) => variant.facts.stats?.find((candidate) => statId(candidate) === statId(stat))?.amount,
+      value: (variant) => {
+        const row = variant.facts.stats?.find((candidate) => statId(candidate) === statId(stat));
+        return row ? statText(row, sourceLevel(variant)) : undefined;
+      },
     })),
     ...(fields.has('abilityPhases') ? [{ id: 'abilityPhases', label: 'Abilities', value: (variant: NpcVariant) => abilities(variant).map((reference) => nameOf(reference.ability)).join(', ') || undefined, whenShared: omitAlways }] : []),
   ] satisfies RelationColumn<NpcVariant>[], variants).columns;
@@ -98,7 +103,7 @@
       {#if fact === 'level'}<NpcLevel level={item.level} showScalingNote={!allScale} />
       {:else if fact === 'abilityPhases'}
         {#if abilities(item).length}<ul>{#each abilities(item) as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /></li>{/each}</ul>{:else}<span class="none">None</span>{/if}
-      {:else if stat}{statText(stat.amount, stat.isPercent)}
+      {:else if stat}{statText(stat, sourceLevel(item))}
       {:else if link}<EntityLink ref={link} {registry} plain />
       {:else}{fieldValue(item, fact as Field) ?? ''}{/if}
     </svelte:fragment>

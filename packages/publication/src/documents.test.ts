@@ -1509,7 +1509,7 @@ test("a roster adventurer fights with its class abilities and stats and shows it
     keepPhaseAbilities, aiLogicTemplateKey: null, specialization });
   const specialization = (classKey: string, role: string) => ({ class: { entityKey: classKey, label: classKey }, role, preferredTree: { entityKey: "talentTrees:19", label: "Templar" },
     behaviorName: "", priorityAbilities: [{ entityKey: "abilities:201", label: "Cleave" }], blockedAbilities: [], blockedBonuses: [], allowedForms: [] });
-  const strength = [{ stat: { entityKey: "stats:1", label: "Strength" }, amount: 370, isPercent: false }];
+  const strength = [{ stat: { entityKey: "stats:1", label: "Strength" }, amount: 370, isPercent: false, startingValue: null, perLevel: null, minValue: null, maxValue: null, startPercentage: null }];
   const source: CatalogFacts = { ...facts, entities: all,
     npcs: [
       { ...facts.npcs[0]!, abilityPhases: phases, stats: strength, adventurer: adventurer(specialization("classes:0", "Tank")) },

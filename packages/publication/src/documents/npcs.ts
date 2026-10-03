@@ -45,7 +45,7 @@ function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): 
     ...(fact.family ? { family: plainText(fact.family) } : {}), ...(faction === undefined ? {} : { faction }), ...(species === undefined ? {} : { species }),
     ...(fact.minRespawn === null || fact.maxRespawn === null ? {} : { respawn: { min: fact.minRespawn, max: fact.maxRespawn } }),
     ...(experience === null ? {} : { experience }),
-    stats: shownNpcStats(recordStats(fact)).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
+    stats: shownNpcStats(recordStats(fact)).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent, ...(row.startingValue === null ? {} : { startingValue: row.startingValue }), ...(row.perLevel === null ? {} : { perLevel: row.perLevel }), ...(row.minValue === null ? {} : { minValue: row.minValue }), ...(row.maxValue === null ? {} : { maxValue: row.maxValue }), ...(row.startPercentage === null ? {} : { startPercentage: row.startPercentage }) })),
     immunities: [fact.immuneToStun ? "stun" : null, fact.immuneToSlow ? "slow" : null].filter((value): value is string => value !== null),
     ...(fact.aggroRange === null ? {} : { aggroRange: fact.aggroRange }),
     ...(fact.lootSpecialization === null ? {} : { lootSpecialization: {

@@ -486,12 +486,11 @@ if (npcs != null)
                 npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityRefs = abilityRefs, behaviors });
             }
         }
-        var npcGuideStatsById = new System.Collections.Generic.Dictionary<int, float>();
-        if (npc.stats != null) foreach (var stat in npc.stats) if (stat != null) npcGuideStatsById[stat.statID] = stat.baseValue;
-        if (npc.CustomStats != null) foreach (var stat in npc.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = stat.addedValue;
-        if (npc.UseStatListTemplate && npc.StatListTemplate != null && npc.StatListTemplate.CustomStats != null) foreach (var stat in npc.StatListTemplate.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = stat.addedValue;
-        var npcGuideStats = new System.Collections.Generic.List<object>();
-        foreach (var stat in npcGuideStatsById) npcGuideStats.Add(new { statId = stat.Key, value = stat.Value });
+        var npcGuideStatsById = new System.Collections.Generic.Dictionary<int, object>();
+        if (npc.stats != null) foreach (var stat in npc.stats) if (stat != null) npcGuideStatsById[stat.statID] = new { statId = stat.statID, value = stat.baseValue, perLevel = stat.bonusPerLevel, isPercent = false, minValue = (float?)null, maxValue = (float?)null, startPercentage = (float?)null };
+        if (npc.CustomStats != null) foreach (var stat in npc.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = new { statId = stat.statID, value = stat.addedValue, perLevel = stat.valuePerLevel, isPercent = stat.Percent, minValue = stat.overrideMinValue ? (float?)stat.minValue : null, maxValue = stat.overrideMaxValue ? (float?)stat.maxValue : null, startPercentage = stat.overrideStartPercentage ? (float?)stat.startPercentage : null };
+        if (npc.UseStatListTemplate && npc.StatListTemplate != null && npc.StatListTemplate.CustomStats != null) foreach (var stat in npc.StatListTemplate.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = new { statId = stat.statID, value = stat.addedValue, perLevel = stat.valuePerLevel, isPercent = stat.Percent, minValue = stat.overrideMinValue ? (float?)stat.minValue : null, maxValue = stat.overrideMaxValue ? (float?)stat.maxValue : null, startPercentage = stat.overrideStartPercentage ? (float?)stat.startPercentage : null };
+        var npcGuideStats = new System.Collections.Generic.List<object>(npcGuideStatsById.Values);
 
         var npcMerchantTables = new System.Collections.Generic.List<object>();
         var npcMerchantTablesAvailable = npc.MerchantTables != null;

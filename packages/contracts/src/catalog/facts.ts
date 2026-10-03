@@ -33,6 +33,13 @@ export interface CatalogArtworkBinding {
 }
 
 export interface CatalogStatValue { stat: CatalogEndpoint; amount: number; isPercent: boolean }
+export interface CatalogNpcStatValue extends CatalogStatValue {
+  startingValue: number | null;
+  perLevel: number | null;
+  minValue: number | null;
+  maxValue: number | null;
+  startPercentage: number | null;
+}
 export interface CatalogContextualAbilityReference { ability: CatalogEndpoint; rankIndex: number }
 export interface CatalogRandomStatRule { stat: CatalogEndpoint; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null }
 
@@ -196,7 +203,7 @@ export interface CatalogNpcFacts {
   immuneToStun: boolean;
   immuneToSlow: boolean;
   aggroRange: number | null;
-  stats: CatalogStatValue[];
+  stats: CatalogNpcStatValue[];
   abilityPhases: Array<{ phaseIndex: number; name: string | null; requirement: string | null; abilities: CatalogContextualAbilityReference[] }>;
   factionRewards: Array<{ faction: CatalogEndpoint; amount: number }>;
   linkedNpc: CatalogEndpoint | null;

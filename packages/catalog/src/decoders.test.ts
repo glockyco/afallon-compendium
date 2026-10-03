@@ -38,6 +38,20 @@ test("decodes generated tooltip text and contextual ranks", () => {
   expect(decodeNpcGameplay({ aiPhases: [{ phaseIndex: 0, name: "Enraged", abilityRefs: [{ behaviorIndex: 1, potentialIndex: 0, sourceIndex: 2, abilityId: 31, rankIndex: 3 }] }] }, reference, "/npcs/0/gameplay").value.aiPhases?.[0]?.abilityRefs[0]?.rankIndex).toBe(3);
 });
 
+test("validates NPC growth and override operands while accepting an incomplete stat", () => {
+  const source = { guideStats: [
+    { statId: 0, value: 187.20001, perLevel: 84.240005, isPercent: false, minValue: null, maxValue: null, startPercentage: null },
+    { statId: 27, value: 0, perLevel: 3.825, isPercent: false, minValue: null, maxValue: null, startPercentage: null },
+    { statId: 20, value: 100, perLevel: 21.2, isPercent: false, minValue: 200, maxValue: 1000, startPercentage: 50 },
+    { statId: 21, value: 44.4 },
+  ] };
+  const decoded = decodeNpcGameplay(source, reference, "/npcs/356/gameplay").value.guideStats!;
+  expect(decoded[1]?.value).toBe(0);
+  expect(decoded[3]?.perLevel).toBeUndefined();
+  expect(() => decodeNpcGameplay({ guideStats: [{ statId: 0, value: 187, perLevel: "84.24" }] }, reference, "/npcs/356/gameplay")).toThrow();
+  expect(() => decodeNpcGameplay({ guideStats: [{ statId: 0, value: 187, minValue: "200" }] }, reference, "/npcs/356/gameplay")).toThrow();
+});
+
 test("rejects incomplete or failed generated tooltip evidence", () => {
   expect(() => decodeAbilityGameplay({ ranks: [{ ...successfulAbilityRank, rankIndex: undefined }] }, reference, "/abilities/0/gameplay")).toThrow();
   expect(() => decodeAbilityGameplay({ ranks: [{ ...successfulAbilityRank, text: "  \n" }] }, reference, "/abilities/0/gameplay")).toThrow();

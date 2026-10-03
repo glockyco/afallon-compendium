@@ -1,6 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import type { NpcStatRow, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, listText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
@@ -15,6 +15,7 @@
   import LinkGrid from '../LinkGrid.svelte';
   import { calculateKillAward, nearestCreatureLevel } from '../kill-calculator';
   import LevelControl from '../LevelControl.svelte';
+  import { npcStatAmount, npcStatDisplay, projectNpcStat } from '../npc-stats';
   import { CHARACTER_LEVEL } from '../../reader-levels';
   import NpcFlightsSection from '../sections/NpcFlightsSection.svelte';
   import NpcEffectsSection from '../sections/NpcEffectsSection.svelte';
@@ -46,18 +47,31 @@
     ...(showFactionInTitle && facts.faction ? [{ label: 'Faction', refs: [facts.faction] }] : []),
     ...(facts.tameable ? [{ label: 'Hunter pet', text: 'Can be tamed' }] : []),
   ] satisfies TitleFact[];
-  $: health = facts.stats.find((stat) => nameOf(stat.stat).toLowerCase() === 'health' && stat.amount > 0);
-  const combatOrder = ['Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
+  const combatOrder = ['Health', 'Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
   const combatRank = (name: string) => { const index = combatOrder.indexOf(name); return index < 0 ? combatOrder.length : index; };
-  $: combatStats = facts.stats.filter((stat) => stat.amount > 0 && stat !== health)
+  const statLabel = (stat: NpcStatRow) => { const name = nameOf(stat.stat); return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(); };
+  function groupStats(stats: NpcStatRow[], level: number | undefined) {
+    const effective: NpcStatRow[] = [], other: NpcStatRow[] = [];
+    for (const stat of stats) {
+      if (projectNpcStat(stat, level) !== undefined) effective.push(stat);
+      else if (stat.amount !== 0) other.push(stat);
+    }
+    return { effective, other };
+  }
+  $: combatStats = facts.stats.filter((stat) => stat.amount !== 0 || stat.perLevel || stat.startingValue)
     .sort((left, right) => combatRank(nameOf(left.stat)) - combatRank(nameOf(right.stat)));
+  $: statSource = document.locations.find((location) => location.level);
+  $: statMin = statSource?.level?.min ?? 1;
+  $: statMax = Math.max(statMin, statSource?.level?.max ?? facts.experience?.levelCap ?? statMin);
+  let statLevel = 1;
+  $: statLevel = Math.min(statMax, Math.max(statMin, statLevel));
+  $: statGroups = groupStats(combatStats, statSource ? statLevel : undefined);
   $: hours = adventurer?.joinAfterHours ?? 0;
   $: summaryFacts = adventurer ? [
     ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),
     { label: 'Party role', value: adventurer.role, ...(adventurer.defaultRole ? { note: 'By default' } : {}), ...(rosterGuide ? { guide: rosterGuide } : {}) },
   ] : [
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
-    ...(combat && health ? [{ label: 'Health', value: formatNumber(health.amount) }] : []),
     ...(combat && document.locations.length && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(combat && document.locations.length && !document.adventurerGear && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ];
@@ -125,7 +139,6 @@
     {#if hasSide}
       <FactsCard facts={summaryFacts} title={adventurer ? 'Adventurer' : undefined}>
         {#if adventurer}<FactRow label="Class"><EntityLink ref={adventurer.class} {registry} /></FactRow>{/if}
-        {#each (combat ? combatStats : []) as stat}<FactRow label={nameOf(stat.stat)}>{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''}</FactRow>{/each}
           {#if facts.faction && !showFactionInTitle}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
           {#if facts.family}<FactRow label="Family">{categoryLabel(facts.family)}</FactRow>{/if}
@@ -137,6 +150,35 @@
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
         <svelte:fragment slot="after">{#if document.description && !document.flights?.length && !adventurer}<p class="description">{document.description}</p>{/if}</svelte:fragment>
       </FactsCard>
+      {#if combat && combatStats.length}
+        <SideCard title="Creature Stats">
+          {#if statSource?.level}
+            <p class="stat-source">In {statSource.label}, level {npcLevelText({ ...statSource.level, scales: false })}.</p>
+            {#if statMax > statMin}
+              <LevelControl id="npc-creature-level" readerId={`npc-level:${document.ref.key}:${statSource.label}`} label="Creature level" min={statMin} max={statMax} fallback={statMin} bind:level={statLevel} />
+            {/if}
+          {/if}
+          <FactList>
+            {#each statGroups.effective as stat}
+              <FactRow label={statLabel(stat)}>{npcStatDisplay(stat, statLevel)}</FactRow>
+            {/each}
+          </FactList>
+          {#if statGroups.effective.length}<p class="stat-formula">Each stat is a shared starting value plus this creature's bonus plus a gain per level.</p>{/if}
+          {#if statGroups.other.length}<p class="stat-extra">Also changes: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
+          <details class="stat-method">
+            <summary>How these are calculated</summary>
+            <div class="c-table-scroll"><table class="c-table c-table--calculator">
+              <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per level</th></tr></thead>
+              <tbody>{#each combatStats as stat}
+                <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{stat.startingValue === undefined ? 'Unknown' : formatNumber(stat.startingValue)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{stat.perLevel === undefined ? 'Unknown' : npcStatAmount(stat.perLevel, stat.isPercent)}</td></tr>
+              {/each}</tbody>
+            </table></div>
+          </details>
+          {#if combatStats.some((stat) => nameOf(stat.stat) === 'Strength')}
+            <p class="stat-source">A physical move that uses Strength adds it to that move's damage before defenses. The actual hit depends on the move and its target.</p>
+          {/if}
+        </SideCard>
+      {/if}
     {/if}
     {#if adventurer}
       <SideCard title="Arrival">
@@ -206,6 +248,12 @@
 
 <style>
   .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+  .stat-source { margin: 0 0 .7rem; color: var(--c-text-dim); }
+  .stat-formula, .stat-extra { margin: .65rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
+  .stat-method { margin-top: .85rem; font-size: var(--c-text-small); }
+  .stat-method summary { color: var(--c-accent); cursor: pointer; }
+  .stat-method .c-table-scroll { margin-top: .6rem; }
+  .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
 </style>

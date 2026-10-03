@@ -114,6 +114,10 @@ test("stores every typed fact kind and shared artwork idempotently", () => {
     artworkAssets: [{ assetId: "asset", sha256: "e".repeat(64), bytes: 12, width: 2, height: 2, sourceName: "shared", provenance }], artworkBindings: [{ entityKey: "items:1", role: "icon", assetId: "asset", provenance }, { entityKey: "items:2", role: "icon", assetId: "asset", provenance }],
     provenance: { plan: reference, profile: reference, sources: [] },
   };
+  input.npcStats = [
+    { ...input.npcStats![0]!, startingValue: 100, perLevel: 25, minValue: null, maxValue: null, startPercentage: null },
+    { ...input.npcStats![0]!, statIndex: 1, amount: 0, startingValue: 0, perLevel: null, minValue: 200, maxValue: null, startPercentage: 50 },
+  ];
   try {
     populateNormalizedDatabase(db, input, []);
     populateNormalizedDatabase(db, input, []);
@@ -136,10 +140,12 @@ test("stores every typed fact kind and shared artwork idempotently", () => {
     ]);
     expect(facts.abilities[0]).toEqual({ entityKey: "abilities:7", ranks: [{ rankIndex: 2, lines: [{ spans: [{ text: "Rank two", tone: "effect", italic: false }] }, { spans: [] }] }] });
     expect(facts.npcs[0]).toMatchObject({ isAuctioneer: true, isFlightMaster: true, higherLevelExperienceModifier: -20, experienceBonusPerLevel: 2, abilityPhases: [{ abilities: [{ ability: { entityKey: "abilities:7" }, rankIndex: 2 }] }], adventurer: { class: { entityKey: "classes:14" }, race: { entityKey: "races:15" }, specialization: { role: "Healer", priorityAbilities: [{ entityKey: "abilities:7" }] } }, flightNetwork: { networkId: "Afallon", stopId: "camp", currency: { entityKey: "currencies:17" }, stops: [{ id: "camp" }] } });
+    expect(facts.npcs[0]!.stats[0]).toMatchObject({ amount: 20, startingValue: 100, perLevel: 25, minValue: null, maxValue: null, startPercentage: null });
+    expect(facts.npcs[0]!.stats[1]).toMatchObject({ amount: 0, startingValue: 0, perLevel: null, minValue: 200, maxValue: null, startPercentage: 50 });
     expect(facts.gearSets).toEqual([{ entityKey: "gearSets:13", members: [{ entityKey: "items:1", label: "items 1" }], tiers: [{ equipped: 3, stats: [{ stat: { entityKey: "stats:9", label: "stats 9" }, amount: 10, isPercent: true }] }] }]);
     expect(facts.items[0]!.gearSet).toEqual({ entityKey: "gearSets:13", label: "gearSets 13" });
     expect(facts.quests[0]).toMatchObject({ levelRequirement: 2, levelRange: { min: 2, max: 4 }, dungeon: { entityKey: "scenes:5" } });
-    for (const table of ["item_facts", "item_game_actions", "item_stats", "item_random_stats", "item_gem_stats", "item_sockets", "npc_facts", "npc_stats", "npc_ability_phases", "npc_phase_abilities", "npc_faction_rewards", "quest_facts", "quest_objectives", "quest_rewards", "world_quest_facts", "place_facts", "property_facts", "ability_facts", "recipe_facts", "recipe_ranks", "recipe_products", "recipe_materials", "crafting_station_facts", "gear_set_facts", "gear_set_members", "gear_set_tiers", "gear_set_tier_stats"]) expect(db.query(`SELECT count(*) AS count FROM ${table}`).get()).toEqual({ count: 1 });
+    for (const table of ["item_facts", "item_game_actions", "item_stats", "item_random_stats", "item_gem_stats", "item_sockets", "npc_facts", "npc_stats", "npc_ability_phases", "npc_phase_abilities", "npc_faction_rewards", "quest_facts", "quest_objectives", "quest_rewards", "world_quest_facts", "place_facts", "property_facts", "ability_facts", "recipe_facts", "recipe_ranks", "recipe_products", "recipe_materials", "crafting_station_facts", "gear_set_facts", "gear_set_members", "gear_set_tiers", "gear_set_tier_stats"]) expect(db.query(`SELECT count(*) AS count FROM ${table}`).get()).toEqual({ count: table === "npc_stats" ? 2 : 1 });
     expect(db.query("SELECT count(*) AS count FROM artwork_assets").get()).toEqual({ count: 1 });
     expect(db.query("SELECT count(*) AS count FROM artwork_bindings").get()).toEqual({ count: 2 });
   } finally { db.close(); }

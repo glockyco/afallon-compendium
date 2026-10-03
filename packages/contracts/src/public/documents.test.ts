@@ -188,6 +188,19 @@ test("Heart stone routes, place answers, and guide cross-links keep their own st
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: { key: null, label: "Unknown" } }] })).toThrow();
 });
 
+test("NPC stat operands are strict without widening item stat rows", () => {
+  const npc = fixtures.npcs as PublicNpc, itemPage = fixtures.items as PublicItem;
+  const stat = { stat: { key: "stats:0", kind: "stats", name: "Health" }, amount: 187.2, isPercent: false,
+    startingValue: 100, perLevel: 84.24 };
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [stat] } });
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, variantFields: ["stats"],
+    variants: npc.variants.map((variant) => ({ ...variant, facts: { stats: [{ ...stat, minValue: 0, startPercentage: 50 }] } })) });
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [{ stat: stat.stat, amount: stat.amount, isPercent: false }] } });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [{ ...stat, perLevel: "84.24" }] } })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [{ ...stat, unknown: true }] } })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...itemPage, facts: { ...itemPage.facts, stats: [{ ...stat }] } })).toThrow();
+});
+
 test("place starts carry only named races and reject incomplete start details", () => {
   const place = fixtures.places as PublicPlace;
   Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...place, startingRaces: [{ entityKey: "races:1", name: "Orc" }], allPlayableRacesStartHere: true });
