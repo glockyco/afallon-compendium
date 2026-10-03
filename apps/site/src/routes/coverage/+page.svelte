@@ -62,7 +62,7 @@
   ].sort((left, right) => left.noun.localeCompare(right.noun, 'en')).map((entry) => ({ label: `${formatNumber(entry.count)} ${entry.noun}`, href: entry.href }));
 </script>
 
-<SeoHead title="Data Coverage · Afallon Wiki" description="See what the Afallon Compendium covers for this game release, including known gaps in items, NPCs, places, and recipes." />
+<SeoHead title="Data Coverage | Afallon Wiki" description="See what the Afallon Compendium covers for this game release, including known gaps in items, NPCs, places, and recipes." />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <EntityHeader name="Data coverage" />

@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { entityPageEntries } from '$lib/server/page-entries';
 import { serverMapLoader } from '$lib/server/publication';
+import { pageTitle } from '$lib/server/page-title';
 import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
 import { heroicItemOption, sortHeroicItemOptions, type ItemPickerOption } from '$lib/detail/item-picker-options';
 
@@ -32,7 +33,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
   if (!entry?.document) error(404, 'This compendium page is unavailable.');
   const page = await loader.loadDocument(kind.kind, params.slug);
-  const inlineItem = await _loadGuideInlineItem(page, loader);
+  const [inlineItem, titleData] = await Promise.all([_loadGuideInlineItem(page, loader), pageTitle(page, registry, indexes, loader)]);
   const heroicItems = page.kind === 'mechanics' && page.document.topic === 'heroic-tier'
     ? await (async () => {
       const rows = (await loader.loadList('items')).rows.filter((row) =>
@@ -68,5 +69,5 @@ export const load: PageServerLoad = async ({ params }) => {
       return [...byKey.values()].sort((a, b) => a.slot.localeCompare(b.slot, 'en') || a.ref.name.localeCompare(b.ref.name, 'en'));
     })()
     : undefined;
-  return { kind, page, inlineItem, heroicItems, corruptionItems, documentPath: entry.document.path };
+  return { kind, page, inlineItem, heroicItems, corruptionItems, documentPath: entry.document.path, ...titleData };
 };

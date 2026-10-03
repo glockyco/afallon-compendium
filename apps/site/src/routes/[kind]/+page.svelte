@@ -2,7 +2,7 @@
   import { browser } from '$app/environment';
   import { base } from '$app/paths';
   import { page } from '$app/stores';
-  import { readerNoun } from '$lib/format';
+  import { listDescription } from '$lib/seo';
   import OverviewGallery from '$lib/OverviewGallery.svelte';
   import ListTable from '$lib/ListTable.svelte';
   import ProgressionOverview from '$lib/ProgressionOverview.svelte';
@@ -23,7 +23,7 @@
   $: placesPath = `${base}/${data.kind.kind}/`;
 </script>
 
-<SeoHead title={`${data.kind.plural} · Afallon Wiki`} description={`Browse ${readerNoun(data.kind.plural)} in the Afallon Compendium wiki. Find game details and related locations.`} />
+<SeoHead title={`${data.kind.plural} | Afallon Wiki`} description={listDescription(data.kind)} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <header class="head">

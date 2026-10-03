@@ -10,7 +10,7 @@
   const crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'About' }];
 </script>
 
-<SeoHead title="About · Afallon Wiki" description="Learn how the Afallon Compendium wiki and interactive map are made, what they cover, and when the data was last updated." />
+<SeoHead title="About Afallon Compendium | Afallon Wiki" description="Learn how the Afallon Compendium wiki and interactive map are made, what they cover, and when the data was last updated." />
 
 <PageShell registry={data.registry} release={data.release} {crumbs}>
   <article class="about">

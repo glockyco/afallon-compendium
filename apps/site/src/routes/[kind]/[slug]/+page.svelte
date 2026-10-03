@@ -8,7 +8,7 @@
   export let data: PageData;
 
   $: document = data.page.document;
-  $: summary = entityDescription(data.page);
+  $: summary = entityDescription(data.page, data.effectSubtitle);
   $: crumbs = [
     { label: 'Compendium', href: `${base}/` },
     { label: data.kind.plural, href: `${base}/${data.kind.route}/` },
@@ -16,9 +16,9 @@
   ];
 </script>
 
-<SeoHead title={`${document.ref.name} · Afallon Wiki`} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} />
+<SeoHead title={data.title} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
-  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} />
+  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} effectSubtitle={data.effectSubtitle} />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>

@@ -32,6 +32,7 @@ import { corruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
 import { projectPublicDocuments } from "./documents";
+import { mergeEquivalentEffects } from "./duplicate-effects";
 import { startingGearByItem } from "./documents/classes";
 import { conditionsById, type EffectWorldCheck, type EffectWorldSource, type PublishedPlacement, requirementsFor } from "./documents/projection";
 import { projectGatheringNodeDocuments } from "./gathering";
@@ -286,7 +287,7 @@ export async function generateIndexResources(
   const effectWorldChecks = worldEffectChecks(db);
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
     npcLevels: spawnedLevels, effectWorldSources, effectDisplayNames });
-  const refs = references.refs;
+  const refs = new Map(references.refs);
   const publishedKeys = new Set(refs.keys());
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
   const spawnCandidates = querySpawnCandidateNpcs(db);
@@ -326,6 +327,7 @@ export async function generateIndexResources(
     worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks, ...recovery });
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
+  mergeEquivalentEffects(publicDocuments, refs);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

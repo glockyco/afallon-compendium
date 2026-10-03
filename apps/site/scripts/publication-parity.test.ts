@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { PublicTileLayer } from "@afallon/contracts/public";
-import { assertCorrectedPublicationParity, assertNonRegressivePublication, assertUpdatePublicationParity, summarizePublication, type PublicationSummary, type PublicationView } from "./publication-parity";
+import { assertCorrectedPublicationParity, assertNonRegressivePublication, assertUpdatePublicationParity, mergedEffectRedirectKeys, summarizePublication, type PublicationSummary, type PublicationView } from "./publication-parity";
 
 const regionKey = (id: string, polygon = [[0, 0], [1, 0], [1, 1]]) => JSON.stringify({ mapSpaceId: "world", id, shape: "box", polygon });
 function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummary {
@@ -199,6 +199,21 @@ test("accepts only the removals that the exclusion list of the candidate names",
   // A same-build correction, which acceptance checks, applies the same rule.
   assertCorrectedPublicationParity(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), baseline);
   expect(() => assertCorrectedPublicationParity(summarizePublication(view([ironBar])), baseline)).toThrow("published entities: items:417");
+});
+
+test("a removed effect needs a same-name surviving page and an explicit permanent redirect", () => {
+  const previous = summary({ entityKeys: new Set(['effects:640']), entityPages: new Map([
+    ['effects:640', { kind: 'effects', name: 'Healing Potion', slug: 'healing-potion-640' }],
+  ]) });
+  const corrected = summary({ entityKeys: new Set(['effects:40']), entityPages: new Map([
+    ['effects:40', { kind: 'effects', name: 'Healing Potion', slug: 'healing-potion' }],
+  ]) });
+  const redirects = new Map([['/effects/healing-potion-640/', '/effects/healing-potion/']]);
+  expect(mergedEffectRedirectKeys(corrected, previous, redirects)).toEqual(new Set(['effects:640']));
+  expect(mergedEffectRedirectKeys(corrected, previous, new Map())).toEqual(new Set());
+  expect(mergedEffectRedirectKeys({ ...corrected, entityPages: new Map([
+    ['effects:40', { kind: 'effects', name: 'Different Healing', slug: 'healing-potion' }],
+  ]) }, previous, redirects)).toEqual(new Set());
 });
 
 test("withholding a referenced effect removes only its artwork, not artwork owned by the surviving page", () => {

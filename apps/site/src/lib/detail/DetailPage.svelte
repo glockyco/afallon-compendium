@@ -46,6 +46,7 @@
   export let inlineItem: Extract<StaticDocument, { kind: 'items' }>['document'] | undefined = undefined;
   export let heroicItems: ItemPickerOption[] | undefined = undefined;
   export let corruptionItems: ItemPickerOption[] | undefined = undefined;
+  export let effectSubtitle: string | undefined = undefined;
   $: detail = page.kind === 'mechanics' ? null
     : pages[page.kind] as Component<DetailProps<PublicDocument>>;
   $: guide = page.kind === 'mechanics'
@@ -55,6 +56,8 @@
 
 {#if page.kind === 'mechanics'}
   {#if guide}<svelte:component this={guide} document={page.document} {registry} {inlineItem} {heroicItems} {corruptionItems} />{/if}
+{:else if page.kind === 'effects'}
+  <EffectPage document={page.document} {registry} subtitle={effectSubtitle} />
 {:else if page.kind === 'currencies'}
   <CurrencyPage document={page.document} {registry} {inlineItem} />
 {:else if detail}

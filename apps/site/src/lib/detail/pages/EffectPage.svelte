@@ -18,6 +18,7 @@
 
   export let document: PublicEffect;
   export let registry: PublicKindEntry[];
+  export let subtitle: string | undefined = undefined;
   const combat = { key: 'mechanics:combat', kind: 'mechanics', name: 'Combat', slug: 'combat' } as const;
   type Source = PublicEffect['appliedBy'][number];
   type World = PublicEffect['worldSources'][number];
@@ -70,7 +71,7 @@
 
 <article class="detail-page">
   <DetailFrame {side}>
-    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} effect`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
+    <div slot="head"><TitleBlock name={document.ref.name} typeLine={`${document.type} effect${subtitle ? ` · ${subtitle}` : ''}`} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
     <div slot="answer"><AnswerCard title="What it does" id="what-it-does">
       {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
       {:else if document.explainedBy.length}

@@ -1,4 +1,4 @@
-import { lstatSync } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { hashFile, listFiles, parseJson } from "./deployment-files";
 import { deploymentPaths } from "../deployment-paths.mjs";
@@ -13,8 +13,15 @@ const siteDir = resolve(import.meta.dirname, "..");
 const outputDir = deploymentPaths(siteDir).outputDir;
 const files = listFiles(outputDir);
 
-for (const required of ["index.html", "404.html", "items/index.html", "coverage/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.webp", "map-marker-icons.png", "og-default.png", "sitemap.xml", "robots.txt"]) {
+for (const required of ["index.html", "404.html", "items/index.html", "coverage/index.html", "data/publication.json", "_deployment.json", "_headers", "_redirects", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.webp", "map-marker-icons.png", "og-default.png", "sitemap.xml", "robots.txt"]) {
   if (!files.includes(required)) throw new Error(`Deployment output is missing ${required}.`);
+}
+for (const line of readFileSync(join(outputDir, "_redirects"), "utf8").trim().split("\n")) {
+  const [source, destination, status] = line.trim().split(/\s+/);
+  if (!source?.startsWith("/") || !destination?.startsWith("/") || status !== "301"
+    || files.includes(`${source.slice(1)}index.html`) || !files.includes(`${destination.slice(1)}index.html`)) {
+    throw new Error(`Invalid merged-page redirect: ${line}`);
+  }
 }
 if (files.length > FREE_ASSET_LIMIT) {
   throw new Error(`Deployment contains ${files.length} files; Cloudflare Free permits ${FREE_ASSET_LIMIT}.`);

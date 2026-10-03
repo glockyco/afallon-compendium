@@ -51,7 +51,7 @@
 
 </script>
 
-<SeoHead title="Afallon Wiki and Interactive Map · Afallon Compendium" description="Explore the Afallon Compendium wiki and interactive map for items, quests, classes, crafting, and places in this unofficial game reference." website />
+<SeoHead title="Afallon Wiki and Interactive Map | Afallon Compendium" description="Explore the Afallon Compendium wiki and interactive map for items, quests, classes, crafting, and places in this unofficial game reference." website />
 
 <PageShell registry={data.registry} release={data.release} search={false}>
   <section slot="hero" class="hero" aria-labelledby="hub-title">

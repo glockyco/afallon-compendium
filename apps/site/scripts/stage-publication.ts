@@ -1,4 +1,4 @@
-import { chmodSync, cpSync, mkdirSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { hashFile, listFiles, parseJson } from "./deployment-files";
 import type { StaticResourceReference } from "@afallon/contracts/public";
@@ -37,7 +37,13 @@ export function stagePublication(
   const graph = verifyPublicationGraph(publicDir, selection.root);
   const { publication, files, sha256: publicationSha256 } = graph;
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
-  if (parity === "verified-update") verifyUpdatePublicationParity(graph, resolve(baselineRoot));
+  if (parity === "verified-update") {
+    const redirects = new Map(readFileSync(join(siteDir, "static", "_redirects"), "utf8").trim().split("\n")
+      .map((line) => line.trim().split(/\s+/) as [string, string, string])
+      .filter(([, , status]) => status === "301")
+      .map(([source, destination]) => [source, destination] as const));
+    verifyUpdatePublicationParity(graph, resolve(baselineRoot), redirects);
+  }
   else verifyPublicationParity(graph, resolve(baselineRoot));
 
   for (const relativePath of listFiles(publicDir)) {

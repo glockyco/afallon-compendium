@@ -24,6 +24,9 @@ export interface PublicationSummary {
   tileLayers: Map<string, ParityTileLayer>;
   /** Every published entity key: search records, pages, the variants of a page, and the versions of an ability. */
   entityKeys: Set<string>;
+  /** Public page identity for verifying that a removed effect has a same-name redirect target. */
+  entityPages?: Map<string, { name: string; kind: string; slug: string }>;
+  redirectedPageKeys?: Set<string>;
   itemKeys: Set<string>;
   regionKeys: Set<string>;
   placementIds: Set<string>;
@@ -109,7 +112,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
   const root = object(graph.publication), resource = (reference: unknown) => object(graph.resources.get(text(object(reference).path)));
   const maps = array(root.maps).map(object);
   const placements: Array<{ placementId: string; mapSpaceId: string; position: readonly [number, number]; categories: readonly string[]; entityKeys: readonly string[]; itemKeys: readonly string[] }> = [];
-  const regions: Json[] = [], layers: ParityTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [], entityKeys = new Set<string>(), listKinds = new Set<string>(), pageKinds = new Set<string>();
+  const regions: Json[] = [], layers: ParityTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [], entityKeys = new Set<string>(), entityPages = new Map<string, { name: string; kind: string; slug: string }>(), listKinds = new Set<string>(), pageKinds = new Set<string>();
   for (const map of maps) {
     const mapSpaceId = text(map.mapSpaceId);
     for (const part of array(map.parts)) {
@@ -128,6 +131,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
   for (const reference of array(root.search)) for (const entry of array(resource(reference).entries)) {
     const ref = object(object(entry).ref);
     searchKeys.push(text(ref.key));
+    if (ref.key && ref.kind && ref.name && ref.slug) entityPages.set(text(ref.key), { kind: text(ref.kind), name: text(ref.name), slug: text(ref.slug) });
     if (ref.kind === "items") itemKeys.push(text(ref.key));
   }
   for (const key of uniqueSet(searchKeys, "searchable entity")) entityKeys.add(key);
@@ -142,6 +146,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     own(object(document.ref).key, document);
     pageKinds.add(text(object(document.ref).kind));
     entityKeys.add(text(object(document.ref).key));
+    if (document.ref && object(document.ref).slug) entityPages.set(text(object(document.ref).key), { kind: text(object(document.ref).kind), name: text(object(document.ref).name), slug: text(object(document.ref).slug) });
     for (const variant of array(document.variants)) entityKeys.add(text(object(variant).key));
     for (const version of array(document.versions)) for (const key of array(object(version).keys)) entityKeys.add(text(key));
     for (const craft of [document.crafting, document.teaches]) entityKeys.add(text(object(object(craft).recipe).key));
@@ -183,7 +188,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     mapIds: new Set(maps.map((map) => text(map.mapSpaceId))),
     offsets,
     placementsByMap, placementsByCategory, tileLayers,
-    entityKeys, itemKeys: uniqueSet(itemKeys, "searchable item"),
+    entityKeys, entityPages, itemKeys: uniqueSet(itemKeys, "searchable item"),
     regionKeys: uniqueSet(regionKeys, "map region"),
     placementIds,
     placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories, entityKeys: placement.entityKeys, itemKeys: placement.itemKeys }])),
@@ -226,7 +231,7 @@ function assertRegions(candidate: PublicationSummary, baseline: PublicationSumma
 // The candidate may leave out an entity that its exclusion list names, and the artwork that only such entities showed.
 function assertListedRemovals(candidate: PublicationSummary, baseline: PublicationSummary): void {
   const excluded = (key: string) => candidate.excludedKeys.has(key);
-  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities", excluded);
+  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities", (key) => excluded(key) || Boolean(candidate.redirectedPageKeys?.has(key)));
   assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items", excluded);
   assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork", (path) => {
     const owners = baseline.artworkOwners.get(path);
@@ -349,8 +354,21 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
   assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
 }
 
-export function verifyUpdatePublicationParity(candidate: PublicationView, baselineRoot: string): void {
+export function mergedEffectRedirectKeys(candidate: PublicationSummary, baseline: PublicationSummary, redirects: ReadonlyMap<string, string>): Set<string> {
+  const destinations = new Map<string, { key: string; ref: { name: string; kind: string; slug: string } }>();
+  for (const [key, ref] of candidate.entityPages ?? []) destinations.set(`/${ref.kind}/${ref.slug}/`, { key, ref });
+  const retained = new Set<string>();
+  for (const [key, original] of baseline.entityPages ?? []) {
+    if (candidate.entityKeys.has(key) || original.kind !== 'effects') continue;
+    const replacement = destinations.get(redirects.get(`/effects/${original.slug}/`) ?? '');
+    if (replacement?.ref.kind === 'effects' && replacement.ref.name === original.name && replacement.key !== key) retained.add(key);
+  }
+  return retained;
+}
+
+export function verifyUpdatePublicationParity(candidate: PublicationView, baselineRoot: string, redirects?: ReadonlyMap<string, string>): void {
   const baseline = readPublicationBaseline(baselineRoot), candidateSummary = summarizePublication(candidate), baselineSummary = summarizeBaseline(baseline);
+  if (redirects) candidateSummary.redirectedPageKeys = mergedEffectRedirectKeys(candidateSummary, baselineSummary, redirects);
   if (object(candidate.publication).buildId === object(baseline.publication).buildId) assertCorrectedPublicationParity(candidateSummary, baselineSummary);
   else assertUpdatePublicationParity(candidateSummary, baselineSummary);
 }

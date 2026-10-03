@@ -7,7 +7,7 @@
   export let data: PageData;
 </script>
 
-<SeoHead title="Map · Afallon Wiki" description="Find bosses, dungeons, merchants, quests, resources, travel points, and item sources on the Afallon interactive map." />
+<SeoHead title="Afallon Interactive Map | Afallon Wiki" description="Find Afallon bosses, dungeons, merchants, quests, resources and item sources on the interactive map. Search locations and travel points." />
 
 <MapExplorer release={data.release} />
 
