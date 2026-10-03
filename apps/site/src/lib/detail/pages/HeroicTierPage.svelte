@@ -19,8 +19,7 @@
   export let registry: PublicKindEntry[];
   export let heroicItems: ItemPickerOption[] = [];
 
-  // The page answers three questions in order: how to turn the tier on, what changes, and what it gives. The opening
-  // states each answer in one sentence from the rules' values, and the parts below hold the rules in full.
+  // Lead with rewards, then explain how to enable the tier and what changes. Detailed sections retain each rule.
   const PARTS = [
     { id: 'getting-started', title: 'Getting started', sections: ['entering'] },
     { id: 'what-changes', title: 'What changes', sections: ['empowered-creatures', 'affixes'] },
@@ -36,7 +35,6 @@
   $: rules = new Map(document.sections.flatMap((section) => section.rules).filter((rule) => rule.status === 'verified').map((rule) => [rule.id, rule]));
   const value = (id: string, operand: string) => rules.get(id)?.operands[operand];
   $: consoles = document.consoles ?? [];
-  $: level = value('heroic-tier-recommended-level', 'level');
   $: health = value('heroic-tier-creature-health-scaling', 'health');
   $: damage = value('heroic-tier-creature-damage-scaling', 'damage');
   $: maxAffixes = value('heroic-tier-affix-rolls', 'maximum');
@@ -85,30 +83,25 @@
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
   <GuideStart overview={document.overview}>
-    {#if consoles.length}
-      <div>
-        <h2>Turn it on</h2>
-        <p>Use a Heroic Console in one of these places, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
-        <nav class="console-spots" aria-label="Find a Heroic Console">
-          {#each consoles as console (console.spot.placementId)}
-            <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on Map</a></span>
-          {/each}
-        </nav>
-        <a class="c-link more" href="#entering">Turning it on and off</a>
-      </div>
-    {/if}
-    {#if health !== undefined && damage !== undefined}
-      <div>
-        <h2>What changes</h2>
-        <p>Empowered creatures have {formatNumber(health)}× health and deal {formatNumber(damage)}× damage. Your gear raises both.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
-        <a class="c-link more" href="#empowered-creatures">Empowered creatures</a>
-      </div>
-    {/if}
     {#if rewards.length}
       <div>
         <h2>What you get</h2>
         <p>{list(rewards)}.</p>
         <a class="c-link more" href="#kill-experience">Rewards</a>
+      </div>
+    {/if}
+    {#if consoles.length}
+      <div>
+        <h2>Turn it on</h2>
+        <p>Use a Heroic Console to choose this tier.</p>
+        <a class="c-link more" href="#entering">Find a console</a>
+      </div>
+    {/if}
+    {#if health !== undefined && damage !== undefined}
+      <div>
+        <h2>What changes</h2>
+        <p>Heroic creatures have {formatNumber(health)}× health and deal {formatNumber(damage)}× damage. Your gear raises both.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
+        <a class="c-link more" href="#empowered-creatures">Heroic creatures</a>
       </div>
     {/if}
   </GuideStart>
@@ -132,7 +125,7 @@
               <HeroicItemComparison {registry} options={heroicItems} />
             {/if}
             {#if section.id === 'empowered-creatures' && strength.length}
-              <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>
+              <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Heroic creature strength by your gear score" minColumn={60}>
                 <svelte:fragment slot="corner">Your gear score</svelte:fragment>
                 <svelte:fragment slot="head" let:item><span class="score">{formatNumber(item.score)}{item.score === capScore ? '+' : ''}</span></svelte:fragment>
                 <svelte:fragment slot="cell" let:item let:fact>{formatNumber(fact === 'health' ? item.health : item.damage)}×</svelte:fragment>

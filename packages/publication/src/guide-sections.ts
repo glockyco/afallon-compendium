@@ -23,13 +23,13 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   "heroic-tier": {
-    overview: "The Heroic tier makes the open world harder for a character who turns it on. Creatures gain health, damage, and dangerous affixes, and in return give more experience and currency, Heroic Essence, and stronger gear.",
+    overview: "The Heroic tier makes the open world harder for a character who turns it on.",
     sections: [
       { id: "entering", title: "Turning it on and off", lead: "A Heroic Console opens a panel that explains the tier and asks you to confirm.", how: "How the Heroic Tier turns on and off" },
-      { id: "empowered-creatures", title: "Empowered creatures", lead: "Empowered creatures are much tougher than usual, and they keep pace with your gear." },
-      { id: "affixes", title: "Affixes", lead: "An empowered creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful.", how: "How Heroic affixes work" },
-      { id: "kill-experience", title: "Kill experience", lead: "An empowered creature gives more experience when you kill it. Quest experience does not change." },
-      { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from empowered kills. Creature rank, affixes, and the creature's health compared with yours affect the amount." },
+      { id: "empowered-creatures", title: "Heroic creatures", lead: "Heroic creatures are much tougher than usual, and they keep pace with your gear." },
+      { id: "affixes", title: "Affixes", lead: "A Heroic creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful.", how: "How Heroic affixes work" },
+      { id: "kill-experience", title: "Kill experience", lead: "A Heroic kill gives more experience. Quest experience does not change." },
+      { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from Heroic kills. Creature rank, affixes, and the creature's health compared with yours affect the amount." },
       { id: "currency", title: "Currency", lead: "Bosses and World Quests pay more currency." },
       { id: "heroic-gear", title: "Heroic gear", lead: "Heroic gear carries a bonus to its fixed stats and weapon damage." },
     ],
@@ -58,9 +58,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   loot: {
-    overview: "Items can come from bags, supply packs, cloth drops, objects in the world, quest pickups, and the Dungeon Finder, as well as creatures, vendors, quests, and crafting. See each item's page for its rewards and sources.",
+    overview: "Loot comes from creatures, quests, vendors, crafting, containers, and other objects in the world. See an item's page for its rewards and sources.",
     sections: [
-      { id: "creature-drops", title: "Creature Drops", lead: "When you qualify for a creature's loot, its drop tables and any eligible World Loot tables can give you items. Item pages show what each source can give." },
+      { id: "creature-drops", title: "Creature Drops", lead: "When you qualify for a creature's loot, its own loot and eligible World Loot can both give you items." },
       { id: "chests", title: "Items that open a chest", lead: "Use a bag to open its chest of possible loot. The item's page shows what can be inside." },
       { id: "supply-packs", title: "Supply packs", lead: "Open a supply pack to get items from the table for your class and level. The pack's page shows what you can get and how to obtain the pack. The details of each pick are below." },
       { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows base rates before loot bonuses by creature level." },
@@ -70,9 +70,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   adventurers: {
-    overview: "Adventurers appear in the world, take jobs while they are away, and can join your party through the Friends panel or the Dungeon Finder.",
+    overview: "Adventurers can join your party or pursue their own progress while away. This guide covers meeting them, their roles, and their gear.",
     sections: [
-      { id: "meeting-and-inviting", title: "Meeting and inviting", lead: "Find adventurers in the Friends panel, then invite them from your saved friends." },
+      { id: "meeting-and-inviting", title: "Meeting and inviting", lead: "" },
       { id: "dungeon-finder-parties", title: "Dungeon Finder parties", lead: "The Dungeon Finder looks for adventurers who can complete your party." },
       { id: "roster", title: "Roster", lead: "Every adventurer of the world, with their class, party role, and when they join." },
       { id: "jobs-and-progress", title: "Jobs and progress", lead: "Adventurers work on their own progress while they are away." },
@@ -80,9 +80,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   factions: {
-    overview: "Every NPC belongs to a faction, and you have a standing with each faction. Your standing is one of the faction's stances, such as Hated, Neutral, or Honored. Each stance fills up with points, and a full stance moves you to the next one.",
+    overview: "Your faction standing affects how NPCs treat you. This guide covers stances and ways to change your standing.",
     sections: [
-      { id: "standing-and-stances", title: "Standing and stances", lead: "Points move your standing up and down through a faction's stances." },
+      { id: "standing-and-stances", title: "Standing and stances", lead: "" },
       { id: "new-character-standing", title: "Standing of a new character", lead: "The table shows the stance and points that a new character starts with toward each faction." },
       { id: "combat-relations", title: "Factions in combat", lead: "Your stance with a faction decides whether its NPCs count as allies, neutral, or enemies in combat." },
       { id: "changing-standing", title: "Changing standing", lead: "Creature kills, quests, and items can be set up to change your standing." },
@@ -90,15 +90,15 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   "world-quests": {
-    overview: "World Quests become available for a limited time in zones across the map. Enter an active zone to join one, complete its objectives, and collect its rewards.",
+    overview: "World Quests offer time-limited objectives and rewards in zones across the map.",
     sections: [
-      { id: "availability", title: "Where and when they appear", lead: "A World Quest can become active in its zone for a limited time. Quest pages show where each one takes place and how long it lasts." },
-      { id: "participation", title: "Joining and completing", lead: "Enter an active quest's zone to join it. See each quest's page for its objectives and starting area." },
-      { id: "rewards", title: "Rewards and Heroic Cache", lead: "Each quest page shows the rewards you can earn. During the Heroic tier, Heroic Cache can increase its currency reward." },
+      { id: "availability", title: "Where and when they appear", lead: "Quest pages show each World Quest's zone and duration." },
+      { id: "participation", title: "Joining and completing", lead: "" },
+      { id: "rewards", title: "Rewards and Heroic Cache", lead: "" },
     ],
   },
   travel: {
-    overview: "Talk to a flight master to discover stops and fly to other stops in the same network. The connections below show which journeys are available.",
+    overview: "Flight masters connect stops across the map. Use the networks below to plan a journey.",
     sections: [
       { id: "finding-flights", title: "Finding flights", lead: "" },
       { id: "taking-flight", title: "Taking a flight", lead: "" },
