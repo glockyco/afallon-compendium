@@ -139,6 +139,32 @@ test("different effects can share their authored name without displaying record 
   expect(new Set([...pages.values()].map((page) => page.ref.slug)).size).toBe(2);
 });
 
+test("reviewed effect names replace public references but preserve the authored URL", () => {
+  const effects = [entity("effects", 280, "Stacking effect done"), entity("effects", 515, "Beacon of Chaos")];
+  const facts: CatalogFacts = { ...emptyFacts, entities: effects, progression: {
+    ...emptyFacts.progression, facts: effects.map((row) => ({ kind: "effects", entityKey: row.entityKey, name: row.name,
+      details: { effectType: { name: "EffectChecker" } } }) as CatalogProgressionFact),
+  } };
+  const sources = [{ effectKey: "effects:280", family: "interactableObject", sourceId: "grave",
+    place: null, placementIds: ["grave"], label: "Bless Grave" }];
+  const displayName = { key: "effects:280", name: "Challenge Progress", evidence: "Challenge objective evidence." };
+  const original = buildEntityReferences(effects, { facts, relations: emptyRelations, effectWorldSources: sources });
+  const published = buildEntityReferences(effects, { facts, relations: emptyRelations, effectWorldSources: sources, effectDisplayNames: [displayName] });
+  expect(published.refs.get("effects:280")).toMatchObject({ name: "Challenge Progress", slug: "stacking-effect-done" });
+  expect(published.pages.get("effects:280")?.ref).toEqual(published.refs.get("effects:280"));
+  expect(published.refs.get("effects:280")?.slug).toBe(original.refs.get("effects:280")?.slug);
+  const excluded = buildEntityReferences(effects, { facts, relations: emptyRelations, effectWorldSources: sources,
+    excluded: new Set(["effects:280"]), effectDisplayNames: [displayName] });
+  expect(excluded.pages.has("effects:280")).toBe(false);
+  expect(excluded.refs.get("effects:280")).toEqual({ key: "effects:280", kind: "effects", name: "Challenge Progress" });
+  expect(createReferenceResolver(excluded.refs)({ entityKey: "effects:280", label: "Stacking Effect Done" }))
+    .toEqual({ key: null, label: "Challenge Progress" });
+  expect(() => buildEntityReferences(effects, { facts, effectDisplayNames: [{ ...displayName, key: "effects:999" }] })).toThrow("unknown effect");
+  expect(() => buildEntityReferences(effects, { facts, effectDisplayNames: [{ ...displayName, key: "items:280" }] })).toThrow("unknown effect");
+  expect(() => buildEntityReferences(effects, { facts, effectDisplayNames: [{ ...displayName, name: "BEACON  OF CHAOS" }] })).toThrow("collides with another effect");
+  expect(() => buildEntityReferences(effects, { facts, effectDisplayNames: [displayName, { ...displayName, key: "effects:515", name: "Challenge Progress" }] })).toThrow("collides with another effect");
+});
+
 test("qualifies places of one name by the area of their entrance and numbers places that share it", () => {
   const entities = [entity("scenes", 47, "Afallon"), entity("scenes", 31, "Cave"), entity("scenes", 32, "Cave"), entity("scenes", 34, "Cave"), entity("scenes", 43, "Glacier Cave"), entity("scenes", 44, "Glacier Cave")];
   const place = (entityKey: string, levelRange: { min: number; max: number } | null) => ({ entityKey, placeType: "zone" as const, guideIncluded: false, guideDescription: null, levelRange, mapSpaceIds: [], bosses: [], parentSceneKey: null });

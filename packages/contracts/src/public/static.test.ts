@@ -76,3 +76,15 @@ test("each reviewed exclusion names a key, a known reason, and its evidence once
   expect(() => assertPublicationPresentation({ ...presentation, exclusions: [scytheTest, { ...scytheTest, reason: "appearance-option" }] })).toThrow("Publication exclusions repeat a key: items:220.");
   expect(() => assertPublicationPresentation({ ...presentation, exclusions: [scytheTest], schemaVersion: "compendium.publication-presentation.v1" })).toThrow();
 });
+
+test("reviewed effect display names require evidence and unique effect keys", () => {
+  const presentation = { schemaVersion: "compendium.publication-presentation.v2", buildId: "build", catalogId: "b".repeat(64),
+    worldOffsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }],
+    spatialBounds: [{ mapSpaceId: "world", minX: 0, minY: 0, maxX: 1, maxY: 1 }], capturedMapSpaceIds: [], exclusions: [] };
+  assertPublicationPresentation(presentation);
+  const reviewed = { key: "effects:280", name: "Challenge Progress", evidence: "Challenge stone objective and world action evidence." };
+  assertPublicationPresentation({ ...presentation, effectDisplayNames: [reviewed] });
+  expect(() => assertPublicationPresentation({ ...presentation, effectDisplayNames: [{ ...reviewed, evidence: "" }] })).toThrow();
+  expect(() => assertPublicationPresentation({ ...presentation, effectDisplayNames: [{ ...reviewed, key: "items:280" }] })).toThrow();
+  expect(() => assertPublicationPresentation({ ...presentation, effectDisplayNames: [reviewed, reviewed] })).toThrow("Publication effect display names repeat a key: effects:280.");
+});

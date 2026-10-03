@@ -207,7 +207,7 @@ export async function publishFromPlan(store: ArtifactStore, plan: PublicationPla
       const identity = queryCatalogMaps(db);
       assertStaticResourceIdentity({ buildId: plan.buildId, catalogId: plan.catalog.catalogId }, identity);
       gate = evaluateCatalogGate(db, { mode: plan.mode, expectedBuildId: plan.buildId, expectedCatalogId: plan.catalog.catalogId, referenceIntegrity: { verified: true, failures: [] }, spatialBounds: presentation.spatialBounds });
-      result = await buildStaticPublication(db, store, plan.mode, gate, release, presentation.worldOffsets, presentation.capturedMapSpaceIds, presentation.exclusions, lease);
+      result = await buildStaticPublication(db, store, plan.mode, gate, release, presentation.worldOffsets, presentation.capturedMapSpaceIds, presentation.exclusions, lease, presentation.effectDisplayNames);
       db.close();
       db = undefined;
       await store.verify(plan.catalog.object);

@@ -11,6 +11,7 @@ import {
   StaticExclusionsSchema,
   StaticRootManifestSchema,
   type PublicationExclusion,
+  type PublicationEffectDisplayName,
   type PublicRelease,
   type PublicWorldOffset,
   type StaticCoverage,
@@ -55,6 +56,7 @@ export async function buildStaticPublication(
   capturedMapSpaceIds: readonly string[] = [],
   exclusions: readonly PublicationExclusion[] = [],
   protection?: ObjectWriteProtection,
+  effectDisplayNames: readonly PublicationEffectDisplayName[] = [],
 ): Promise<StaticPublicationBuildResult> {
   if (!gate.accepted) throw new Error("Publication candidate failed its catalog gate.");
   const imagery = await generateImageryResources(db, store, protection);
@@ -104,7 +106,7 @@ export async function buildStaticPublication(
   // A page that names a placement that a fold merged links the marker that shows it.
   const spots = new Map(placements);
   for (const entry of mapShards) for (const [placementId, target] of entry.mergedInto) spots.set(placementId, placements.get(target)!);
-  const indexes = await generateIndexResources(db, store, spots, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection, variants.byScene, new Set(capturedMapSpaceIds));
+  const indexes = await generateIndexResources(db, store, spots, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection, variants.byScene, new Set(capturedMapSpaceIds), effectDisplayNames);
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {

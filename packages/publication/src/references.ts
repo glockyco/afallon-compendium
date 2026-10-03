@@ -1,5 +1,5 @@
 import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogPlacementRow, CatalogRelations } from "@afallon/contracts/catalog";
-import type { Art, EntityRef, NpcVariantField, PublicLevel, PublicReferenceKind, Ref, UnresolvedRef } from "@afallon/contracts/public";
+import type { Art, EntityRef, NpcVariantField, PublicationEffectDisplayName, PublicLevel, PublicReferenceKind, Ref, UnresolvedRef } from "@afallon/contracts/public";
 import { categoryLabel } from "@afallon/contracts/public";
 import { baseName, groupEntities, nameKey, type EntityGroup } from "./grouping";
 import { PUBLIC_KIND_BY_KIND, publicKindForCatalogKind } from "./kind-registry";
@@ -20,6 +20,7 @@ export interface ReferenceBuildContext {
   /** The records that the reviewed exclusion list keeps out of the publication. */
   excluded?: ReadonlySet<string>;
   effectWorldSources?: readonly EffectWorldSource[];
+  effectDisplayNames?: readonly PublicationEffectDisplayName[];
 }
 
 /** One authored record of a page. `label` tells it apart from the other records of the page. */
@@ -263,6 +264,24 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   const groups = groupEntities(entities.filter((entity) => !excluded.has(entity.entityKey))).map((group) =>
     group.kind === "effects" && context.facts && !displayName(group.members[0]!.name ?? "")
       ? { ...group, name: effectFallbackName(group.members[0]!, context.facts) } : group);
+  const reviewedNames = new Map<string, string>();
+  if (context.effectDisplayNames?.length) {
+    const allEffects = groupEntities(entities).filter((group) => group.kind === "effects").map((group) =>
+      context.facts && !displayName(group.members[0]!.name ?? "")
+        ? { ...group, name: effectFallbackName(group.members[0]!, context.facts) } : group);
+    const effectsByKey = new Map(allEffects.map((group) => [group.key, group]));
+    for (const { key, name } of context.effectDisplayNames) {
+      const effect = effectsByKey.get(key);
+      if (!effect) throw new Error(`Publication effect display name targets an unknown effect: ${key}.`);
+      if (reviewedNames.has(key)) throw new Error(`Publication effect display names repeat a key: ${key}.`);
+      reviewedNames.set(key, displayName(name));
+    }
+    for (const { key, name } of allEffects) {
+      const publicName = nameKey(reviewedNames.get(key) ?? name);
+      if (reviewedNames.has(key) && allEffects.some((other) => other.key !== key && nameKey(reviewedNames.get(other.key) ?? other.name) === publicName))
+        throw new Error(`Publication effect display name collides with another effect: ${key} (${reviewedNames.get(key)}).`);
+    }
+  }
   const npcFacts = new Map((context.facts?.npcs ?? []).map((fact) => [fact.entityKey, fact]));
   const abilityFacts = new Map((context.facts?.abilities ?? []).map((fact) => [fact.entityKey, fact]));
   const reachableEffects = context.facts && context.relations
@@ -294,12 +313,12 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   const npcLabelCandidates = npcCandidates(entityByKey, context);
   const candidatesOf = (kind: PublicReferenceKind) => kind === "items" ? itemLabels : kind === "places" ? placeLabels : kind === "npcs" ? npcLabelCandidates : [];
   for (const same of qualified.values()) {
-    if (same.length === 1) { names.set(same[0]!.key, same[0]!.name); continue; }
+    if (same.length === 1) { names.set(same[0]!.key, reviewedNames.get(same[0]!.key) ?? same[0]!.name); continue; }
     const rows = same.map((group) => group.members[0]!).sort((left, right) => left.nativeId - right.nativeId);
     const kind = same[0]!.kind;
     // Effect pages keep their authored names. Their distinct URLs, links, and outcomes give context without record ids.
     if (kind === "effects") {
-      for (const group of same) names.set(group.key, group.name);
+      for (const group of same) names.set(group.key, reviewedNames.get(group.key) ?? group.name);
       continue;
     }
     const suffixes = recordLabels(rows, candidatesOf(kind), (position) => String(position), kind === "places" ? entrances : undefined);
@@ -322,7 +341,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     let slug: string | undefined;
     if (hasPage) {
       const used = usedSlugs.get(group.kind) ?? new Set<string>();
-      const base = slugify(name);
+      const base = slugify(group.kind === "effects" ? group.name : name);
       slug = used.has(base) ? `${base}-${group.members[0]!.nativeId}` : base;
       if (used.has(slug)) throw new Error(`Two ${group.kind} pages share the slug ${slug}.`);
       used.add(slug);
@@ -360,12 +379,13 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     nodeSlugs.add(slug);
     refs.push([key, { key, kind: "gatheringNodes", name, slug }]);
   }
-  // An excluded record keeps its formatted name for text, like a class without a page, but gets no page and no slug.
+  // An excluded record keeps a readable name for text, but gets no page or slug. Reviewed effect names also apply to
+  // excluded effects: unresolved requirement spans use these names rather than their catalog endpoint labels.
   for (const entity of entities) {
     const kind = excluded.has(entity.entityKey) ? publicKindForCatalogKind(entity.kind) : null;
     if (kind !== null) {
       const icon = kind === "effects" ? context.artByEntity?.get(entity.entityKey)?.icon : undefined;
-      refs.push([entity.entityKey, { key: entity.entityKey, kind, name: baseName(entity, kind), ...(icon ? { icon } : {}) }]);
+      refs.push([entity.entityKey, { key: entity.entityKey, kind, name: reviewedNames.get(entity.entityKey) ?? baseName(entity, kind), ...(icon ? { icon } : {}) }]);
     }
   }
   // Recipes have no pages: their links use the product's Crafting section or the skill's anchored row. A link keeps the

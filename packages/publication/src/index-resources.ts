@@ -21,6 +21,7 @@ import {
   type PublicSearchEntry,
   type StaticDocument,
   type PublicationExclusion,
+  type PublicationEffectDisplayName,
   type StaticKindList,
   type StaticCoverage,
   type StaticSearchIndex,
@@ -263,6 +264,7 @@ export async function generateIndexResources(
   protection?: ObjectWriteProtection,
   placeVariants: ReadonlyMap<string, PlaceVariant> = new Map(),
   overworldMapSpaceIds: ReadonlySet<string> = new Set(),
+  effectDisplayNames: readonly PublicationEffectDisplayName[] = [],
 ): Promise<GeneratedIndexResources> {
   const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), catalogRelations = queryCatalogRelations(db);
   assertSameIdentity(entities, facts, "Fact");
@@ -282,7 +284,7 @@ export async function generateIndexResources(
   const spawnedLevels = new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const));
   const effectWorldChecks = worldEffectChecks(db);
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
-    npcLevels: spawnedLevels, effectWorldSources });
+    npcLevels: spawnedLevels, effectWorldSources, effectDisplayNames });
   const refs = references.refs;
   const publishedKeys = new Set(refs.keys());
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.

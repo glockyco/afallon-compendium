@@ -68,3 +68,18 @@ test("travel actions link existing scenes but never leak absent scene identifier
   expect(rankActions(effect, rank("scenes:10"), input).find((action) => action.label === "Destination Scene"))
     .toMatchObject({ target: { key: "scenes:10" } });
 });
+
+test("requirement labels use resolved reference names and keep catalog comparison wording", () => {
+  const requirement = {
+    type: { value: 4, name: "Effect" }, rule: { value: 0, name: "Mandatory" },
+    label: "Stacking Effect Done is active with 60 or more stacks",
+    spans: [{ endpoint: { entityKey: "effects:280", label: "Stacking Effect Done" } }, { text: " is active with 60 or more stacks" }],
+  } as CatalogRequirement;
+  const group: CatalogRequirementGroup = { mode: "all", checkCount: false, requiredCount: null, requirements: [requirement] };
+  const projected = projectRequirementGroups([group], () => ({ key: "effects:280", kind: "effects", name: "Challenge Progress", slug: "stacking-effect-done" }))[0]!.requirements[0]!;
+  expect(projected.label).toBe("Challenge Progress is active with 60 or more stacks");
+  expect(projected.spans).toEqual([{ ref: { key: "effects:280", kind: "effects", name: "Challenge Progress", slug: "stacking-effect-done" } }, { text: " is active with 60 or more stacks" }]);
+  const withheld = projectRequirementGroups([group], () => ({ key: null, label: "Challenge Progress" }))[0]!.requirements[0]!;
+  expect(withheld.label).toBe("Challenge Progress is active with 60 or more stacks");
+  expect(withheld.spans).toEqual([{ ref: { key: null, label: "Challenge Progress" } }, { text: " is active with 60 or more stacks" }]);
+});

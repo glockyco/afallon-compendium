@@ -4,7 +4,7 @@ import type { PublishedPage } from "../references";
 import { displayName, plainText } from "../text";
 import { projectRule, topicRef } from "../placed-rules";
 import { GUIDES } from "../guide-sections";
-import { type DocumentProjectionInput, mergeRefs, pageBase } from "./projection";
+import { type DocumentProjectionInput, mergeRefs, pageBase, projectRequirement } from "./projection";
 
 /** One scanned world source applying an effect. Keep source identity outside the published document. */
 export interface EffectWorldSource {
@@ -266,7 +266,7 @@ function checkedSources(key: string, input: EffectInput): EffectCheck[] {
   const worldGroups = new Map<string, { row: EffectCheck; sources: Set<string> }>();
   for (const condition of namedChecks(input.relations).get(key) ?? []) for (const group of condition.requirements) for (const requirement of group.requirements) {
     if (requirement.type.name !== "Effect" || requirement.effectCondition?.name !== "Effect" || keyOf(requirement.references.effect) !== key) continue;
-    const label = plainText(requirement.label), state = readable(requirement.state?.name ?? requirement.rule.name), target = readable(requirement.entity?.name ?? "Target");
+    const label = projectRequirement(requirement, input.resolve).label, state = readable(requirement.state?.name ?? requirement.rule.name), target = readable(requirement.entity?.name ?? "Target");
     const groupLabel = [condition.scope ? readable(condition.scope) : "", group.mode === "any" ? "One Of Several Checks" : ""].filter(Boolean).join(" · ");
     const owners = mergeRefs(conditionOwners.get(condition.conditionId) ?? [], input);
     const worldChecks = worldByCondition.get(condition.conditionId) ?? [];

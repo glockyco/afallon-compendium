@@ -188,10 +188,12 @@ function requirementSpan(ref: Ref): RequirementRef["spans"][number] {
   return isEntityRef(ref) && (isPublicPageKind(ref.kind) || ref.kind === "recipes") && ref.slug === undefined ? { text: ref.name } : { ref };
 }
 
-function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceResolver): RequirementRef {
+export function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceResolver): RequirementRef {
+  const spans = requirement.spans.map((span) => "text" in span ? { text: withoutMarkup(span.text) } : requirementSpan(resolve(span.endpoint)));
   return {
-    type: { value: requirement.type.value, name: plainText(requirement.type.name) }, rule: { value: requirement.rule.value, name: plainText(requirement.rule.name) }, label: plainText(requirement.label),
-    spans: requirement.spans.map((span) => "text" in span ? { text: withoutMarkup(span.text) } : requirementSpan(resolve(span.endpoint))),
+    type: { value: requirement.type.value, name: plainText(requirement.type.name) }, rule: { value: requirement.rule.value, name: plainText(requirement.rule.name) },
+    label: plainText(spans.map((span) => "text" in span ? span.text : "name" in span.ref ? span.ref.name : span.ref.label).join("")),
+    spans,
   };
 }
 

@@ -355,6 +355,11 @@ export type PublicationPlan = Static<typeof PublicationPlanSchema>;
 export const PublicationExclusionSchema = Type.Object({ key: text, reason: exclusionReason, evidence: text }, { additionalProperties: false });
 export type PublicationExclusion = Static<typeof PublicationExclusionSchema>;
 
+export const PublicationEffectDisplayNameSchema = Type.Object({
+  key: Type.String({ pattern: "^effects:[0-9]+$" }), name: text, evidence: text,
+}, { additionalProperties: false });
+export type PublicationEffectDisplayName = Static<typeof PublicationEffectDisplayNameSchema>;
+
 export const PublicationPresentationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.publication-presentation.v2"),
   ...StaticResourceIdentityFields,
@@ -362,6 +367,7 @@ export const PublicationPresentationSchema = Type.Object({
   spatialBounds: Type.Array(Type.Object({ mapSpaceId: text, minX: number, minY: number, maxX: number, maxY: number }, { additionalProperties: false }), { minItems: 1 }),
   capturedMapSpaceIds: Type.Array(text, { maxItems: 1, uniqueItems: true }),
   exclusions: Type.Array(PublicationExclusionSchema),
+  effectDisplayNames: Type.Optional(Type.Array(PublicationEffectDisplayNameSchema)),
 }, { additionalProperties: false });
 export type PublicationPresentation = Static<typeof PublicationPresentationSchema>;
 
@@ -375,6 +381,11 @@ export function assertPublicationPresentation(value: unknown): asserts value is 
   for (const exclusion of value.exclusions) {
     if (keys.has(exclusion.key)) throw new Error(`Publication exclusions repeat a key: ${exclusion.key}.`);
     keys.add(exclusion.key);
+  }
+  const effectKeys = new Set<string>();
+  for (const effect of value.effectDisplayNames ?? []) {
+    if (effectKeys.has(effect.key)) throw new Error(`Publication effect display names repeat a key: ${effect.key}.`);
+    effectKeys.add(effect.key);
   }
 }
 
