@@ -14,7 +14,7 @@
 
   const columns: RelationColumn<PlacementGroup>[] = [
     { id: 'name', label: 'Category', value: (row) => roleLabel(row.category), sort: (row) => roleLabel(row.category) },
-    { id: 'spots', label: 'Map spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount },
+    { id: 'spots', label: 'Map Spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount },
   ];
   $: plan = planColumns(columns, rows);
 </script>

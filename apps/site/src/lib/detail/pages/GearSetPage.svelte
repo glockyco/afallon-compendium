@@ -33,7 +33,7 @@
     </div>
 
     <div slot="answer">
-      <AnswerCard title="Set bonuses" id="set-bonuses">
+      <AnswerCard title="Set Bonuses" id="set-bonuses">
         {#if document.description}<p class="description">{document.description}</p>{/if}
         {#if document.tiers.length}
           <p>Bonuses unlock as you equip different pieces of the set. Higher tiers keep the earlier bonuses.</p>
@@ -48,7 +48,7 @@
     </div>
 
     <svelte:fragment slot="side">
-      <FactsCard facts={sideFacts} title="At a glance">
+      <FactsCard facts={sideFacts} title="At a Glance">
         <p slot="after">Two copies of the same piece count only once.</p>
       </FactsCard>
     </svelte:fragment>

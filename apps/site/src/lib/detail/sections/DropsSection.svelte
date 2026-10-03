@@ -57,8 +57,8 @@
                 {:else}
                   {#if group.length === 1 || mixedRates}
                     <span class:single-rate-label={group.length === 1}>
-                      {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed Rate:</Hint>
-                      {:else}<Hint text={KILL_CHANCE_HINT}>Chance per Kill:</Hint>{/if}{' '}
+                      {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed rate:</Hint>
+                      {:else}<Hint text={KILL_CHANCE_HINT}>Chance per kill:</Hint>{/if}{' '}
                     </span>
                   {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}
                 {/if}
@@ -68,7 +68,7 @@
           </RelationTable>
         </div>
       {/each}
-      {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
+      {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How Creature Drops Work" />{/if}
     </div>
   {:else}<p class="empty">No known drops for {name}.</p>{/if}
 {/snippet}

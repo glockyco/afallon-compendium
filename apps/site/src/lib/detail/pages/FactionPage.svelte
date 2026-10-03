@@ -24,12 +24,12 @@
   const stanceColumns: RelationColumn<FactionStance>[] = [
     { id: 'stance', label: 'Stance', value: (row) => row.name },
     { id: 'alignment', label: 'Alignment', value: (row) => alignmentLabel(row.alignment) },
-    { id: 'points', label: 'Points to fill', numeric: true, value: (row) => row.points },
+    { id: 'points', label: 'Points to Fill', numeric: true, value: (row) => row.points },
   ];
   const relationColumns: RelationColumn<FactionRelation>[] = [
     { id: 'faction', label: 'Toward', value: (row) => nameOf(row.faction), sort: (row) => nameOf(row.faction) },
     { id: 'stance', label: 'Stance', value: (row) => row.stance, sort: (row) => row.stance ?? '' },
-    { id: 'points', label: 'Starting points', numeric: true, value: (row) => row.startingPoints, sort: (row) => row.startingPoints },
+    { id: 'points', label: 'Starting Points', numeric: true, value: (row) => row.startingPoints, sort: (row) => row.startingPoints },
   ];
   $: stancePlan = planColumns(sharedStancePoints !== undefined ? stanceColumns.filter((column) => column.id !== 'points') : stanceColumns, document.stances);
   $: relationPlan = planColumns(allStartingPointsZero ? relationColumns.filter((column) => column.id !== 'points') : relationColumns, document.relations);
@@ -63,7 +63,7 @@
 
     <Sections>
       {#if document.relations.length}
-        <Section id="relations" title="Stance toward each faction" count={document.relations.length} line={allStartingPointsZero ? `How ${document.ref.name} starts toward each faction, with no points toward the next stance.` : `How ${document.ref.name} starts toward each faction.`}>
+        <Section id="relations" title="Stance Toward Each Faction" count={document.relations.length} line={allStartingPointsZero ? `How ${document.ref.name} starts toward each faction, with no points toward the next stance.` : `How ${document.ref.name} starts toward each faction.`}>
           <RelationTable columns={relationPlan.columns} rows={document.relations} label="Stance toward each faction">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'faction'}<EntityLink ref={row.faction} {registry} />

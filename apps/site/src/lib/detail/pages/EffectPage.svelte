@@ -36,7 +36,7 @@
     { id: 'count', label: 'Sources', numeric: true, value: (row) => row.sourceCount, sort: (row) => row.sourceCount },
   ];
   const checkColumns: RelationColumn<Check>[] = [
-    { id: 'owner', label: 'Used by', value: (row) => row.owner ? ('name' in row.owner ? row.owner.name : row.owner.label) : row.label },
+    { id: 'owner', label: 'Used By', value: (row) => row.owner ? ('name' in row.owner ? row.owner.name : row.owner.label) : row.label },
     { id: 'condition', label: 'Condition', value: (row) => `${row.state.toLowerCase()} on ${row.target.toLowerCase()}` },
     { id: 'count', label: 'Checks', numeric: true, value: (row) => row.count, sort: (row) => row.count },
   ];
@@ -84,7 +84,7 @@
       {#if actions.length && !['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type)}
         <ul class="actions">{#each actions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
       {:else if detailActions.length}
-        <DetailsDisclosure title="More effect details">
+        <DetailsDisclosure title="More Effect Details">
           <ul class="actions">{#each detailActions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
         </DetailsDisclosure>
       {/if}
@@ -95,10 +95,10 @@
           <HowItWorks guide={explanation.guide} section={explanation.section} label={explanation.label} />
         {/each}
       {:else}
-        <HowItWorks guide={combat} section="effects" label="How combat effects work" />
+        <HowItWorks guide={combat} section="effects" label="How Combat Effects Work" />
       {/if}
     </AnswerCard></div>
-    <svelte:fragment slot="side"><FactsCard {facts} title="At a glance" /></svelte:fragment>
+    <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>
     <Sections>
       {#if sourceRows.length}<Section id="applied-by" title="Sources" count={sourceRows.length} line="Abilities, items, and other sources that apply this effect.">
         <RelationTable columns={sourcePlan.columns} rows={sourceRows} label="Effect sources"><svelte:fragment slot="cell" let:row let:column>
@@ -109,7 +109,7 @@
           {:else if column === 'target'}{row.target ?? ''}{/if}
         </svelte:fragment></RelationTable>
       </Section>{/if}
-      {#if document.worldSources.length}<Section id="world-sources" title="World interactions" count={document.worldSources.length}>
+      {#if document.worldSources.length}<Section id="world-sources" title="World Interactions" count={document.worldSources.length}>
         <RelationTable columns={worldPlan.columns} rows={document.worldSources} label="World effect sources"><svelte:fragment slot="cell" let:row let:column>
           {#if column === 'place'}{#if row.place}<EntityLink ref={row.place} {registry} />{:else}Place not mapped{/if}
           {:else if column === 'family'}{row.family}{:else if column === 'count'}{formatNumber(row.sourceCount)}{/if}

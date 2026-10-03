@@ -24,8 +24,8 @@
   type Recovery = CombatGuide['recovery'][number];
   const recoveryColumns: RelationColumn<Recovery>[] = [
     { id: 'stat', label: 'Resource', value: (row) => row.stat.key === null ? row.stat.label : row.stat.name, sort: (row) => row.stat.key === null ? row.stat.label : row.stat.name },
-    { id: 'outside', label: 'Outside combat', value: (row) => recoveryText(row, 'outside-combat') },
-    { id: 'inside', label: 'In combat', value: (row) => recoveryText(row, 'in-combat') },
+    { id: 'outside', label: 'Outside Combat', value: (row) => recoveryText(row, 'outside-combat') },
+    { id: 'inside', label: 'In Combat', value: (row) => recoveryText(row, 'in-combat') },
   ];
   const gearRule = (rule: MechanicsRule) => rule.id.startsWith('combat-gear-set-');
   const persistenceRule = (rule: MechanicsRule) => rule.id === 'effect-persistent-save';
@@ -40,10 +40,10 @@
     {#each document.sections as section (section.id)}
       <GuideSection {section} {registry} rules={specialized.includes(section.id) ? section.rules.filter((rule) => rule.status === 'unknown') : section.rules}>
         {#if section.id === 'building-stats'}
-          <div class="rule-group"><h3>Stat bonuses</h3>
+          <div class="rule-group"><h3>Stat Bonuses</h3>
             {#each section.rules.filter((rule) => rule.status === 'verified' && !gearRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
           </div>
-          <div class="rule-group"><h3>Gear set bonuses</h3>
+          <div class="rule-group"><h3>Gear Set Bonuses</h3>
             {#each section.rules.filter((rule) => rule.status === 'verified' && gearRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
           </div>
         {:else if section.id === 'recovery'}
@@ -58,26 +58,26 @@
           {#each section.rules.filter((rule) => rule.status === 'verified') as rule (rule.id)}
             <p class="rule"><RulePhrase rule={rule.links.length > PREVIEW ? { ...rule, links: [] } : rule} {registry} /></p>
             {#if rule.links.length > PREVIEW}
-              <div class="examples"><h3>{section.id === 'damage-and-defense' ? 'Resistance and penetration stats' : 'On-hit stats'}</h3>
+              <div class="examples"><h3>{section.id === 'damage-and-defense' ? 'Resistance and Penetration Stats' : 'On-Hit Stats'}</h3>
                 <LinkGrid refs={rule.links} {registry} />
               </div>
             {/if}
           {/each}
         {:else if section.id === 'effects'}
-          <div class="rule-group"><h3>Timed effects</h3>
+          <div class="rule-group"><h3>Timed Effects</h3>
             {#each section.rules.filter((rule) => rule.status === 'verified' && !persistenceRule(rule) && !requirementRule(rule)) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
           </div>
-          <div class="rule-group"><h3>Requirement checks</h3>
+          <div class="rule-group"><h3>Requirement Checks</h3>
             {#each section.rules.filter(requirementRule) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
           </div>
-          <nav class="effect-links" aria-label="Other effect types">
-            <h3>Other effect types</h3>
-            <a class="c-link" href={`${base}/effects/?type=Instant+Damage`}>Instant damage</a>
-            <a class="c-link" href={`${base}/effects/?type=Instant+Heal`}>Instant healing</a>
+          <nav class="effect-links" aria-label="Other Effect Types">
+            <h3>Other Effect Types</h3>
+            <a class="c-link" href={`${base}/effects/?type=Instant+Damage`}>Instant Damage</a>
+            <a class="c-link" href={`${base}/effects/?type=Instant+Heal`}>Instant Healing</a>
             <a class="c-link" href={`${base}/effects/?type=Teleport`}>Teleports</a>
           </nav>
           {#if section.rules.some(persistenceRule)}
-            <details class="rule-details"><summary>Character persistence</summary>
+            <details class="rule-details"><summary>Character Persistence</summary>
               {#each section.rules.filter(persistenceRule) as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
             </details>
           {/if}

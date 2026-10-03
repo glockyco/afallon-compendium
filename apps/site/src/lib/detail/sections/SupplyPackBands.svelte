@@ -17,7 +17,7 @@
 
 <div class="c-stack">
   {#if picksShared && packs[0]}<p>{packPicksText(packs[0])}</p>{/if}
-  {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How supply packs work" />{/if}
+  {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How Supply Packs Work" />{/if}
   {#if classes.length > 1}
     <TabSet {tabs} label="Class" idPrefix="supply-pack-class" let:key>
       {#each classes.filter((entry) => entry.key === key) as entry (entry.key)}<SupplyPackClass bands={entry.bands} {picksShared} {registry} />{/each}

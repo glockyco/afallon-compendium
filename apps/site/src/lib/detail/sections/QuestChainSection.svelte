@@ -17,7 +17,7 @@
 </script>
 
 {#if quests.length > 1}
-  <SideCard title={chainName ?? 'Quest chain'} id="quest-chain">
+  <SideCard title={chainName ?? 'Quest Chain'} id="quest-chain">
     <p class="caption">Quest chain</p>
     <ol>
       {#each shown as { quest, index }}
@@ -27,7 +27,7 @@
         </li>
       {/each}
     </ol>
-    {#if shown.length < quests.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {quests.length - shown.length} more</button>{/if}
+    {#if shown.length < quests.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {quests.length - shown.length} More</button>{/if}
   </SideCard>
 {/if}
 

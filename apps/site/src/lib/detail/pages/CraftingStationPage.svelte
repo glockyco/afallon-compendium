@@ -33,9 +33,9 @@
   // The station's recipes share one skill, so a Skill column names it only when they do not.
   $: oneSkill = document.skills.length <= 1;
   const columns: RelationColumn<StationRecipeRow>[] = [
-    { id: 'recipe', label: 'Product or recipe', value: (row) => nameOf(row.product ?? row.recipe), sort: (row) => nameOf(row.product ?? row.recipe) },
+    { id: 'recipe', label: 'Product or Recipe', value: (row) => nameOf(row.product ?? row.recipe), sort: (row) => nameOf(row.product ?? row.recipe) },
     { id: 'skill', label: 'Skill', value: (row) => row.skill ? nameOf(row.skill) : undefined },
-    { id: 'level', label: 'Required level', numeric: true, value: (row) => row.requiredLevel, sort: (row) => row.requiredLevel },
+    { id: 'level', label: 'Required Level', numeric: true, value: (row) => row.requiredLevel, sort: (row) => row.requiredLevel },
   ];
   $: plan = planColumns(oneSkill ? columns.filter((column) => column.id !== 'skill') : columns, document.recipes);
 </script>
@@ -55,7 +55,7 @@
     </div>
 
     <svelte:fragment slot="side">
-      <FactsCard facts={sideFacts} title="At a glance">
+      <FactsCard facts={sideFacts} title="At a Glance">
         {#if document.skills.length}<FactRow label={document.skills.length === 1 ? 'Skill' : 'Skills'}>{#each document.skills as skill, index}{index ? ', ' : ''}<EntityLink ref={skill} {registry} />{/each}</FactRow>{/if}
       </FactsCard>
     </svelte:fragment>

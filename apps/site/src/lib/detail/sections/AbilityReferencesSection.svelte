@@ -26,7 +26,7 @@
 {#if count}
   {#if compact}<div id={versions.length > 1 ? id : undefined} class="compact"><h3>{title} {count}{#if refs.every((ref) => ref.key !== null && ref.kind === 'npcs')}{' NPCs'}{/if}</h3>
     <ul class="preview">{#each refs.slice(0, previewCount) as ref}<li><EntityLink {ref} {registry} /></li>{/each}</ul>
-    {#if previewCount < count}<a class="c-link all" href={showAllHref} on:click={() => onShowAll?.()}>Show all {count}</a>{/if}
+    {#if previewCount < count}<a class="c-link all" href={showAllHref} on:click={() => onShowAll?.()}>Show All {count}</a>{/if}
   </div>
   {:else}<Section {id} {title} {count}><div class="groups">{#each groups as group}<div>{#if versions.length > 1}<h3>Version {group.index + 1} <span>{group.refs.length}</span></h3>{/if}<RelationTable {columns} rows={group.refs} label={`${title}${versions.length > 1 ? `, version ${group.index + 1}` : ''}`}><svelte:fragment slot="cell" let:row><EntityLink ref={row} {registry} /></svelte:fragment></RelationTable></div>{/each}</div></Section>{/if}
 {/if}

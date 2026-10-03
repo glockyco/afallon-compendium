@@ -28,12 +28,12 @@
   const classColumns: RelationColumn<Class>[] = [
     { id: 'class', label: 'Class', value: (row) => 'name' in row.class ? row.class.name : row.class.label },
     { id: 'starting', label: 'Starting', numeric: true, value: (row) => row.starting || undefined, sort: (row) => row.starting },
-    { id: 'growth', label: 'Per level', numeric: true, value: (row) => row.growth || undefined, sort: (row) => row.growth },
+    { id: 'growth', label: 'Per Level', numeric: true, value: (row) => row.growth || undefined, sort: (row) => row.growth },
   ];
   const families = [
     { key: 'items', label: 'Items', types: ['fixedItems', 'randomItems'], columns: ['source', 'amount'] },
     { key: 'gems', label: 'Gems', types: ['gems'], columns: ['source', 'amount'] },
-    { key: 'sets', label: 'Gear sets', types: ['sets'], columns: ['source', 'amount', 'tier'] },
+    { key: 'sets', label: 'Gear Sets', types: ['sets'], columns: ['source', 'amount', 'tier'] },
     { key: 'talents', label: 'Talents', types: ['talents'], columns: ['source', 'amount', 'class', 'tier'] },
     { key: 'effects', label: 'Effects', types: ['effects'], columns: ['source', 'amount', 'tier'] },
     { key: 'enchantments', label: 'Enchantments', types: ['enchantments'], columns: ['source', 'amount', 'tier'] },
@@ -72,12 +72,12 @@
       {#if !document.description && !document.note && !document.recovery.length && !onHit}<p>{document.ref.name} is a {document.category?.toLowerCase() ?? document.statCategory?.toLowerCase() ?? 'character'} stat.</p>{/if}
       {#if itemCount > 0}<p><a class="c-link" href={itemsHref}>Browse {formatNumber(itemCount)} {itemCount === 1 ? 'item' : 'items'} with {document.ref.name}</a>.{#if !document.itemListColumn}{' '}Fixed bonuses and possible rolls are listed below.{/if}</p>
       {:else if totalSources > 0}<p>See the sources below for ways to gain this stat.</p>{/if}
-      <HowItWorks guide={combat} section={guideSection} label="How combat stats work" />
+      <HowItWorks guide={combat} section={guideSection} label="How Combat Stats Work" />
     </AnswerCard></div>
-    <svelte:fragment slot="side"><FactsCard {facts} title="At a glance" /></svelte:fragment>
+    <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>
     <Sections>
       {#if groups.length}<Section id="sources" title="Sources" count={document.grants.length} line={document.sources.randomItems.length ? 'Fixed bonuses always apply. Possible item rolls vary by copy.' : undefined}>
-        <TabSet {tabs} label="Stat source types" idPrefix="stat-sources" param="source" let:key>
+        <TabSet {tabs} label="Stat Source Types" idPrefix="stat-sources" param="source" let:key>
           {#each groups.filter((group) => group.key === key) as group (group.key)}
             <RelationTable columns={group.columns} rows={group.rows} label={`${group.label} granting ${document.ref.name}`}>
               <svelte:fragment slot="cell" let:row let:column>
@@ -90,7 +90,7 @@
           {/each}
         </TabSet>
       </Section>{/if}
-      {#if document.sources.classes.length}<Section id="class-stats" title="Class stats" count={document.sources.classes.length} line="Starting value and the increase at each level.">
+      {#if document.sources.classes.length}<Section id="class-stats" title="Class Stats" count={document.sources.classes.length} line="Starting value and the increase at each level.">
         <RelationTable columns={classPlan.columns} rows={document.sources.classes} label="Class stat growth"><svelte:fragment slot="cell" let:row let:column>
           {#if column === 'class'}<EntityLink ref={row.class} {registry} />{:else if column === 'starting'}{row.starting ? signedAmount(row.starting) : ''}{:else if column === 'growth'}{row.growth ? signedAmount(row.growth) : ''}{/if}
         </svelte:fragment></RelationTable>

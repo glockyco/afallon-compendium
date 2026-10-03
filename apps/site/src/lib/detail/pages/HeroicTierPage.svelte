@@ -22,7 +22,7 @@
   // Lead with rewards, then explain how to enable the tier and what changes. Detailed sections retain each rule.
   const PARTS = [
     { id: 'getting-started', title: 'Getting started', sections: ['entering'] },
-    { id: 'what-changes', title: 'What changes', sections: ['empowered-creatures', 'affixes'] },
+    { id: 'what-changes', title: 'What Changes', sections: ['empowered-creatures', 'affixes'] },
     { id: 'rewards', title: 'Rewards', sections: ['kill-experience', 'essence', 'currency', 'heroic-gear'] },
   ] as const;
   $: byId = new Map(document.sections.map((section) => [section.id, section]));
@@ -63,7 +63,7 @@
       return { score, health: health * factor, damage: damage * factor };
     })
     : [];
-  const STRENGTH_FACTS = [{ id: 'health', label: 'Creature health' }, { id: 'damage', label: 'Creature damage' }];
+  const STRENGTH_FACTS = [{ id: 'health', label: 'Creature Health' }, { id: 'damage', label: 'Creature Damage' }];
   // Factors and Essence amounts keep their decimals, such as a health factor of 0.25.
   const exact = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
 
@@ -73,9 +73,9 @@
     : rank === 'elite' ? settings.essenceEliteMultiplier : rank === 'rare' ? settings.essenceRareMultiplier : settings.essenceBossMultiplier;
   type EssenceRow = NonNullable<HeroicTier['example']>['rows'][number];
   $: essenceColumns = [
-    { id: 'rank', label: 'Creature rank', value: (row: EssenceRow) => rankLabel(row.rank) },
+    { id: 'rank', label: 'Creature Rank', value: (row: EssenceRow) => rankLabel(row.rank) },
     ...(document.example?.affixCounts ?? []).map((count, index): RelationColumn<EssenceRow> => ({
-      id: `affixes-${count}`, label: count === 1 ? '1 affix' : `${formatNumber(count)} affixes`, numeric: true, value: (row) => row.essence[index],
+      id: `affixes-${count}`, label: count === 1 ? '1 Affix' : `${formatNumber(count)} Affixes`, numeric: true, value: (row) => row.essence[index],
     })),
   ] satisfies RelationColumn<EssenceRow>[];
 </script>
@@ -83,9 +83,10 @@
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
   <GuideStart overview={document.overview}>
+
     {#if rewards.length}
       <div>
-        <h2>What you get</h2>
+        <h2>What You Get</h2>
         <p>{list(rewards)}.</p>
         <a class="c-link more" href="#kill-experience">Rewards</a>
       </div>
@@ -113,7 +114,7 @@
           <GuideSection {section} {registry} level={3}>
             {#if section.id === 'entering' && consoles.length}
               <p class="console-lead">Find each console on the map.</p>
-              <nav class="console-spots" aria-label="Heroic Console locations">
+              <nav class="console-spots" aria-label="Heroic Console Locations">
                 {#each consoles as console (console.spot.placementId)}
                   <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on Map</a></span>
                 {/each}
@@ -131,7 +132,7 @@
                 <svelte:fragment slot="cell" let:item let:fact>{formatNumber(fact === 'health' ? item.health : item.damage)}×</svelte:fragment>
               </CompareTable>
             {:else if section.id === 'essence' && document.example}
-              <RelationTable columns={essenceColumns} rows={document.example.rows} label="Essence per kill by creature rank and affixes">
+              <RelationTable columns={essenceColumns} rows={document.example.rows} label="Essence per Kill by Creature Rank and Affixes">
                 <svelte:fragment slot="cell" let:row let:column>
                   {@const index = document.example.affixCounts.findIndex((count) => column === `affixes-${count}`)}
                   {#if column === 'rank'}{rankLabel(row.rank)}{#if rankMultiplier(row.rank) !== undefined}<small>{exact.format(rankMultiplier(row.rank) ?? 1)}× Essence</small>{/if}

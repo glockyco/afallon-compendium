@@ -55,7 +55,7 @@
 </ul>
 <!-- A hidden place keeps its anchor beside the control that reveals it, so a fragment link always has a target. -->
 {#each sorted.slice(shown) as place}{#if place.id}<span class="waiting" id={place.id}></span>{/if}{/each}
-{#if shown < sorted.length}<button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
+{#if shown < sorted.length}<button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>{/if}
 
 <style>
   .places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; padding: 0; list-style: none; }

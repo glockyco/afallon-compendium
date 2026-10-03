@@ -22,7 +22,7 @@
 </script>
 
 {#if rows.length}
-  <section id="learned-by" class="learners"><h3>Learned by <span>{rows.length}</span></h3>
+  <section id="learned-by" class="learners"><h3>Learned By <span>{rows.length}</span></h3>
     <RelationTable columns={plan.columns} {rows} label="Learned by">
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'version'}Version {row.version}

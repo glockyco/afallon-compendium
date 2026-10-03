@@ -15,8 +15,8 @@
     { id: 'adventurer', label: 'Adventurer', value: (row) => nameOf(row.adventurer), sort: (row) => nameOf(row.adventurer) },
     { id: 'class', label: 'Class', value: (row) => nameOf(row.class), sort: (row) => nameOf(row.class) },
     { id: 'race', label: 'Race', value: (row) => row.race && nameOf(row.race), sort: (row) => row.race && nameOf(row.race) },
-    { id: 'tree', label: 'Preferred tree', value: (row) => row.preferredTree && nameOf(row.preferredTree), sort: (row) => row.preferredTree && nameOf(row.preferredTree) },
-    { id: 'level', label: 'Starting level', numeric: true, value: (row) => row.startingLevel, sort: (row) => row.startingLevel },
+    { id: 'tree', label: 'Preferred Tree', value: (row) => row.preferredTree && nameOf(row.preferredTree), sort: (row) => row.preferredTree && nameOf(row.preferredTree) },
+    { id: 'level', label: 'Starting Level', numeric: true, value: (row) => row.startingLevel, sort: (row) => row.startingLevel },
     { id: 'joins', label: 'Joins', value: (row) => joinText(row.joinAfterHours), sort: (row) => row.joinAfterHours },
   ];
   $: tabs = ROLES.map((role) => ({ role, rows: roster.filter((row) => row.role === role) })).filter((tab) => tab.rows.length > 0)
@@ -24,7 +24,7 @@
 </script>
 
 <!-- One tab for each party role that the Dungeon Finder fills. -->
-<TabSet {tabs} label="Adventurers by party role" idPrefix="adventurer-roster" param="role" let:key>
+<TabSet {tabs} label="Adventurers by Party Role" idPrefix="adventurer-roster" param="role" let:key>
   {#each tabs.filter((tab) => tab.key === key) as tab (tab.key)}
     <RelationTable {columns} rows={tab.rows} label={`${tab.role} adventurers`} sort={{ id: 'adventurer', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>

@@ -14,8 +14,8 @@ const slug = (text: string) => text.toLocaleLowerCase('en-US').replace(/[^a-z0-9
 
 function band(pack: ItemUsePack, classKey: string): PackBand {
   const worldLoot = pack.worldLoot.find((entry) => slug(nameOf(entry.class)) === classKey)?.items ?? [];
-  if (pack.minLevel === undefined) return { key: 'all-levels', label: 'All levels', pack, worldLoot };
-  if (pack.maxLevel === undefined) return { key: `levels-${pack.minLevel}-and-higher`, label: `Levels ${formatNumber(pack.minLevel)} and higher`, pack, worldLoot };
+  if (pack.minLevel === undefined) return { key: 'all-levels', label: 'All Levels', pack, worldLoot };
+  if (pack.maxLevel === undefined) return { key: `levels-${pack.minLevel}-and-higher`, label: `Levels ${formatNumber(pack.minLevel)} and Higher`, pack, worldLoot };
   return { key: `levels-${pack.minLevel}-${pack.maxLevel}`, label: `Levels ${formatNumber(pack.minLevel)}–${formatNumber(pack.maxLevel)}`, pack, worldLoot };
 }
 
@@ -27,7 +27,7 @@ function band(pack: ItemUsePack, classKey: string): PackBand {
 export function packClasses(packs: readonly ItemUsePack[]): PackClass[] {
   const classes = new Map<string, PackClass>();
   for (const pack of packs) {
-    const owners = pack.classes.length ? pack.classes.map((ref) => ({ key: slug(nameOf(ref)), label: nameOf(ref) })) : [{ key: 'all-classes', label: 'All classes' }];
+    const owners = pack.classes.length ? pack.classes.map((ref) => ({ key: slug(nameOf(ref)), label: nameOf(ref) })) : [{ key: 'all-classes', label: 'All Classes' }];
     for (const owner of owners) {
       const entry = classes.get(owner.key) ?? { ...owner, bands: [] };
       entry.bands.push(band(pack, owner.key));

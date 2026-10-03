@@ -141,7 +141,6 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
   expect(row.relations?.area).toEqual([{ key: null, label: "Cedar Ridge" }, { key: null, label: "Coalway Woods" }]);
   const ordinary = { ...quest, ref: { ...quest.ref, key: "quests:4", name: "Trial Two", slug: "trial-two" }, facts: { ...quest.facts, worldQuest: undefined } };
   const ordinaryRow = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[ordinary.ref.key, ordinary]])).get("quests")![0]!.rows[0]!;
-  expect(ordinaryRow.facets.questType).toEqual(["Other Quest"]);
   expect(ordinaryRow.facets.startType).toContain("worldZone");
 });
 

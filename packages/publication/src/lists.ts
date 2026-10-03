@@ -138,7 +138,7 @@ function questRow(document: PublicQuest, rewardTypes: readonly string[], placesB
   return { ref: document.ref,
     values: { levelRange: range, chain: document.facts.chain?.name ?? null, area: areas.join(", ") || null,
       giver: giver?.kind === "npc" ? refName(giver.npc) : null },
-    facets: { questType: [document.facts.worldQuest ? "World Quest" : "Other Quest"], startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] },
+    facets: { questType: [document.facts.worldQuest ? "World Quest" : "Other quest"], startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] },
     relations: { ...(areas.length ? { area: namedRelation(areas, placesByName) } : {}),
       ...(giver?.kind === "npc" ? { giver: [giver.npc] } : {}) } };
 }

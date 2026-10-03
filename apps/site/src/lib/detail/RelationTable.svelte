@@ -133,7 +133,7 @@
     </tbody>
   </table>
   {#each waitingAnchors as anchor}<span class="anchor" id={anchor}></span>{/each}
-  {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
+  {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} More</button>{/if}
 </div>
 
 <style>

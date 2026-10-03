@@ -27,7 +27,7 @@
   const PARTS = [
     { id: 'crafting-mechanics', title: 'Crafting', sections: ['crafting', 'crafting-experience', 'enchanting'] },
     { id: 'gathering-mechanics', title: 'Gathering', sections: ['node-selection', 'attunement', 'node-availability', 'node-rewards'] },
-    { id: 'skill-mechanics', title: 'Training skills', sections: ['skill-experience'] },
+    { id: 'skill-mechanics', title: 'Training Skills', sections: ['skill-experience'] },
   ] as const;
   $: byId = new Map(document.sections.map((section) => [section.id, section]));
   $: parts = [
@@ -46,10 +46,10 @@
   const withoutRule = (section: GuideSectionData, id: string): GuideSectionData => ({ ...section, rules: section.rules.filter((rule) => rule.id !== id) });
 
   const enchantColumns: RelationColumn<CraftingAndGathering['enchantingItems'][number]>[] = [
-    { id: 'item', label: 'Enchanting item', value: (row) => row.item.name, sort: (row) => row.item.name },
+    { id: 'item', label: 'Enchanting Item', value: (row) => row.item.name, sort: (row) => row.item.name },
     { id: 'fits', label: 'Fits', value: (row) => row.fits.join(' and '), sort: (row) => row.fits.join(' and ') },
     { id: 'adds', label: 'Adds', value: (row) => row.stats.map((stat) => nameOf(stat.stat)).join(', ') },
-    { id: 'source', label: 'Where to get it', value: (row) => row.crafting ? nameOf(row.crafting) : row.vendors.length ? 'vendor' : row.drops.length ? 'drop' : 'none' },
+    { id: 'source', label: 'Where to Get It', value: (row) => row.crafting ? nameOf(row.crafting) : row.vendors.length ? 'vendor' : row.drops.length ? 'drop' : 'none' },
   ];
   $: enchantPlan = planColumns(enchantColumns, document.enchantingItems);
   const signed = (amount: number, isPercent: boolean) => `${amount < 0 ? '' : '+'}${formatNumber(amount)}${isPercent ? '%' : ''}`;
@@ -58,7 +58,7 @@
   const attunementColumns: RelationColumn<Attunement>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'attunement', label: 'Attunement', value: (row) => row.effect },
-    { id: 'nodes', label: 'More of', value: (row) => row.nodes.map(nameOf).join(', ') },
+    { id: 'nodes', label: 'More Of', value: (row) => row.nodes.map(nameOf).join(', ') },
     { id: 'boost', label: 'Relative Chance Bonus', numeric: true, value: (row) => row.boost, sort: (row) => row.boost },
     { id: 'lasts', label: 'Lasts', value: (row) => durationText(row.minutes), whenShared: stateInHeading },
   ];
@@ -83,20 +83,20 @@
   <GuideStart overview={document.overview}>
     {#if document.craftingSkills.length}
       <div>
-        <h2>Crafting skills</h2>
+        <h2>Crafting Skills</h2>
         <ul class="skills">
           {#each document.craftingSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.recipes)} {row.recipes === 1 ? 'recipe' : 'recipes'}</span></li>{/each}
         </ul>
-        {#if recipesList}<a class="c-link all" href={`${base}/${recipesList.route}/`}>All recipes</a>{/if}
+        {#if recipesList}<a class="c-link all" href={`${base}/${recipesList.route}/`}>All Recipes</a>{/if}
       </div>
     {/if}
     {#if document.gatheringSkills.length}
       <div>
-        <h2>Gathering skills</h2>
+        <h2>Gathering Skills</h2>
         <ul class="skills">
           {#each document.gatheringSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.nodes)} {row.nodes === 1 ? 'node' : 'nodes'}</span></li>{/each}
         </ul>
-        {#if nodesList}<a class="c-link all" href={`${base}/${nodesList.route}/`}>All gathering nodes</a>{/if}
+        {#if nodesList}<a class="c-link all" href={`${base}/${nodesList.route}/`}>All Gathering Nodes</a>{/if}
       </div>
     {/if}
   </GuideStart>
@@ -124,7 +124,7 @@
                 <CraftExperience rank={document.example.craft.rank} skill={document.example.craft.skill} id="craft-example-level" bind:level={craftLevel} />
                 {#if document.example.craft.rank.bands.length}
                   <div class="c-table-scroll"><table class="c-table">
-                    <thead><tr><th scope="col">Experience</th><th scope="col">Skill levels</th><th scope="col" class="c-num">Base experience</th></tr></thead>
+                    <thead><tr><th scope="col">Experience</th><th scope="col">Skill Levels</th><th scope="col" class="c-num">Base Experience</th></tr></thead>
                     <tbody>{#each document.example.craft.rank.bands as band}<tr class:current={craftLevel >= band.from && (band.to === undefined || craftLevel <= band.to)}><th scope="row">{bandNames[band.band]}</th><td>{formatNumber(band.from)}{band.to === undefined ? ' and up' : `–${formatNumber(band.to)}`}</td><td class="c-num">{formatNumber(band.experience)}</td></tr>{/each}</tbody>
                   </table></div>
                 {/if}
@@ -133,7 +133,7 @@
           {:else if section.id === 'node-selection'}
             <GuideSection {section} {registry} level={3}>
               {#if spawnerTabs.length}
-                <TabSet tabs={spawnerTabs} label="Gathering skill" idPrefix="spawner-odds" param="skill" let:key>
+                <TabSet tabs={spawnerTabs} label="Gathering Skill" idPrefix="spawner-odds" param="skill" let:key>
                   {@const index = spawnerTabs.findIndex((tab) => tab.key === key)}
                   {@const example = document.spawnerExamples[index]}
                   {#if example}

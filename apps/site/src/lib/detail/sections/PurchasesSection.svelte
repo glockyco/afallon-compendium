@@ -20,7 +20,7 @@
   const columns: RelationColumn<CurrencyPurchaseRow>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'cost', label: 'Cost', numeric: true, value: (row) => row.price.amount, sort: (row) => row.price.amount },
-    { id: 'sold-by', label: 'Sold by', value: (row) => row.soldBy.map(nameOf).join(', ') },
+    { id: 'sold-by', label: 'Sold By', value: (row) => row.soldBy.map(nameOf).join(', ') },
   ];
   $: sharedSellers = sharedPurchaseSellers(rows);
   $: plan = planColumns(sharedSellers.length ? columns.filter((column) => column.id !== 'sold-by') : columns, rows);

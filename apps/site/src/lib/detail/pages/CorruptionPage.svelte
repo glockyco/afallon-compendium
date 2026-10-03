@@ -26,9 +26,9 @@
   const dungeonColumns: RelationColumn<Dungeon>[] = [
     { id: 'place', label: 'Dungeon', value: (row) => row.place.name, sort: (row) => row.place.name },
     { id: 'timer', label: 'Timer', numeric: true, value: (row) => row.totalSeconds, sort: (row) => row.totalSeconds },
-    { id: 'first', label: 'First threshold', numeric: true, value: (row) => row.firstRemainingSeconds, sort: (row) => row.firstRemainingSeconds },
-    { id: 'second', label: 'Second threshold', numeric: true, value: (row) => row.secondRemainingSeconds, sort: (row) => row.secondRemainingSeconds },
-    { id: 'loot', label: 'Maximum loot', numeric: true, value: (row) => row.maxLootItems, sort: (row) => row.maxLootItems },
+    { id: 'first', label: 'First Threshold', numeric: true, value: (row) => row.firstRemainingSeconds, sort: (row) => row.firstRemainingSeconds },
+    { id: 'second', label: 'Second Threshold', numeric: true, value: (row) => row.secondRemainingSeconds, sort: (row) => row.secondRemainingSeconds },
+    { id: 'loot', label: 'Maximum Loot', numeric: true, value: (row) => row.maxLootItems, sort: (row) => row.maxLootItems },
   ];
 </script>
 

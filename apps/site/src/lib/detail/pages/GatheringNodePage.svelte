@@ -30,7 +30,7 @@
   const yieldColumns: RelationColumn<NodeYieldRow>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
     { id: 'quantity', label: 'Quantity', numeric: true, value: (row) => rangeText(row.min, row.max) ?? undefined, sort: (row) => row.max ?? row.min },
-    { id: 'chance', label: 'Chance per use', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance per Use', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
   ];
   $: yieldPlan = planColumns(yieldColumns, document.yields);
   $: bonus = document.placedRules.find((rule) => rule.levelChances?.length);
@@ -108,13 +108,13 @@
           </RelationTable>
         {:else}<p>No known yields for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
+          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How Gathering Works" /></p>
         {/if}
       </AnswerCard>
     </div>
 
     <div slot="side" class="side-content">
-      <FactsCard facts={stats} title="At a glance" />
+      <FactsCard facts={stats} title="At a Glance" />
       {#if additionalRequirements}<SideCard title="To gather">
         <Requirements requirements={document.facts.requirements} {registry} kindLabels={false} />
       </SideCard>{/if}
@@ -130,7 +130,7 @@
               {#each groupChances as row, index}<div><dt>{groupChances.length > 1 ? `Chance in group ${index + 1}, ${formatNumber(row.group.spawners)} spawners` : 'Chance that a spawner picks it'}</dt><dd>{row.percent === undefined ? '' : `${bonusPercent.format(Math.round(row.percent * 10) / 10)}%`}</dd></div>{/each}
             </dl>
             <AttunementToggles attunements={document.attunements.filter((attunement) => attunement.nodes.some((node) => node.key === document.ref.key))} {registry} compact bind:active />
-            <a class="c-link" href="#spawn-odds">Every node these spawners choose from</a>
+            <a class="c-link" href="#spawn-odds">Every Node These Spawners Choose From</a>
           </div>
         {:else if spawnerTotal}
           <p class="explanation">The chance of choosing this node is unknown for these spawners.</p>
@@ -140,7 +140,7 @@
     </div>
 
     <Sections>
-    <Section id="locations" title="Where to find" count={document.places.length}>
+    <Section id="locations" title="Where to Find" count={document.places.length}>
       {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No known location for this node.</p>{/if}
       {#if document.spawners.some((group) => group.unplaced) || document.placed.some((group) => group.unplaced)}<p class="footnote">Some spawners or placed nodes have no known location.</p>{/if}
     </Section>
@@ -152,7 +152,7 @@
         <p class="intro">Each spawner picks one of its options. The relative and exact chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}. For some groups, the exact chance is unknown, so only their relative chance appears{/if}.</p>
         {#if oddsGroups.length}<LevelControl id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} min={1} max={skillCap} fallback={1} />{/if}
         <AttunementToggles attunements={document.attunements} {registry} bind:active />
-        {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
+        {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How Spawners Choose Nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How Attunement Changes the Odds" />{/if}</div>{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
@@ -163,18 +163,18 @@
         </div>
       </DetailsDisclosure>
     {/if}
-      <DetailsDisclosure title="Timers and ranges" id="timers">
-        {#if timerGuide}<HowItWorks guide={timerGuide.guide} section={timerGuide.section} label="How node timers work" />{/if}
+      <DetailsDisclosure title="Timers and Ranges" id="timers">
+        {#if timerGuide}<HowItWorks guide={timerGuide.guide} section={timerGuide.section} label="How Node Timers Work" />{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
-              <h3>{document.spawners.length > 1 ? `Spawner group ${index + 1}` : 'Spawners'}</h3>
+              <h3>{document.spawners.length > 1 ? `Spawner Group ${index + 1}` : 'Spawners'}</h3>
               <dl class="timer-facts"><div><dt>Respawn</dt><dd>{duration(group.respawnSeconds)}, plus or minus up to {duration(group.jitterSeconds)}</dd></div><div><dt>Removed after use</dt><dd>{duration(group.despawnSeconds)}</dd></div><div><dt>Player range</dt><dd>{formatNumber(group.playerRange)}</dd></div></dl>
             </div>
           {/each}
           {#each document.placed as group, index}
             <div class="c-stack">
-              <h3>{document.placed.length > 1 ? `Placed node group ${index + 1}` : 'Placed nodes'}</h3>
+              <h3>{document.placed.length > 1 ? `Placed Node Group ${index + 1}` : 'Placed Nodes'}</h3>
               <dl class="timer-facts"><div><dt>Objects</dt><dd>{formatNumber(group.objects)}</dd></div><div><dt>Ready again after</dt><dd>{duration(group.cooldownSeconds)}</dd></div></dl>
             </div>
           {/each}

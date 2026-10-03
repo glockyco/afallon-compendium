@@ -6,6 +6,15 @@
 
   const glyph = iconNodeToSvg(TableOfContents, 'currentColor');
   const chevron = iconNodeToSvg(ChevronUp, 'currentColor');
+  // A section heading can be sentence-like even though its navigation action is a title.
+  const ACTION_SECTION_TITLES: Record<string, string> = {
+    'When used': 'When Used',
+    'Dropped by': 'Dropped By',
+    'Used for': 'Used For',
+    'Meeting and inviting': 'Meeting and Inviting',
+    'Building your stats': 'Building Your Stats',
+    'Turning it on and off': 'Turning It On and Off',
+  };
 
   /** The rendered sections of the page, in page order. */
   export let sections: SectionEntry[];
@@ -73,25 +82,25 @@
 {#if sections.length >= SECTION_LIST_MINIMUM && active}
   <div class="lens" bind:this={root}>
     {#if open}
-      <nav class="menu" id="section-lens-menu" aria-label="On this page">
+      <nav class="menu" id="section-lens-menu" aria-label="On This Page">
         <button type="button" class="row top" on:click={toTop}>
           <span class="mark" aria-hidden="true">↑</span>
-          <span class="label">Back to top</span>
+          <span class="label">Back to Top</span>
         </button>
         <div class="rule" aria-hidden="true"></div>
         {#each sections as section, index (section.id)}
           <a class="row section" class:active={section.id === active.id} href={`#${section.id}`} aria-current={section.id === active.id ? 'location' : undefined} style={`--i: ${index}`} on:click={() => { open = false; }}>
             <span class="mark" aria-hidden="true">•</span>
             <span class="index">{String(index + 1).padStart(2, '0')}</span>
-            <span class="name">{section.title}</span>
+            <span class="name">{ACTION_SECTION_TITLES[section.title] ?? section.title}</span>
           </a>
         {/each}
       </nav>
     {/if}
     <button type="button" class="pill" bind:this={pill} aria-expanded={open} aria-controls="section-lens-menu" on:click={() => { if (!open) select(); open = !open; }}>
       <span class="glyph" aria-hidden="true">{@html glyph}</span>
-      <span class="visually-hidden">On this page:</span>
-      <span class="current">{active.title}</span>
+      <span class="visually-hidden">On This Page:</span>
+      <span class="current">{ACTION_SECTION_TITLES[active.title] ?? active.title}</span>
       <span class="chevron" class:open aria-hidden="true">{@html chevron}</span>
     </button>
   </div>

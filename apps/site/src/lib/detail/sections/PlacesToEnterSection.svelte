@@ -10,14 +10,14 @@
 
   const GROUPS: { group: PlaceToEnter['group']; title: string; spot: string }[] = [
     { group: 'dungeon', title: 'Dungeons', spot: 'Entrance' },
-    { group: 'challengeStone', title: 'Challenge stones', spot: 'Stone' },
-    { group: 'other', title: 'Caves and other places', spot: 'Entrance' },
+    { group: 'challengeStone', title: 'Challenge Stones', spot: 'Stone' },
+    { group: 'other', title: 'Caves and Other Places', spot: 'Entrance' },
   ];
   $: groups = GROUPS.map((entry) => ({ ...entry, rows: rows.filter((row) => row.group === entry.group) })).filter((entry) => entry.rows.length);
 </script>
 
 {#if rows.length}
-  <Section id="places-to-enter" title="Places to enter" count={rows.length}>
+  <Section id="places-to-enter" title="Places to Enter" count={rows.length}>
     <div class="groups">
       {#each groups as group}
         <div class="group">

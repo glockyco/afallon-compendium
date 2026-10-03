@@ -14,7 +14,7 @@
 
 <div class="link-grid-wrap">
   <ul class="link-grid">{#each refs.slice(0, shown) as ref}<li><EntityLink {ref} {registry} truncate /></li>{/each}</ul>
-  {#if shown < refs.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {refs.length - shown} more</button>{/if}
+  {#if shown < refs.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {refs.length - shown} More</button>{/if}
 </div>
 
 <style>

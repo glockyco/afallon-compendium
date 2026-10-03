@@ -22,7 +22,7 @@
     { id: 'name', label: 'Creature', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
     { id: 'level', label: 'Level', numeric: true, value: (row) => row.level ? levelText(row.level) + (row.level.scales ? '*' : '') : undefined, sort: (row) => row.level?.min },
     { id: 'role', label: 'Role', value: (row) => row.roles.map(roleLabel).join(', ') || undefined },
-    { id: 'spots', label: 'Map spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount },
+    { id: 'spots', label: 'Map Spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount },
   ];
 
   $: plan = planColumns(columns.filter((column) => id === 'npcs' ? column.id !== 'level' : true).map((column) => column.id === 'name' ? { ...column, label: id === 'npcs' ? 'NPC' : 'Creature' } : column), rows);
@@ -40,7 +40,7 @@
           </article>
         {/each}
       </div>
-      {#if shownBosses.length < orderedBosses.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {orderedBosses.length - shownBosses.length} more</button>{/if}
+      {#if shownBosses.length < orderedBosses.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {orderedBosses.length - shownBosses.length} More</button>{/if}
     {:else}<RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'name', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />

@@ -32,7 +32,7 @@
 </script>
 
 {#if groups.length}
-  <Section id="loot-objects" title="Objects with loot" count={groups.length}>
+  <Section id="loot-objects" title="Objects with Loot" count={groups.length}>
     <div class="objects">
       {#each groups as group (group.label)}
         <article class="object">
@@ -48,7 +48,7 @@
                 </div>
                 <div class="meta">
                   {#if group.variants.length > 1 && row.placements.length}{#if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>{:else}<span>{spots(row.placements.length)}</span>{/if}{:else if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>Show on Map</a>{/if}
-                  {#if row.items.length > SHORT_LIST}<button type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide items' : `Show ${formatNumber(row.items.length)} items`}</button>{/if}
+                  {#if row.items.length > SHORT_LIST}<button type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide Items' : `Show ${formatNumber(row.items.length)} Items`}</button>{/if}
                 </div>
               </div>
               {#if row.items.length <= SHORT_LIST || open.has(row)}

@@ -53,20 +53,20 @@
     <!-- The side stays in view beside the trees: the points that the class earns, what learning each tree in full costs,
          and the gear that it can use. -->
     <div slot="side" class="side-content">
-      <FactsCard facts={classFacts} title="At a glance">
+      <FactsCard facts={classFacts} title="At a Glance">
         {#if facts.races.length}<FactRow label="Races"><span class="race-links">{#each facts.races as race}<EntityLink ref={race} {registry} />{/each}</span></FactRow>{/if}
       </FactsCard>
-      {#if document.trees.length}<SideCard title="Talent points">
+      {#if document.trees.length}<SideCard title="Talent Points">
         {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
         <h3>Points to learn every rank</h3>
         <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{#if tree.points && tree.points !== commonPoints}<small>{#if tree.pointsGuide}<a class="c-link" href={`${base}/mechanics/${tree.pointsGuide.guide.slug}/#${tree.pointsGuide.section}`}>{tree.points}</a>{:else}{tree.points}{/if}</small>{/if}</span></li>{/each}</ul>
-        {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{/if}
+        {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How Talent Points Work" />{/if}
       </SideCard>{/if}
-      {#if facts.weapons.length}<SideCard title="Gear"><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and armor for {document.ref.name}</a></SideCard>{/if}
+      {#if facts.weapons.length}<SideCard title="Gear"><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and Armor for {document.ref.name}</a></SideCard>{/if}
     </div>
     <Sections>
       {#if document.startingGear.length}
-        <Section id="starting-gear" title="Starting gear" count={document.startingGear.length} line={gearPlan.shared.some(({ column }) => column.id === 'equipped') ? 'Starts equipped.' : undefined}>
+        <Section id="starting-gear" title="Starting Gear" count={document.startingGear.length} line={gearPlan.shared.some(({ column }) => column.id === 'equipped') ? 'Starts equipped.' : undefined}>
           <RelationTable columns={gearPlan.columns} rows={document.startingGear} label="Starting gear">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else if column === 'count'}{row.count}{:else}{row.equipped ? 'Yes' : 'No'}{/if}
@@ -75,20 +75,20 @@
         </Section>
       {/if}
       {#if document.trees.length}
-        <Section id="talent-trees" title="Talent trees">
+        <Section id="talent-trees" title="Talent Trees">
           {#if document.web}
             <!-- The web shows the trees as the game's talent screen does, and the list shows each tree as a table. Both
                  views render every tree and talent anchor, so a link keeps the reader's view. -->
-            <TabSet tabs={views} label="Talent tree view" idPrefix="talent-view" param="view" let:key={view}>
+            <TabSet tabs={views} label="Talent Tree View" idPrefix="talent-view" param="view" let:key={view}>
               {#if view === 'web'}<TalentWeb web={document.web} trees={document.trees} {registry} />
               {:else}
-                <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
+                <TabSet {tabs} label="Talent Trees" idPrefix="class-trees" let:key>
                   {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
                 </TabSet>
               {/if}
             </TabSet>
           {:else}
-            <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
+            <TabSet {tabs} label="Talent Trees" idPrefix="class-trees" let:key>
               {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
             </TabSet>
           {/if}

@@ -32,7 +32,7 @@ export function compareItems(before: Display, after: Display, fromLevel: number,
     rows.push({ name: 'Damage', before: rangeText(before.minDamage, before.maxDamage)!, after: rangeText(after.minDamage, after.maxDamage)!,
       difference: `${low < 0 ? '-' : '+'}${rangeText(Math.abs(low), Math.abs(high))}`, negative: low < 0 });
   }
-  numeric('Damage Per Second', before.damagePerSecond === undefined ? undefined : Number(before.damagePerSecond.toFixed(1)), after.damagePerSecond === undefined ? undefined : Number(after.damagePerSecond.toFixed(1)), (value) => value.toFixed(1));
+  numeric('Damage per Second', before.damagePerSecond === undefined ? undefined : Number(before.damagePerSecond.toFixed(1)), after.damagePerSecond === undefined ? undefined : Number(after.damagePerSecond.toFixed(1)), (value) => value.toFixed(1));
   before.stats.forEach((stat, index) => {
     const next = after.stats[index];
     if (!next || next.amount === stat.amount) return;

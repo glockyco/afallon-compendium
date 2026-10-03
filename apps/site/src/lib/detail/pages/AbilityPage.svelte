@@ -30,7 +30,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head"><TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
-    <div slot="answer"><AnswerCard title={grantOnly ? 'How It Is Granted' : hasSources ? 'Who Learns and Uses It' : 'What It Does'}>
+    <div slot="answer"><AnswerCard title={grantOnly ? 'How it is granted' : hasSources ? 'Who learns and uses it' : 'What it does'}>
       {#if hasSources}
         <LearnedBySection versions={document.versions} {registry} />
         <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by'} onShowAll={() => (showAllUsers = true)} />
@@ -46,8 +46,8 @@
     </AnswerCard></div>
       <svelte:fragment slot="side">
         <div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
-        {#if hasSources && main.appliedEffects.length}<SideCard title="Applies effects"><AppliedEffects rows={main.appliedEffects} {registry} heading={false} /></SideCard>{/if}
-        {#if main.useRequirements.length}<SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard>{/if}
+        {#if hasSources && main.appliedEffects.length}<SideCard title="Applies Effects"><AppliedEffects rows={main.appliedEffects} {registry} heading={false} /></SideCard>{/if}
+        {#if main.useRequirements.length}<SideCard title="Use Requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard>{/if}
       </svelte:fragment>
     <Sections>
       <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} icon={document.art.icon ?? document.ref.icon} />

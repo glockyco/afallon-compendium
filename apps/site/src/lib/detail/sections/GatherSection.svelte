@@ -38,7 +38,7 @@
           </div>
         {/if}
       {/each}
-      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
+      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>{/if}
     </div>
   </Section>
 {/if}

@@ -4,7 +4,7 @@
   export let guide: EntityRef;
   /** The anchor of the guide section that explains the value. */
   export let section: string;
-  export let label = 'How it works';
+  export let label = 'How It Works';
   /** Shows only the mark, for a table header where the label would wrap its column. The label stays the link's name. */
   export let compact = false;
 </script>

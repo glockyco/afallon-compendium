@@ -31,13 +31,13 @@
   {@const allInitiallyKnown = network.stops.every((stop) => stop.knownInitially)}
   {@const sharedDirection = routes.length > 0 && routes.every((route) => route.bidirectional) ? 'All direct routes work both ways.' : routes.length > 0 && routes.every((route) => !route.bidirectional) ? 'All direct routes run one way.' : ''}
   {@const planned = planColumns(columns.filter((column) => column.id !== 'fare' || !allFree), routes)}
-  <section class="network c-stack" aria-label={`${categoryLabel(network.scene)} flight network`}>
+  <section class="network c-stack" aria-label={`${categoryLabel(network.scene)} Flight Network`}>
     <h3>{categoryLabel(network.scene)}</h3>
     <p>{allInitiallyKnown ? 'All stops are known at the start.' : 'Talk to a flight master to discover a stop.'} {#if allFree}Flights on this network are free.{/if} {sharedDirection}</p>
-    <h4>Flight stops</h4>
+    <h4>Flight Stops</h4>
     <LinkGrid refs={network.stops.map((stop) => stop.master?.key !== null && stop.master ? { ...stop.master, name: stop.name } : { key: null, label: stop.name })} {registry} />
     {#if routes.length}
-      <h4>Direct routes</h4>
+      <h4>Direct Routes</h4>
       <RelationTable columns={planned.columns} rows={routes} label={`Direct routes in ${categoryLabel(network.scene)}`}>
         <svelte:fragment slot="cell" let:row let:column>
           {#if column === 'from'}<FlightStopLink stop={row.origin} {registry} />

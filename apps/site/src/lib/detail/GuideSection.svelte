@@ -23,7 +23,7 @@
   {#each verified as rule (rule.id)}<p class="rule"><RulePhrase {rule} {registry} /></p>{/each}
   <slot />
   {#if unknown.length}
-    <details class="unknown"><summary>Unconfirmed details</summary>
+    <details class="unknown"><summary>Unconfirmed Details</summary>
       {#each unknown as rule (rule.id)}<p><RulePhrase {rule} {registry} /></p>{/each}
     </details>
   {/if}

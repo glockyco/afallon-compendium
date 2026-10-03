@@ -47,8 +47,8 @@
           {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>The recipe is known by default.</p>{/if}
           {#if firstRank?.bands.length}
             <p>Base experience: {formatNumber(firstRank.baseExperience)} per craft before skill modifiers.</p>
-            <details class="experience"><summary>Experience by skill level</summary><CraftExperience rank={firstRank} skill={craft.skill} id="crafting-level" />{#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}</details>
-          {:else if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label="How crafting works" />{/if}
+            <details class="experience"><summary>Experience by Skill Level</summary><CraftExperience rank={firstRank} skill={craft.skill} id="crafting-level" />{#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How Crafting Experience Works' : 'How Crafting Works'} />{/if}</details>
+          {:else if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label="How Crafting Works" />{/if}
         {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
           {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
             <p>Every timed dungeon run ends with a reward bag that holds one Corruption Token.</p>
@@ -60,14 +60,14 @@
               <li><EntityLink ref={reward.place} {registry} />{#if !reward.guaranteed && reward.bosses.length}{' · '}{#each reward.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}{/if}</li>
             {/each}
           </ul>
-          {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How dungeon rewards work" />{/if}
+          {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How Dungeon Rewards Work" />{/if}
         {:else}
           <p>
             {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} />{/if}
             {#if entry.id === 'dropped-by' && (rate || entry.detail)}{entry.text?.endsWith('.') ? ' ' : '. '}{/if}
             {#if rate && entry.drop}
-              {#if entry.drop.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>Listed Rate:</Hint>
-              {:else}<Hint text={KILL_CHANCE_HINT}>Chance per Kill:</Hint>{/if}
+              {#if entry.drop.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>Listed rate:</Hint>
+              {:else}<Hint text={KILL_CHANCE_HINT}>Chance per kill:</Hint>{/if}
               {' '}{rate}{#if entry.drop.killChance !== undefined}{entry.drop.chanceLevel !== undefined ? ` at creature level ${formatNumber(entry.drop.chanceLevel)} with 0 Loot Chance` : ' with 0 Loot Chance'}{/if}.
             {/if}
             {#if entry.detail}
@@ -78,13 +78,13 @@
             {/if}
             {#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}
           </p>
-          {#if entry.id === 'dropped-by' && singleDropInAnswer && dropGuide}<HowItWorks guide={dropGuide.guide} section={dropGuide.section} label="How creature drops work" />{/if}
-          {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={routeHref(entry)}>{entry.linkText ?? `See full ${entry.label.toLowerCase()} sources`}</a>{/if}{/if}
+          {#if entry.id === 'dropped-by' && singleDropInAnswer && dropGuide}<HowItWorks guide={dropGuide.guide} section={dropGuide.section} label="How Creature Drops Work" />{/if}
+          {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={routeHref(entry)}>{entry.linkText ?? 'See Full Details'}</a>{/if}{/if}
         {/if}
       </li>
     {/each}
   </ul>
-{:else if document.adventurers.length}<p>Only adventurers can get this item. <a class="c-link" href="#adventurers">See adventurer gear</a>.</p>
+{:else if document.adventurers.length}<p>Only adventurers can get this item. <a class="c-link" href="#adventurers">See Adventurer Gear</a>.</p>
 {:else}<p>No known way to get this item.</p>{/if}
 
 <style>

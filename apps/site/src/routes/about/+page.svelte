@@ -24,7 +24,7 @@
           <p>Afallon is a single-player RPG with the feel of an MMO. Choose a class and race, explore an open world, and take on dungeons with NPC adventurers. Stargazing interactive develops and publishes the game. It entered Steam Early Access for Windows on November 27, 2025.</p>
           <p><a class="c-link" href={STEAM_URL} rel="external">Play Afallon on Steam</a></p>
         </section>
-        <section aria-labelledby="reference"><h2 id="reference">How This Reference Is Made</h2>
+        <section aria-labelledby="reference"><h2 id="reference">How this reference is made</h2>
           <p>Every page is generated from the game's own files. Where a number depends on how the game calculates it, such as drop chances or experience, the calculation was checked against the game's code and, where needed, in the running game.</p>
           <p>This version covers Afallon {data.release.version}, the patch from {formatCalendarDate(data.release.patchNotes.date)}. The game data was read on {formatCalendarDate(data.release.dataDate)}. A few entries and locations are still incomplete. <a class="c-link" href={`${base}/coverage/`}>Coverage</a> lists the known gaps, and the <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch Notes</a> describe what changed in the game.</p>
         </section>

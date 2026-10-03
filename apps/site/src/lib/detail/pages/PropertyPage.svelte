@@ -28,9 +28,9 @@
           <div class="where">
             <p>{document.locations.length === 1 ? 'One for-sale sign marks this property.' : `${document.locations.length} for-sale signs mark this property.`}</p>
             <ul class="signs">{#each document.locations as sign, index}
-              <li><span>{#if document.place && nameOf(document.place) === sign.label}<EntityLink ref={document.place} {registry} />{:else}{sign.label}{/if}</span><a class="c-link" href={spotOnMap(sign.placementId)} aria-label={`${sign.label}, for-sale sign ${index + 1} on map`}>Show sign on map</a></li>
+              <li><span>{#if document.place && nameOf(document.place) === sign.label}<EntityLink ref={document.place} {registry} />{:else}{sign.label}{/if}</span><a class="c-link" href={spotOnMap(sign.placementId)} aria-label={`${sign.label}, for-sale sign ${index + 1} on map`}>Show Sign on Map</a></li>
             {/each}</ul>
-            {#if document.locations.length > 1}<a class="c-action" href={entityOnMap(document.ref.key)}>Show all signs on map</a>{/if}
+            {#if document.locations.length > 1}<a class="c-action" href={entityOnMap(document.ref.key)}>Show All Signs on Map</a>{/if}
           </div>
         {:else}<p>No for-sale sign is known for this property.</p>{/if}
       </PropertyPanel>

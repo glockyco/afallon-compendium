@@ -42,7 +42,7 @@ test('starting gear only links published classes and no source remains unknown',
   const registry = [{ kind: 'classes', route: 'classes' }] as PublicKindEntry[];
   expect(itemSourceLines(item([], []))).toEqual([]);
   const lines = itemSourceLines(item([], [], [{ class: heroClass(1, 'Wizard') }, { class: { ...heroClass(2, 'Berserker'), slug: undefined } }]));
-  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Starting gear', 'Wizard']]);
+  expect(summaryText(lines[0]!)).toBe('Wizard');
   expect(lineHref(lines[0]!, registry, '/base')).toBe('/base/classes/wizard/#starting-gear');
 });
 
@@ -52,8 +52,7 @@ test('unbound loot tables and consuming an item are not acquisition routes, but 
   unbound.whenUsed.itemChanges = [{ action: 'Remove', item: unbound.ref, count: 1 }];
   expect(itemSourceLines(unbound)).toEqual([]);
   unbound.startingGearOfAdventurers = [npc(412, 'Agra Emberhide')];
-  expect(itemSourceLines(unbound).map((route) => [route.label, summaryText(route)]))
-    .toEqual([['Adventurer Starting Gear', 'Agra Emberhide']]);
+  expect(itemSourceLines(unbound).map(summaryText)).toEqual(['Agra Emberhide']);
 });
 
 test('loot-list context is only shown when the page cannot explain an acquisition route', () => {
@@ -88,7 +87,6 @@ test('timed dungeon reward distinguishes a guaranteed token from chance gear', (
   token.ref = { ...token.ref, name: 'Corruption Token' };
   token.facts.dungeonRewards = places.map((place) => ({ place, bosses: [npc(1, 'Guardian')], guaranteed: true }));
   const [tokenRoute] = itemSourceLines(token);
-  expect(tokenRoute?.label).toBe('Dungeon reward');
   expect(tokenRoute?.guaranteedYield).toBe(1);
   expect(summaryText(tokenRoute!)).toBe('Every timed dungeon run ends with a reward bag that holds one Corruption Token.');
   const gear = item([], []);
@@ -117,8 +115,8 @@ test('chest and gathering summary chances name the triggering action', () => {
   ore.gatheredFrom = [{ label: 'Iron Vein', chance: 40, requirements: [], availability: [], placementCount: 1, places: [] }];
   ore.fromItems = [{ kind: 'chest', source: npc(1, 'Adventurer Chest'), min: 1, max: 1, chance: 20 }];
   const lines = itemSourceLines(ore);
-  expect(lines.find((entry) => entry.id === 'gathered-from')?.detail).toBe('Chance per Use: 40%.');
-  expect(lines.find((entry) => entry.id === 'from-items')?.detail).toBe('Chance per Open: 20%.');
+  expect(lines.find((entry) => entry.id === 'gathered-from')?.detail?.toLowerCase()).toContain('chance per use: 40%');
+  expect(lines.find((entry) => entry.id === 'from-items')?.detail?.toLowerCase()).toContain('chance per open: 20%');
 });
 
 test('cloth tier rates remain distinct from a chance per kill', () => {

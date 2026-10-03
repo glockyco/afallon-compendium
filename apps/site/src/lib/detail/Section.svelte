@@ -27,7 +27,7 @@
   <header>
     <div class="heading">
       <svelte:element this={`h${level}`} class="title" id={`${id}-title`}>{title}{#if count !== undefined}<span class="count">{count}</span>{/if}</svelte:element>
-      {#if showAllHref}<a class="c-link" href={showAllHref}>Show all</a>{/if}
+      {#if showAllHref}<a class="c-link" href={showAllHref}>Show All</a>{/if}
     </div>
     {#if line}<p class="line">{line}</p>{/if}
   </header>

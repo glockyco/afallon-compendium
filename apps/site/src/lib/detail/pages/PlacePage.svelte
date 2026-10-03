@@ -52,11 +52,11 @@
         {#if summary.length}
           <p>Find {listText(summary)} here.</p>
           <nav class="answer-links" aria-label="Explore this place">
-            {#if document.placesToEnter.length}<a class="c-link" href="#places-to-enter">Places to enter</a>{/if}
+            {#if document.placesToEnter.length}<a class="c-link" href="#places-to-enter">Places to Enter</a>{/if}
             {#if inhabitants.bosses.length}<a class="c-link" href="#bosses">Bosses</a>{/if}
             {#if inhabitants.creatures.length}<a class="c-link" href="#creatures">Creatures</a>{/if}
             {#if quests.length}<a class="c-link" href="#quests">Quests</a>{/if}
-            {#if document.resources.length || document.containers.length}<a class="c-link" href="#points-of-interest">Gathering and objects</a>{/if}
+            {#if document.resources.length || document.containers.length}<a class="c-link" href="#points-of-interest">Gathering and Objects</a>{/if}
           </nav>
         {:else if !document.space}<p class="unmapped">This place has no mapped location or known points of interest.</p>{/if}
       </AnswerCard>
@@ -68,7 +68,7 @@
     <PlaceCreaturesSection id="bosses" title="Bosses" rows={inhabitants.bosses} {registry} />
     <PlaceCreaturesSection id="creatures" title="Creatures" rows={inhabitants.creatures} {registry} />
     <PlaceCreaturesSection id="npcs" title="NPCs" rows={document.npcs} {registry} />
-    <PointsOfInterestSection id="points-of-interest" title="Gathering and objects" rows={[...document.resources, ...document.containers]} placeKey={document.ref.key} hasSpace={document.space !== null} />
+    <PointsOfInterestSection id="points-of-interest" title="Gathering and Objects" rows={[...document.resources, ...document.containers]} placeKey={document.ref.key} hasSpace={document.space !== null} />
     <PlaceLootObjectsSection rows={document.lootObjects} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={quests} {registry} />
     <LinkSection id="properties" title="Properties" refs={document.properties} {registry} />

@@ -33,8 +33,8 @@
     <div class="source-list">
       {#if hasOpen || hasListed}
         <div class="source-heading">
-          {#if hasOpen}<Hint text={OPEN_CHANCE_HINT}>Chance per Open</Hint>{#if sharedOpenLevel !== undefined}<span>At player level {formatNumber(sharedOpenLevel)}</span>{/if}{/if}
-          {#if hasListed}<Hint text="The object's loot list gives this item's listed rate. A per-open chance needs the object's action and its full loot list.">Listed Rate</Hint>{/if}
+          {#if hasOpen}<Hint text={OPEN_CHANCE_HINT}>Chance per open</Hint>{#if sharedOpenLevel !== undefined}<span>At player level {formatNumber(sharedOpenLevel)}</span>{/if}{/if}
+          {#if hasListed}<Hint text="The object's loot list gives this item's listed rate. A per-open chance needs the object's action and its full loot list.">Listed rate</Hint>{/if}
         </div>
       {/if}
       {#each ordered as row, index}
@@ -62,7 +62,7 @@
           </div>
         {/if}
       {/each}
-      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
+      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} More</button>{/if}
     </div>
     {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label={guideLabel} />{/if}
   </Section>

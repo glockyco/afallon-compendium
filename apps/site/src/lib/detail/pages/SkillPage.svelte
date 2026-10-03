@@ -51,14 +51,14 @@
   }
 
   const recipeColumns: RelationColumn<SkillRecipeRow>[] = [
-    { id: 'recipe', label: 'Product or recipe', value: (row) => row.product ? nameOf(row.product) : row.recipe.name, sort: (row) => row.product ? nameOf(row.product) : row.recipe.name },
+    { id: 'recipe', label: 'Product or Recipe', value: (row) => row.product ? nameOf(row.product) : row.recipe.name, sort: (row) => row.product ? nameOf(row.product) : row.recipe.name },
     { id: 'level', label: 'Level', numeric: true, value: (row) => row.requiredLevel, sort: (row) => row.requiredLevel },
     { id: 'station', label: 'Station', value: (row) => row.station ? nameOf(row.station) : undefined },
   ];
   const nodeColumns: RelationColumn<SkillGatheringNodeRow>[] = [
-    { id: 'node', label: 'Gathering node', value: (row) => nameOf(row.node), sort: (row) => nameOf(row.node) },
-    { id: 'level', label: 'Required level', numeric: true, value: (row) => gateLevel(row), sort: (row) => gateLevel(row) ?? 0 },
-    { id: 'experience', label: 'Experience per use', numeric: true, value: (row) => row.experience, sort: (row) => row.experience },
+    { id: 'node', label: 'Gathering Node', value: (row) => nameOf(row.node), sort: (row) => nameOf(row.node) },
+    { id: 'level', label: 'Required Level', numeric: true, value: (row) => gateLevel(row), sort: (row) => gateLevel(row) ?? 0 },
+    { id: 'experience', label: 'Experience per Use', numeric: true, value: (row) => row.experience, sort: (row) => row.experience },
   ];
   $: sharedStation = document.recipes.length ? document.recipes.find((row) => row.station)?.station : undefined;
   $: stationShared = !!sharedStation && document.recipes.every((row) => !row.station || row.station.key === sharedStation.key);
@@ -106,7 +106,7 @@
             <li><strong>Gather from nodes</strong><span>Each use gives the node's skill experience. From <EntityLink ref={firstNode.node} {registry} />{#if gate(firstNode)}{' '}({gate(firstNode)}){/if}{#if lastNode && lastNode !== firstNode}{' '}to <EntityLink ref={lastNode.node} {registry} />{#if gate(lastNode)}{' '}({gate(lastNode)}){/if}{/if}.</span></li>
           {/if}
           {#if document.experience.autoAttack}
-            <li><strong>Auto-attack hits</strong><span>Every hit with {weapon?.singular ?? 'this weapon type'} gives {formatNumber(document.experience.autoAttack.perHit)} skill experience{document.facts.highestLevel ? ` until the skill reaches level ${formatNumber(document.facts.highestLevel)}` : ' below its highest level'}.{' '}<a class="c-link" href={weaponHref}>See all {document.ref.name.toLocaleLowerCase()}</a>.</span></li>
+            <li><strong>Auto-attack hits</strong><span>Every hit with {weapon?.singular ?? 'this weapon type'} gives {formatNumber(document.experience.autoAttack.perHit)} skill experience{document.facts.highestLevel ? ` until the skill reaches level ${formatNumber(document.facts.highestLevel)}` : ' below its highest level'}.{' '}<a class="c-link" href={weaponHref}>See All {document.ref.name.toLocaleLowerCase()}</a>.</span></li>
           {/if}
           {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No known experience source is listed for this skill.</li>{/if}
         </ul>
@@ -115,9 +115,9 @@
     </div>
 
     <div slot="side" class="side-content">
-      <FactsCard facts={stats} title="At a glance"><a slot="after" class="c-link progression" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactsCard>
+      <FactsCard facts={stats} title="At a Glance"><a slot="after" class="c-link progression" href={`${base}/mechanics/character-progression/`}>Character Progression</a></FactsCard>
       {#if document.curve && document.facts.highestLevel !== undefined && document.facts.highestLevel > 1}
-        <DetailsDisclosure title="Level curve" id="levels" summary="Experience and level breakpoints">
+        <DetailsDisclosure title="Level Curve" id="levels" summary="Experience and level breakpoints">
           <LevelCurve curve={document.curve} subject={document.ref.name} compact />
         </DetailsDisclosure>
       {/if}
@@ -142,7 +142,7 @@
     {/if}
 
     {#if document.gatheringNodes.length}
-      <Section id="gathering-nodes" title="Gathering nodes" count={document.gatheringNodes.length}>
+      <Section id="gathering-nodes" title="Gathering Nodes" count={document.gatheringNodes.length}>
         {#if sharedTool && 'ref' in sharedTool}
           <p class="common-requirements">{allVeins ? 'Every vein' : 'Every listed node'} needs {sharedToolArticle} <EntityLink ref={sharedTool.ref} {registry} />.</p>
         {:else if sharedRequirements.length}

@@ -66,11 +66,20 @@ for (const reference of publication.search) {
 }
 assertPageHeads(outputDir, files, teleportPaths);
 
+const casingCheck = Bun.spawnSync([process.execPath, join(siteDir, "scripts", "assert-reader-casing.ts"), "--all", "--strict"]);
+if (casingCheck.exitCode !== 0) {
+  const report = JSON.parse(casingCheck.stdout.toString() || "{}") as { violations?: Array<{ route: string; class: string; text: string }> };
+  throw new Error(`Reader labels break the casing convention: ${JSON.stringify(report.violations?.slice(0, 20) ?? [])}\n${casingCheck.stderr.toString()}`);
+}
+const casingReport = JSON.parse(casingCheck.stdout.toString()) as { routes: number; excludedViolations: unknown[] };
+
 process.stdout.write(`${JSON.stringify({
   publicationId: metadata.publicationId,
   buildId: metadata.buildId,
   mode: metadata.mode,
   coverageComplete: metadata.coverageComplete,
+  casingRoutes: casingReport.routes,
+  excludedCasingLabels: casingReport.excludedViolations.length,
   files: files.length,
   bytes: totalBytes,
   largest,

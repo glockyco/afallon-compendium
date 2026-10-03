@@ -225,8 +225,8 @@
     {/if}
   </div>
   <div class="toolbar">
-    <button type="button" on:click={() => zoomBy(1.4)} aria-label="Zoom in">+</button>
-    <button type="button" on:click={() => zoomBy(1 / 1.4)} aria-label="Zoom out">−</button>
+    <button type="button" on:click={() => zoomBy(1.4)} aria-label="Zoom In">+</button>
+    <button type="button" on:click={() => zoomBy(1 / 1.4)} aria-label="Zoom Out">−</button>
     <button type="button" on:click={fit}>Fit</button>
     <p>Drag to move the web. Zoom with the buttons, a pinch, or Ctrl and the scroll wheel.</p>
   </div>
@@ -239,7 +239,7 @@
       {#if selected.row.first || selected.row.last}<TalentEffect row={selected.row} {registry} />{/if}
       {#if selected.row.requirements.length}<div class="requires"><span>Requires</span> <Requirements requirements={selected.row.requirements} {registry} /></div>{/if}
       {#if unlocks.length}<p class="unlocks"><span>Unlocks</span> {#each unlocks as entry, index (entry.row.anchor)}{index ? ', ' : ''}<a class="c-link" href={`#${entry.row.anchor}`}>{entry.row.name}</a>{/each}</p>{/if}
-      <a class="c-link list" href={$location ? listAddress($location, selected.row.anchor) : `?view=list#${selected.row.anchor}`}>Show in the list</a>
+      <a class="c-link list" href={$location ? listAddress($location, selected.row.anchor) : `?view=list#${selected.row.anchor}`}>Show in the List</a>
     {:else}
       <p class="hint">Select a talent to see its ranks, effect, and requirements.</p>
     {/if}

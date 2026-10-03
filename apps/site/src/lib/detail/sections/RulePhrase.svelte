@@ -24,7 +24,7 @@
   const shownRef = (ref: Ref): Ref => self && ref.key === self ? { ...ref, slug: undefined } : ref;
 </script>
 
-{#each parts as part}{#if part.kind === 'text'}{part.text}{:else if part.kind === 'operand'}{operand(part.name)}{:else}{@const ref = rule.links[part.index]}{#if ref}<EntityLink ref={shownRef(ref)} {registry} />{/if}{/if}{/each}{#if closing.length}<span class="links">{#each closing as ref, index}{separator(index, closing.length, shown === rule.links.length)}<EntityLink ref={shownRef(ref)} {registry} />{/each}{#if shown < rule.links.length}{', '}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {rule.links.length - shown} more</button>{:else}.{/if}</span>{/if}
+{#each parts as part}{#if part.kind === 'text'}{part.text}{:else if part.kind === 'operand'}{operand(part.name)}{:else}{@const ref = rule.links[part.index]}{#if ref}<EntityLink ref={shownRef(ref)} {registry} />{/if}{/if}{/each}{#if closing.length}<span class="links">{#each closing as ref, index}{separator(index, closing.length, shown === rule.links.length)}<EntityLink ref={shownRef(ref)} {registry} />{/each}{#if shown < rule.links.length}{', '}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {rule.links.length - shown} More</button>{:else}.{/if}</span>{/if}
 
 <style>
   .more { margin-left: .2rem; }

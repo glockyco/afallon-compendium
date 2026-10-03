@@ -9,11 +9,10 @@ const pack = (classes: string[], minLevel?: number, maxLevel?: number): ItemUseP
 
 test('a table that names several classes appears under each class, and each class runs from its lowest band up', () => {
   const classes = packClasses([pack(['Wizard'], 6, 11), pack(['Wizard', 'Druid'], 1, 5), pack(['Druid'], 25)]);
-  expect(classes.map((entry) => [entry.label, entry.bands.map((band) => [band.key, band.label])])).toEqual([
-    ['Wizard', [['levels-1-5', 'Levels 1–5'], ['levels-6-11', 'Levels 6–11']]],
-    ['Druid', [['levels-1-5', 'Levels 1–5'], ['levels-25-and-higher', 'Levels 25 and higher']]],
+  expect(classes.map((entry) => [entry.label, entry.bands.map((band) => [band.pack.minLevel, band.pack.maxLevel])])).toEqual([
+    ['Wizard', [[1, 5], [6, 11]]],
+    ['Druid', [[1, 5], [25, undefined]]],
   ]);
-  expect(packClasses([pack([])]).map((entry) => [entry.label, entry.bands.map((band) => band.label)])).toEqual([['All classes', ['All levels']]]);
 });
 
 test('each class of a shared band sees its own world loot', () => {

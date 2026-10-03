@@ -2,7 +2,7 @@
   import { base } from '$app/paths';
   import type { PlacementRef, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber, listText, nameOf, roleLabel, timerText } from '../../format';
+  import { formatNumber, listText, nameOf, readerNoun, roleLabel, timerText } from '../../format';
   import { placeOnMap, spotOnMap } from '../../map-links';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
@@ -44,7 +44,7 @@
 {/if}
 
 {#if timed}
-  <SideCard id="timed-dungeon" title="Timed dungeon">
+  <SideCard id="timed-dungeon" title="Timed Dungeon">
     <FactList>
       {#if timed.totalSeconds !== undefined}<FactRow label="Timer">{timerText(timed.totalSeconds)}</FactRow>{/if}
       {#if timed.altars.length}<FactRow label="Altar of Corruption"><a class="c-link" href={spotOnMap(timed.altars[0]!.placementId)}>Show on Map</a></FactRow>{/if}
@@ -53,7 +53,7 @@
       {#each timed.thresholds as threshold}<li>Defeat the last boss with {timerText(threshold.remainingSeconds)} left and the reward token gains {levels(threshold.tokenLevels)}.</li>{/each}
       {#if timed.maxLootItems !== undefined}<li>The reward bag holds {#if timed.token}a <EntityLink ref={timed.token} {registry} /> and{/if} up to {formatNumber(timed.maxLootItems)} other {timed.maxLootItems === 1 ? 'item' : 'items'}.</li>{/if}
     </ul>
-    <HowItWorks guide={timed.guide} section="timed-dungeons" label="How timed dungeons work" />
+    <HowItWorks guide={timed.guide} section="timed-dungeons" label="How Timed Dungeons Work" />
   </SideCard>
 {/if}
 
@@ -61,13 +61,13 @@
   <SideCard id="services" title="Services">
     <FactList>
       {#each services as service}
-        <FactRow label={roleLabel(service.category).toLowerCase().replace(/^./, (initial) => initial.toUpperCase())}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
+        <FactRow label={readerNoun(roleLabel(service.category))}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on Map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
       {/each}
       {#each document.heroicConsoles ?? [] as console, index (console.placementId)}
         <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on Map</a></FactRow>
       {/each}
     </FactList>
-    {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier works</a></p>{/if}
+    {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier Works</a></p>{/if}
   </SideCard>
 {/if}
 

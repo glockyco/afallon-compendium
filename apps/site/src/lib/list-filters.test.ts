@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { ListRow, PublicKindEntry } from '@afallon/contracts/public';
-import { emptyFilters, facetOptions, facetValueLabel, formatStatParam, hiddenFacetOptions, matchesFilters, parseStatParam, readFilters, statMatches, writeFilters, type ListFilterState } from './list-filters';
+import { emptyFilters, facetOptions, facetValueLabel, formatStatParam, hiddenFacetOptions, listValueLabel, matchesFilters, parseStatParam, readFilters, statMatches, writeFilters, type ListFilterState } from './list-filters';
 
 const kind: PublicKindEntry = {
   kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'item', pages: true, list: true, searchable: true,
@@ -14,6 +14,12 @@ const row = (name: string, slot: string, rarity: string, extra: Partial<ListRow>
 const rows = [row('Boots A', 'BOOTS', 'Rare'), row('Boots B', 'BOOTS', 'Common'), row('Gloves A', 'GLOVES', 'Rare'), row('Helm A', 'HEAD', 'Rare')];
 const state = (facets: ListFilterState['facets']): ListFilterState => ({ ...emptyFilters(), facets });
 const names = (selected: ListFilterState) => rows.filter((candidate) => matchesFilters(candidate, selected, kind, ['levelRequirement'])).map((candidate) => candidate.ref.name);
+
+test('authored filter values use sentence case while game names keep their spelling', () => {
+  expect(listValueLabel('rewardType', 'ITEM_CHOICE')).toBe('Item choice');
+  expect(listValueLabel('slot', 'OFF_HAND')).toBe('Off hand');
+  expect(listValueLabel('area', 'Duskfall Depths')).toBe('Duskfall Depths');
+});
 
 test('values of one facet widen the results and different facets narrow them', () => {
   expect(names(state({ slot: ['BOOTS', 'GLOVES'] }))).toEqual(['Boots A', 'Boots B', 'Gloves A']);

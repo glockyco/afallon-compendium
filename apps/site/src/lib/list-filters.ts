@@ -1,6 +1,6 @@
 import type { ListRow, ListStat, PublicKindEntry } from '@afallon/contracts/public';
 import { categoryLabel } from '@afallon/contracts/public';
-import { compareFacetValues, questStartLabel, roleLabel, sourceKindLabel } from './format';
+import { compareFacetValues, questStartLabel, readerNoun, roleLabel, sourceKindLabel } from './format';
 
 /** A stat filter: the stat's key, and its inclusive bounds as typed. An empty bound is open. */
 export type StatFilter = { key: string; min: string; max: string };
@@ -24,7 +24,9 @@ export function listValueLabel(id: string, value: string): string {
   if (id === 'role') return roleLabel(value);
   if (id === 'sourceKind') return sourceKindLabel(value);
   if (id === 'startType') return questStartLabel(value);
-  return ENUM_FIELDS[id] ? categoryLabel(value) : value;
+  if (!ENUM_FIELDS[id]) return value;
+  const label = readerNoun(categoryLabel(value));
+  return label.charAt(0).toLocaleUpperCase('en-US') + label.slice(1);
 }
 
 /** Published facet keys stay stable in filters and URLs; the registry owns their reader-facing words. */

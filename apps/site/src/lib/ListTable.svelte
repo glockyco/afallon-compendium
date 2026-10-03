@@ -376,10 +376,10 @@
       <svelte:fragment slot="count">
       {#if chips.length}
         <ul class="chips" aria-label="Active filters">
-          {#each chips as chip}<li><button type="button" class="chip" aria-label={`Remove filter ${chip.label}`} on:click={chip.remove}>{chip.label}<span aria-hidden="true">×</span></button></li>{/each}
+          {#each chips as chip}<li><button type="button" class="chip" aria-label={`Remove Filter ${chip.label}`} on:click={chip.remove}>{chip.label}<span aria-hidden="true">×</span></button></li>{/each}
         </ul>
       {/if}
-      {#if chips.length || filters.q.trim()}<button type="button" class="clear" on:click={clearFilters}>Clear all</button>{/if}
+      {#if chips.length || filters.q.trim()}<button type="button" class="clear" on:click={clearFilters}>Clear All</button>{/if}
       {#each hiddenOptions as option}
         <span class="reveal-wrap" class:open={explanationOpen} on:focusout={() => (explanationOpen = false)}>
           <button type="button" class="reveal" aria-describedby="hidden-explanation" on:click={() => { explanationOpen = false; setFacet(option.facet.id, option.value, true); }}>{hiddenLabel(option.count)}</button>
@@ -410,14 +410,14 @@
   <dialog class="sheet" bind:this={sheet} aria-label="Filters">
     <header class="sheet-head">
       <h2>Filters</h2>
-      <button type="button" class="close" aria-label="Close filters" on:click={() => sheet.close()}>×</button>
+      <button type="button" class="close" aria-label="Close Filters" on:click={() => sheet.close()}>×</button>
     </header>
     <div class="sheet-body">
       <ListFilterPanel instance="sheet" openGroups={OPEN_GROUPS[kind.kind]} {groups} {ranges} {stats} state={filters} onFacet={setFacet} onRange={setRange} onAddStat={addStat} onStatBound={setStatBound} onRemoveStat={removeStat} />
     </div>
     <footer class="sheet-foot">
-      <button type="button" class="clear" on:click={clearFilters} disabled={!activeCount}>Clear all</button>
-      <button type="button" class="show" on:click={() => sheet.close()}>Show {formatNumber(filteredRows.length)} {filteredRows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</button>
+      <button type="button" class="clear" on:click={clearFilters} disabled={!activeCount}>Clear All</button>
+      <button type="button" class="show" on:click={() => sheet.close()}>Show {formatNumber(filteredRows.length)} {filteredRows.length === 1 ? kind.label : kind.plural}</button>
     </footer>
   </dialog>
 {/if}

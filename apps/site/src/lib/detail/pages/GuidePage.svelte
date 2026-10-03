@@ -27,7 +27,7 @@
   <Hero>
     <p class="c-prose">{document.overview}</p>
     {#if document.topic === 'world-quests'}
-      <nav class="quest-route" aria-label="World Quest pages">
+      <nav class="quest-route" aria-label="World Quest Pages">
         <strong>Find a World Quest</strong>
         <p>See where each quest starts, what you need to do, and what it rewards.</p>
         <a class="c-link" href={`${base}/quests/?questType=World+Quest`}>Browse{' '}{#if document.seeAlso?.length}{formatNumber(document.seeAlso.length)}{' '}{/if}World Quests</a>
@@ -49,7 +49,7 @@
         {:else if document.topic === 'factions' && section.id === 'changing-standing'}
           <p>{document.standingChanges ? `${formatNumber(document.standingChanges)} creatures, quests, and items on this site change your standing.` : 'No creature, quest, or item on this site changes your standing.'}</p>
         {:else if document.topic === 'world-quests' && section.id === 'rewards'}
-          <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="currency" label="Heroic Tier currency" />
+          <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="currency" label="Heroic Tier Currency" />
         {:else if document.topic === 'travel' && section.id === 'network'}
           <FlightNetworkSection networks={document.networks} {registry} />
         {/if}

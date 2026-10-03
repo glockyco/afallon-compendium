@@ -27,7 +27,7 @@
 
 {#if rows.length}
   <div class="applied-effects">
-    {#if heading}<h3>Applies effects</h3>{/if}
+    {#if heading}<h3>Applies Effects</h3>{/if}
     <p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>
     <ul>
       {#each rows.slice(0, shown) as row, index (index)}
@@ -35,7 +35,7 @@
         <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
       {/each}
     </ul>
-    {#if shown < rows.length}<button class="c-action" type="button" on:click={() => (showAll = true)}>Show {rows.length - shown} more</button>{/if}
+    {#if shown < rows.length}<button class="c-action" type="button" on:click={() => (showAll = true)}>Show {rows.length - shown} More</button>{/if}
   </div>
 {/if}
 

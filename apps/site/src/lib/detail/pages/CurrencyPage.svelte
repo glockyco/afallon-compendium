@@ -79,7 +79,7 @@
       {/if}
 
       {#if document.rewards.length}
-        <Section id="quest-rewards" title="Quest rewards" count={document.rewards.length} line={document.rewards.some((row) => row.choice) ? 'A reward marked as a choice is one of the rewards that you pick one of.' : undefined}>
+        <Section id="quest-rewards" title="Quest Rewards" count={document.rewards.length} line={document.rewards.some((row) => row.choice) ? 'A reward marked as a choice is one of the rewards that you pick one of.' : undefined}>
           <RelationTable columns={rewardPlan.columns} rows={document.rewards} label="Quest rewards" sort={{ id: 'amount', dir: 'desc' }}>
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'quest'}<EntityLink ref={row.quest} {registry} />{#if row.choice} <small>Choice</small>{/if}

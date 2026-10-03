@@ -1,5 +1,12 @@
 import { expect, test } from 'bun:test';
-import { dropGroupText, dropRateText, dropsPerKillText, eventChanceText, itemDropText, killExperienceText, worldLootRollText } from './format';
+import { dropGroupText, dropRateText, dropsPerKillText, eventChanceText, itemDropText, killExperienceText, roleLabel, searchPlaceholder, sourceKindLabel, worldLootRollText } from './format';
+
+test('search placeholder and category values use sentence case', () => {
+  expect(searchPlaceholder(['Items', 'NPCs', 'Quests', 'Abilities'])).toBe('Search items, NPCs, quests, and more');
+  expect(roleLabel('questGiver')).toBe('Quest giver');
+  expect(roleLabel('flightPoint')).toBe('Flight master');
+  expect(sourceKindLabel('startingGear')).toBe('Starting gear');
+});
 
 test('kill experience adds the level bonus at the lowest and highest level of the creature', () => {
   expect(killExperienceText({ min: 70, max: 119, perLevel: 1 }, { min: 23, max: 23, scales: false })).toBe('93–142');

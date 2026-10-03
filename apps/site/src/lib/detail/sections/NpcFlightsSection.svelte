@@ -35,5 +35,5 @@
     </div>
   {/each}
   <p>Travel time depends on the flight path and each route's speed. The game shows the time remaining during the flight.</p>
-  <a class="c-link" href={`${base}/mechanics/travel/`}>Explore the full flight network</a>
+  <a class="c-link" href={`${base}/mechanics/travel/`}>Explore the Full Flight Network</a>
 </div>

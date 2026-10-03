@@ -129,7 +129,7 @@
               <svelte:fragment slot="cell" let:row let:column>{#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{row.type ?? ''}{/if}</svelte:fragment>
             </RelationTable>
           {/if}
-          {#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurer gear works" />{/if}
+          {#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How Adventurer Gear Works" />{/if}
         </div>
       </AnswerCard>
     {/if}
@@ -145,7 +145,7 @@
           {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within 30 m</FactRow>{/if}
           {#if combat && document.locations.length && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
-          {#if preference && !gear}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurers choose gear" />{/if}</FactRow>{/if}
+          {#if preference && !gear}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How Adventurers Choose Gear" />{/if}</FactRow>{/if}
           {#if document.factionRewards.length}<FactRow label="Faction standing per kill">{#each document.factionRewards as reward, index}{index ? ', ' : ''}<EntityLink ref={reward.counterpart} {registry} /> {signedAmount(reward.amount)}{/each}</FactRow>{/if}
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
         <svelte:fragment slot="after">{#if document.description && !document.flights?.length && !adventurer}<p class="description">{document.description}</p>{/if}</svelte:fragment>
@@ -186,14 +186,14 @@
           <FactRow label="Starting level">{formatNumber(adventurer.startingLevel)}</FactRow>
           <FactRow label="Joins">{hours ? `After ${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'} of play` : 'At the start'}</FactRow>
         </FactList>
-        {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" />{/if}
+        {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How Adventurers Join Your Party" />{/if}
       </SideCard>
     {/if}
     {#if kill && award && creatureLevel !== undefined}
       <SideCard title="Experience per kill">
         <LevelControl id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" min={1} max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} bind:level={characterLevel} />
         <p><strong>{rangeText(award.low, award.high)}</strong> experience for a level {formatNumber(creatureLevel)} {document.ref.name}.</p>
-        {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and bonuses in the kill calculator</a>{/if}
+        {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and Bonuses in the Kill Calculator</a>{/if}
       </SideCard>
     {/if}
   </svelte:fragment>
@@ -235,7 +235,7 @@
         <div class="c-stack">
           <p>{document.ref.name} learns the talents of the <EntityLink ref={adventurer.class} {registry} /> class as they level{#if adventurer.preferredTree}, and spends talent points in <EntityLink ref={adventurer.preferredTree} {registry} tooltip={false} /> first{/if}.{#if adventurer.priorityAbilities.length}{' '}{document.ref.name} learns these abilities first when their requirements allow:{/if}</p>
           {#if adventurer.priorityAbilities.length}<ul class="learns">{#each adventurer.priorityAbilities as ability}<li><EntityLink ref={ability} {registry} /></li>{/each}</ul>{/if}
-          {#if rosterGuide}<HowItWorks guide={rosterGuide.guide} section={rosterGuide.section} label="How adventurers learn talents" />{/if}
+          {#if rosterGuide}<HowItWorks guide={rosterGuide.guide} section={rosterGuide.section} label="How Adventurers Learn Talents" />{/if}
         </div>
       </Section>
     {/if}

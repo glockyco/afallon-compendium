@@ -17,7 +17,7 @@
   const levelsText = (row: WorldRow) => row.levels.map((range) => range.max === undefined ? `${formatNumber(range.min)}+` : range.max === range.min ? formatNumber(range.min) : `${formatNumber(range.min)}–${formatNumber(range.max)}`).join(', ');
   const worldColumns: RelationColumn<WorldRow>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
-    { id: 'levels', label: 'Character levels', hint: 'The levels of your character at which the item can be world loot from this band.', numeric: true, value: levelsText, sort: (row) => row.levels[0]?.min },
+    { id: 'levels', label: 'Character Levels', hint: 'The levels of your character at which the item can be world loot from this band.', numeric: true, value: levelsText, sort: (row) => row.levels[0]?.min },
   ];
   const columns: RelationColumn<ItemUsePack['entries'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
@@ -37,7 +37,7 @@
     </svelte:fragment>
   </RelationTable>
   {#if band.worldLoot.length}
-    <h3>World loot</h3>
+    <h3>World Loot</h3>
     <p>The world loot that this band can give, with the levels of your character at which each item can appear.</p>
     <RelationTable columns={worldColumns} rows={band.worldLoot} label={`World loot for ${band.label.toLocaleLowerCase('en-US')}`}>
       <svelte:fragment slot="cell" let:row let:column>

@@ -93,7 +93,7 @@ export function levelRangeText(minLevel: number, maxLevel: number | undefined): 
 
 function fromItemsDetail(row: FromItemRow | undefined): string | undefined {
   if (!row) return undefined;
-  return row.kind === 'chest' ? `Chance per Open: ${formatNumber(row.chance)}%.` : packBandText(row);
+  return row.kind === 'chest' ? `Chance per open: ${formatNumber(row.chance)}%.` : packBandText(row);
 }
 
 export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[], base: string): string | undefined {
@@ -127,7 +127,7 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     dungeon,
     item.crafting && { id: 'crafting', label: 'Craft', names: [], more: 0, guaranteedYield: item.crafting.product?.count,
       text: [item.crafting.skill ? nameOf(item.crafting.skill) : undefined, item.crafting.ranks[0] ? `level ${item.crafting.ranks[0].requiredLevel}` : undefined, item.crafting.station ? `at ${nameOf(item.crafting.station)} station` : undefined].filter(Boolean).join(' ') || item.crafting.recipe.name },
-    line('gathered-from', firstGather?.skill && nameOf(firstGather.skill).toLowerCase() === 'mining' ? 'Mine' : 'Gather', byChance(item.gatheredFrom).map(gatherName), { spotCount: spotTotal(item.gatheredFrom), detail: firstGather?.chance !== undefined ? `Chance per Use: ${formatNumber(firstGather.chance)}%.` : undefined }),
+    line('gathered-from', firstGather?.skill && nameOf(firstGather.skill).toLowerCase() === 'mining' ? 'Mine' : 'Gather', byChance(item.gatheredFrom).map(gatherName), { spotCount: spotTotal(item.gatheredFrom), detail: firstGather?.chance !== undefined ? `Chance per use: ${formatNumber(firstGather.chance)}%.` : undefined }),
     loot ? { ...loot, ...(commonDropRate ? { drop: commonDropRate } : {}), detail: world?.text ? `Also, ${world.text.charAt(0).toLowerCase()}${world.text.slice(1)}` : undefined } : world && { ...world, label: 'Loot' },
     search,
     line('sold-by', 'Buy', vendors.map((row) => ({ ref: row.counterpart })), { lowestPrice: lowestPrice(vendors) }),
@@ -136,8 +136,8 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     line('quest-pickups', 'Quest pickup', item.questPickups.map((row): SummaryName => row.quest ? { ref: row.quest } : row.kind === 'creature' ? { ref: row.counterpart } : { text: 'Placed pickup' }),
       { detail: 'While the quest needs it' }),
     item.dungeonFinder && { id: 'dungeon-finder', label: 'Dungeon Finder', names: [], more: 0, text: `Each successful Random run gives one ${item.ref.name}` },
-    line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See all items that give it' }),
-    line('adventurer-starting-gear', 'Adventurer Starting Gear', item.startingGearOfAdventurers.map((ref) => ({ ref }))),
+    line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See All Items That Give It' }),
+    line('adventurer-starting-gear', 'Adventurer starting gear', item.startingGearOfAdventurers.map((ref) => ({ ref }))),
     line('gained-from-items', 'Use', item.gainedFromItems.map((ref) => ({ ref })), { linkText: 'See Items That Give It' }),
     startingGearLine(item),
   ];
