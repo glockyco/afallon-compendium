@@ -125,7 +125,7 @@
           {/each}
         </nav>
       {/if}
-      <slot />
+      <div class="page-content"><slot /></div>
       <footer>
         {#if release}
           <span>Afallon {release.version}</span>
@@ -151,7 +151,7 @@
   :global(button, select) { cursor: pointer; }
   :global(a) { color: var(--c-accent); }
 
-  .frame { min-height: 100vh; }
+  .frame { display: flex; flex-direction: column; min-height: 100vh; }
   /* The bar is one row of the brand, the site links, search, and support. Its links fill the bar's height, so the current
      link's gold rule sits on the bar's lower edge, under a faint gold line that closes the bar. */
   .bar { position: relative; z-index: 20; border-bottom: 1px solid var(--c-line); background: var(--c-surface-1); }
@@ -217,6 +217,8 @@
   /* The field keeps room for a query. Where the bar cannot give it that room, the field moves to a row of its own. */
   .bar-search { align-self: center; flex: 1 1 14rem; min-width: 14rem; max-width: 20rem; margin-left: auto; }
 
+  main, .c-page { display: flex; flex: 1 1 auto; flex-direction: column; }
+  .page-content { flex: 1 0 auto; }
   .c-page { width: min(72rem, 100%); margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
   .crumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.1rem; color: var(--c-text-mute); font-size: var(--c-text-small); }
   .crumbs a { text-decoration: none; }

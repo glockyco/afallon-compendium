@@ -145,7 +145,9 @@ function questRow(document: PublicQuest, rewardTypes: readonly string[], placesB
 
 function placeRow(document: PublicPlace): ListRow {
   const range = document.facts.levelRange ? `${document.facts.levelRange.min}–${document.facts.levelRange.max}` : null;
-  return { ref: document.ref, values: { placeType: document.facts.placeType, levelRange: range, bosses: document.bosses.length },
+  return { ref: document.ref, values: { placeType: document.facts.placeType, levelRange: range,
+    creatures: document.creatures.length || null, quests: document.quests.length || null,
+    bosses: document.facts.placeType === "dungeon" || document.bosses.length ? document.bosses.length : null },
     facets: { placeType: [document.facts.placeType], guideIncluded: [String(document.facts.guideIncluded)] } };
 }
 
@@ -221,7 +223,7 @@ function gearSetRow(document: PublicGearSet): ListRow {
   const pieces = document.pieces.length;
   const lastBonus = document.tiers.length ? Math.max(...document.tiers.map((tier) => tier.equipped)) : undefined;
   return { ref: document.ref,
-    values: { type: document.type ?? null, pieces: lastBonus === undefined || lastBonus === pieces ? String(pieces) : `${pieces} (last bonus at ${lastBonus})` },
+    values: { type: document.type ?? null, pieces, lastBonus: lastBonus === undefined || lastBonus === pieces ? null : lastBonus },
     facets: { type: facetValue(document.type) } };
 }
 

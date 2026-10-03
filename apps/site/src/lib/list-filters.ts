@@ -144,7 +144,9 @@ export function facetOptions(rows: readonly ListRow[], state: ListFilterState, k
     const hidden = rows.filter((row) => (row.facets[facet.id] ?? []).includes(value) && matchesFilters(row, { ...state, facets: { ...state.facets, [facet.id]: [value] } }, kind, numericColumns)).length;
     counts.set(value, hidden);
   }
-  return offered.sort((left, right) => compareFacetValues(facet.id, left, right)).map((value) => ({ value, count: counts.get(value) ?? 0 }));
+  return offered.sort((left, right) => compareFacetValues(facet.id, left, right))
+    .filter((value) => (counts.get(value) ?? 0) > 0 || selected.includes(value))
+    .map((value) => ({ value, count: counts.get(value) ?? 0 }));
 }
 
 /** The stats that rows carry, most common first. */

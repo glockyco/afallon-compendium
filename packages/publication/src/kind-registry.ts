@@ -23,7 +23,7 @@ const kindEntries = [
       column("area", "Area"), column("giver", "Giver")],
     facets: [facet("rewardType", "Reward type"), facet("questType", "Quest type"), facet("startType", "Start type"), facet("area", "Area"), facet("chain", "Chain"), facet("repeatable", "Repeatable")] },
   { kind: "places", label: "Place", plural: "Places", route: "places", icon: "place", pages: true, list: true, searchable: true,
-    columns: [column("placeType", "Type"), column("levelRange", "Level range"), column("bosses", "Bosses", true)],
+    columns: [column("placeType", "Type"), column("levelRange", "Level range"), column("creatures", "Creatures", true), column("quests", "Quests", true), column("bosses", "Bosses", true)],
     facets: [facet("placeType", "Type"), facet("guideIncluded", "In the Adventure Guide")] },
   { kind: "properties", label: "Property", plural: "Properties", route: "properties", icon: "property", pages: true, list: true, searchable: true,
     columns: [column("type", "Type"), column("place", "Place"), column("price", "Price", true), column("income", "Income", true)], facets: [facet("type", "Type"), facet("place", "Place")] },
@@ -46,7 +46,7 @@ const kindEntries = [
     columns: [column("skill", "Skill"), column("requiredLevel", "Required level", true), column("locations", "Locations", true)], facets: [facet("skill", "Skill")] },
   // Name a last-bonus threshold in the Pieces cell only when it differs from the set's size.
   { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: true, list: true, searchable: true,
-    columns: [column("type", "Type"), column("pieces", "Pieces")], facets: [facet("type", "Type")] },
+    columns: [column("type", "Type"), column("pieces", "Pieces", true)], facets: [facet("type", "Type")] },
   { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: true, list: true, searchable: true,
     columns: [column("purchases", "Items sold for it", true), column("rewards", "Quest rewards", true)], facets: [] },
   { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: true, list: true, searchable: true,

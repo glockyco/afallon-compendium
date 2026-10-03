@@ -16,8 +16,8 @@ test('a set with an exceptional last-bonus threshold retains it without duplicat
   const lists = buildKindLists({ buildId: 'test', catalogId: 'test' }, [PUBLIC_KIND_BY_KIND.gearSets],
     new Map([[ordinary.ref.key, ordinary], [exceptional.ref.key, exceptional]]));
   const rows = lists.get('gearSets')?.flatMap((part) => part.rows) ?? [];
-  expect(rows.map((row) => [row.ref.name, row.values.pieces])).toEqual([
-    ['Dawnstrider', '2'], ['Vermincrawl Garb', '7 (last bonus at 6)'],
+  expect(rows.map((row) => [row.ref.name, row.values.pieces, row.values.lastBonus])).toEqual([
+    ['Dawnstrider', 2, null], ['Vermincrawl Garb', 7, 6],
   ]);
-  expect(PUBLIC_KIND_BY_KIND.gearSets.columns.map((column) => column.id)).toEqual(['type', 'pieces']);
+  expect(PUBLIC_KIND_BY_KIND.gearSets.columns.map((column) => [column.id, column.numeric])).toEqual([['type', false], ['pieces', true]]);
 });

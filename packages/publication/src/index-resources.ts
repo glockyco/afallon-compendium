@@ -12,6 +12,7 @@ import {
   type EntityRef,
   type HeroicConsoleLocation,
   type PublicLevel,
+  type PublicGatheringNode,
   type PublicDocument,
   type PublicItem,
   type PublicNpc,
@@ -370,7 +371,7 @@ export async function generateIndexResources(
     const place = onlySceneKey === undefined ? (sceneKeys.size > 1 ? `${sceneKeys.size} places` : undefined) : refs.get(onlySceneKey)?.name;
     const aliases = searchAliases(document);
     entries.push({ ref: document.ref, ...(aliases.length ? { aliases } : {}), ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
-      hasPlacements: placementIds.length > 0,
+      hasPlacements: placementIds.length > 0 || document.ref.kind === "gatheringNodes" && (document as PublicGatheringNode).spotCount > 0,
       sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),
       document: resource.reference as PublicSearchEntry["document"],
     });

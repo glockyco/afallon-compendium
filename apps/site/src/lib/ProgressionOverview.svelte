@@ -2,6 +2,7 @@
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import { formatNumber } from './format';
+  import { placeListName } from './place-list-name';
   import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from './reader-levels';
   import { levelTicks, progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
 
@@ -60,7 +61,7 @@
             {#each group.entries as entry (entry.ref.key)}
               {@const fit = selectedLevel !== undefined && entry.range !== null && entry.range.min <= selectedLevel && selectedLevel <= entry.range.max}
               <li class:fit>
-                <div class="place-name"><EntityLink ref={entry.artwork ? { ...entry.ref, icon: entry.artwork } : entry.ref} {registry} forceIcon /></div>
+                <div class="place-name"><EntityLink ref={{ ...(entry.artwork ? { ...entry.ref, icon: entry.artwork } : entry.ref), name: placeListName(entry.ref.name, entry.range ? `${entry.range.min}–${entry.range.max}` : null) }} {registry} forceIcon /></div>
                 {#if entry.range}
                   {@const position = rangePosition(entry.range, axisEnd)}
                   <div class="track" aria-hidden="true">{#each ticks as tick (tick)}<span class="tick-line" style:left={`${levelPoint(tick, axisEnd)}%`}></span>{/each}<span class="fill" style:left={`${position.left}%`} style:width={`${position.width}%`}></span>{#if marker !== null}<span class="marker" style:left={`${marker}%`}></span>{/if}</div>

@@ -21,7 +21,7 @@
       case 'skills': return present([number(row, 'highestLevel') === null ? null : `Max Level ${formatNumber(number(row, 'highestLevel')!)}`,
         count(number(row, 'recipes'), 'Recipe', 'Recipes') ?? count(number(row, 'gatheringNodes'), 'Node', 'Nodes') ?? (text(row, 'automatic') ? 'Starts Learned' : null)]);
       case 'races': return present([text(row, 'start') && `Starts in ${text(row, 'start')}`, raceClassesVary ? count(number(row, 'classes'), 'Class', 'Classes') : null, count(number(row, 'adventurers'), 'Adventurer', 'Adventurers')]);
-      case 'factions': return present([text(row, 'startingStance') && `Starts ${text(row, 'startingStance')}`, count(number(row, 'members'), 'NPC', 'NPCs'), text(row, 'shownInReputation')]);
+      case 'factions': return present([text(row, 'startingStance') && `Starts ${text(row, 'startingStance')}`, count(number(row, 'members'), 'NPC', 'NPCs') ?? 'NPC count unavailable', text(row, 'shownInReputation')]);
       case 'properties': return present([text(row, 'place') && `In ${text(row, 'place')}`]);
       default: return [];
     }

@@ -7,7 +7,9 @@
   import EntityLink from './EntityLink.svelte';
   import ListFilterPanel from './ListFilterPanel.svelte';
   import ListSearchCount from './ListSearchCount.svelte';
-  import { formatNumber, nameOf, rarityTone, readerNoun } from './format';
+  import Price from './Price.svelte';
+  import { placeListName } from './place-list-name';
+  import { formatNumber, intervalText, nameOf, rarityTone, readerNoun } from './format';
   import { growingCount } from './growing-count';
   import {
     activeFilterCount, emptyFilters, facetOptions, facetValueLabel, hiddenFacetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
@@ -87,7 +89,8 @@
   let measuredFor: unknown[] = [];
   $: sampleRows = wide ? widestRows(filteredRows, columns.map((column) => column.id)) : [];
   $: widths = wide && available > 0 && columns.every((column) => natural[column.id] !== undefined)
-    ? sameWidths(widths, columnWidths(columns.map((column, index) => ({ shape: shapes[index]!, natural: natural[column.id]! })), available))
+    ? sameWidths(widths, columnWidths(columns.map((column, index) => ({ shape: shapes[index]!, natural: natural[column.id]! })),
+      kind.kind === 'quests' ? Math.max(available, 1150) : available))
     : undefined;
 
   // A table wider than its card, even with every column at its floor, scrolls inside the card instead of moving the
@@ -152,8 +155,9 @@
 
   // The length of the text that a cell shows, following the branches of the row snippet below.
   function valueLength(row: ListRow, id: string): number {
-    if (id === 'name') return row.ref.name.length;
+    if (id === 'name') return (kind.kind === 'places' ? placeListName(row.ref.name, typeof row.values.levelRange === 'string' ? row.values.levelRange : null) : row.ref.name).length;
     if (id.startsWith(STAT_COLUMN)) return statText(row, id.slice(STAT_COLUMN.length)).length;
+    if (id === 'pieces' && typeof row.values.lastBonus === 'number') return `${row.values.pieces} (last bonus at ${row.values.lastBonus} pieces)`.length;
     const value = row.values[id];
     if (value === null || value === undefined) return 0;
     const relations = row.relations?.[id];
@@ -189,7 +193,8 @@
     // Widths measured in a fallback font are wrong once the page font arrives, so the table measures again.
     void document.fonts?.ready.then(() => { natural = {}; measuredFor = []; });
     mounted = true;
-    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); built.stop(); };
+    listElement.addEventListener('pointerover', titleIfCut);
+    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); listElement.removeEventListener('pointerover', titleIfCut); built.stop(); };
   });
 
   // The table measures again when its rows or columns change, not when only its widths do.
@@ -297,11 +302,15 @@
     const values = row.facets[id];
     return values && values.length > 0 ? values : [String(row.values[id])];
   }
+  function redundantCell(row: ListRow, id: string): boolean {
+    return id === 'skill' && (kind.kind === 'recipes' && row.values.skill === row.values.station
+      || kind.kind === 'craftingStations' && row.values.skill === row.ref.name);
+  }
 
-  // Only plain cut text needs a native title. An EntityLink has its own full-name hover card.
+  // One delegated listener handles plain cut text, including rows added after the first render.
   function titleIfCut(event: PointerEvent): void {
-    const cell = event.currentTarget as HTMLElement;
-    if (cell.querySelector('.entity-link')) return;
+    const cell = event.target instanceof Element ? event.target.closest('.cell') : null;
+    if (!(cell instanceof HTMLElement) || !listElement.contains(cell) || cell.querySelector('.entity-link')) return;
     if (cell.scrollWidth > cell.clientWidth) cell.title = cell.textContent?.trim() ?? '';
     else cell.removeAttribute('title');
   }
@@ -313,10 +322,17 @@
 
 {#snippet listRow(row: ListRow)}
   <tr>
-    <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
+    <td data-label={kind.label}><EntityLink ref={kind.kind === 'places' ? { ...row.ref, name: placeListName(row.ref.name, typeof row.values.levelRange === 'string' ? row.values.levelRange : null) } : row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
     {#each visibleColumns as column, index}
-      <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}><span class={`cell ${shapes[index + 1]}`} on:pointerenter={titleIfCut}>
-        {#if row.values[column.id] === null || row.values[column.id] === undefined}
+      {@const currency = row.relations?.[`${column.id}Currency`]?.[0]}
+      <td data-label={column.label} class:c-num={column.numeric} class:wide-fact={kind.kind === 'mechanics' && column.id === 'description' || kind.kind === 'properties' && column.id === 'income' || kind.kind === 'races' && column.id === 'start'} class:race-start={kind.kind === 'races' && column.id === 'start'} class:description-fact={kind.kind === 'mechanics' && column.id === 'description'}
+        class:blank={(row.values[column.id] === null || row.values[column.id] === undefined) && !(kind.kind === 'factions' && column.id === 'members') || redundantCell(row, column.id)}>
+        <span class={`cell ${shapes[index + 1]}`}>
+        {#if kind.kind === 'factions' && column.id === 'members' && row.values.members == null}
+          Count unavailable
+        {:else if redundantCell(row, column.id)}
+          <!-- The station or recipe already names this skill. -->
+        {:else if row.values[column.id] === null || row.values[column.id] === undefined}
           <!-- A list cell without a value states nothing: the entity has no such fact. -->
         {:else if column.id === 'rarity'}
           <span data-rarity={rarityTone(String(row.values[column.id]))}><Badge label={listValueLabel(column.id, String(row.values[column.id]))} tone="rarity" /></span>
@@ -324,8 +340,12 @@
           <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={listValueLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
         {:else if row.relations?.[column.id]?.length}
           {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} plain truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
+        {:else if (column.id === 'price' || column.id === 'income') && currency}
+          <Price price={{ amount: row.values[column.id] as number, currency }} showName />{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)} of active play</span>{/if}
+        {:else if column.id === 'pieces' && typeof row.values.lastBonus === 'number'}
+          {formatNumber(row.values.pieces as number)} (last bonus at {formatNumber(row.values.lastBonus)} pieces)
         {:else if typeof row.values[column.id] === 'number'}
-          <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
+          <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>{#if column.id === 'income' && typeof row.values.incomeInterval === 'number'}{' '}<span class="income-interval">every {intervalText(row.values.incomeInterval)} of active play</span>{/if}
         {:else}
           {cellValues(row, column.id).map((value) => listValueLabel(column.id, value)).join(', ')}
         {/if}
@@ -363,6 +383,7 @@
           <span class="reveal-explanation" id="hidden-explanation" role="tooltip">{HIDDEN_EXPLANATION}</span>
         </span>
       {/each}
+      {#if kind.kind === 'quests' && overflowing}<span class="scroll-hint">Scroll sideways to see areas and givers</span>{/if}
       </svelte:fragment>
     </ListSearchCount>
 
@@ -427,6 +448,7 @@
   .reveal-explanation { display: none; position: absolute; z-index: 5; top: calc(100% + .35rem); right: 0; width: min(19rem, 80vw); padding: .6rem .75rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); box-shadow: 0 .3rem .8rem rgb(0 0 0 / .18); font-size: var(--c-text-small); line-height: 1.4; pointer-events: none; }
   .reveal-wrap:hover .reveal-explanation, .reveal-wrap:focus-within .reveal-explanation, .reveal-wrap.open .reveal-explanation { display: block; }
   .filters-button:focus-visible, .chip:focus-visible, .clear:focus-visible, .reveal:focus-visible, .reveal-help:focus-visible, .close:focus-visible, .show:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .scroll-hint { margin-left: auto; color: var(--c-text-mute); font-size: var(--c-text-small); }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
@@ -472,7 +494,11 @@
     .list :global(tbody tr) { padding: .6rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
     .list :global(tbody tr:nth-child(even)) { background: var(--c-surface-1); }
     .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+    .list :global(tbody td.wide-fact) { grid-template-columns: minmax(0, 1fr); }
+    .list :global(tbody td.description-fact::before) { display: none; }
     .list :global(tbody td::before) { content: attr(data-label); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; }
+    .list :global(tbody td.race-start .entity-link.truncate) { white-space: normal; }
+    .list :global(tbody td.race-start .entity-link .name) { overflow: visible; text-overflow: clip; white-space: normal; }
     .list :global(tbody td:first-child) { grid-template-columns: 1fr; padding-bottom: .5rem; }
     .list :global(tbody td:first-child::before) { display: none; }
     .list :global(tbody td.blank) { display: none; }

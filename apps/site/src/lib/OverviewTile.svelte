@@ -18,12 +18,11 @@
   $: image = artwork ?? ref.icon;
   // Keep compound words together when a description wraps inside a narrow tile.
   $: descriptionText = description?.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011') ?? null;
-  const titleInterval = (seconds: number) => intervalText(seconds).replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 </script>
 
 <div class="tile" class:portrait={variant === 'class'} class:editorial={variant === 'editorial'} class:compact={variant === 'compact'} class:visual-card={variant === 'property' || variant === 'portrait-art'} class:property={variant === 'property'} class:portrait-art={variant === 'portrait-art'} class:home>
   {#if variant === 'property' || variant === 'portrait-art'}
-    <div class="visual" class:scene={variant === 'property' && Boolean(artwork)}>
+    <div class="visual" class:scene={variant === 'property'}>
       {#if image}<img class="art" src={`${base}/data/${image.url}`} width={image.width} height={image.height} alt="" loading="lazy" decoding="async" />
       {:else}<span class="art fallback" aria-hidden="true">{@html glyph}</span>{/if}
     </div>
@@ -45,13 +44,13 @@
                 {#if metric.currency}
                   <Price price={{ amount: metric.amount, currency: metric.currency }} showName />
                 {:else}
-                  <span class="c-price">{formatNumber(metric.amount)}</span><span class="unknown">{' '}Currency Unknown</span>
+                  <span class="c-price">{formatNumber(metric.amount)}</span>
                 {/if}
               {:else}
                 Unknown
               {/if}
             </span>
-            {#if metric.interval !== undefined}<span class="interval">Every {titleInterval(metric.interval)}</span>{/if}
+            {#if metric.interval !== undefined}<span class="interval">every {intervalText(metric.interval)} of active play</span>{/if}
           </span>
         {/each}
       </span>
@@ -85,7 +84,7 @@
   .metric { display: grid; align-content: start; gap: .2rem; min-width: 0; }
   .metric-label { color: var(--c-text-mute); font-size: var(--c-text-label); }
   .metric-value { color: var(--c-text-dim); font-size: var(--c-text-small); white-space: nowrap; }
-  .interval, .unknown { color: var(--c-text-mute); font-size: var(--c-text-label); white-space: nowrap; }
+  .interval { color: var(--c-text-mute); font-size: var(--c-text-label); }
   .portrait { flex-direction: column; justify-content: flex-start; gap: .8rem; padding: 1.25rem .85rem 1rem; background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); text-align: center; }
   .portrait .art { width: 4.5rem; height: 4.5rem; border-radius: 14px; box-shadow: 0 8px 20px var(--c-shadow); }
   .portrait .copy { flex: 0 1 auto; align-content: start; justify-items: center; }

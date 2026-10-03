@@ -8,6 +8,7 @@
   import { iconNodeToSvg } from '$lib/icon-svg';
   import { kindGlyphSvg } from '$lib/kind-icon';
   import { markerRegistry, type MarkerId } from '$lib/map/marker-registry';
+  import { placeListName } from '$lib/place-list-name';
   import OverviewTile from '$lib/OverviewTile.svelte';
   import PageShell from '$lib/PageShell.svelte';
   import SeoHead from '$lib/SeoHead.svelte';
@@ -113,7 +114,7 @@
               {#if dungeon.artwork}<img src={artUrl(dungeon.artwork)} width={dungeon.artwork.width} height={dungeon.artwork.height} alt="" loading="lazy" decoding="async" />{/if}
               <span class="levels">Levels {dungeon.min}–{dungeon.max}</span>
             </div>
-            <h3 class="dungeon-link"><EntityLink ref={dungeon.ref} registry={data.registry} tooltip={false} plain /></h3>
+            <h3 class="dungeon-link"><EntityLink ref={{ ...dungeon.ref, name: placeListName(dungeon.ref.name, `${dungeon.min}–${dungeon.max}`) }} registry={data.registry} tooltip={false} plain /></h3>
             {#if dungeon.bosses.length}
               <ul class="bosses" aria-label={`Bosses of ${dungeon.ref.name}`}>
                 {#each dungeon.bosses as boss (boss.ref.key)}
@@ -144,7 +145,7 @@
               <span class="levels">Levels {place.min}–{place.max}</span>
               {#if fits(place)}<span class="fits">Your Level</span>{/if}
             </div>
-            <h3><a class="place-link" href={pageHref(place.ref)}>{place.ref.name}</a></h3>
+            <h3><a class="place-link" href={pageHref(place.ref)}>{placeListName(place.ref.name, `${place.min}–${place.max}`)}</a></h3>
             {#if placeContents(place)}<p class="place-meta">{placeContents(place)}</p>{/if}
           </li>
         {/each}
