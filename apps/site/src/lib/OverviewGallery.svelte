@@ -18,13 +18,12 @@
       case 'classes': return present([count(number(row, 'talentTrees'), 'Talent Tree', 'Talent Trees'), count(number(row, 'abilities'), 'Ability', 'Abilities')]);
       case 'skills': return present([number(row, 'highestLevel') === null ? null : `Max Level ${formatNumber(number(row, 'highestLevel')!)}`,
         count(number(row, 'recipes'), 'Recipe', 'Recipes') ?? count(number(row, 'gatheringNodes'), 'Node', 'Nodes') ?? (text(row, 'automatic') ? 'Starts Learned' : null)]);
-      case 'races': return present([text(row, 'start') && `Starts in ${text(row, 'start')}`, count(number(row, 'classes'), 'Class', 'Classes'), count(number(row, 'adventurers'), 'Adventurer', 'Adventurers')]);
+      case 'races': return present([text(row, 'start') && `Starts In ${text(row, 'start')}`, count(number(row, 'classes'), 'Class', 'Classes'), count(number(row, 'adventurers'), 'Adventurer', 'Adventurers')]);
       case 'factions': return present([text(row, 'startingStance') && `Starts ${text(row, 'startingStance')}`, count(number(row, 'members'), 'NPC', 'NPCs'), text(row, 'shownInReputation')]);
       case 'properties': return present([text(row, 'place') && `In ${text(row, 'place')}`]);
       default: return [];
     }
   }
-  const price = (row: ListRow, key: 'price' | 'income') => number(row, key) === null ? null : `${formatNumber(number(row, key)!)}${text(row, `${key}Currency`) ? ` ${text(row, `${key}Currency`)}` : ''}`;
   $: rows = list.rows.filter((row) => row.ref.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a, b) => a.ref.name.localeCompare(b.ref.name));
   $: groups = kind.kind === 'skills'
     ? ['Crafting', 'Gathering', 'Weapon', 'Other'].map((label) => ({ label, rows: rows.filter((row) => (text(row, 'type') ?? 'Other') === label) })).filter((group) => group.rows.length)
@@ -38,10 +37,13 @@
     {#if group.label}<h2>{group.label}</h2>{/if}
     <ul class:portraits={kind.kind === 'classes' || kind.kind === 'races'} class:races={kind.kind === 'races'} class:topics={kind.kind === 'mechanics'} class:properties={kind.kind === 'properties'}>
       {#each group.rows as row (row.ref.key)}
-        <li><OverviewTile ref={row.ref} {registry} facts={facts(row)}
+        <li><OverviewTile ref={row.ref} {registry} facts={facts(row)} artwork={kind.kind === 'properties' ? row.artwork ?? null : null}
           description={kind.kind === 'classes' ? openingSentence(text(row, 'description')) : kind.kind === 'mechanics' ? text(row, 'description') : null}
-          metrics={kind.kind === 'properties' ? [{ label: 'Price', value: price(row, 'price') }, { label: 'Income', value: price(row, 'income'), detail: number(row, 'incomeInterval') === null ? undefined : `Every ${intervalText(number(row, 'incomeInterval')!)}` }] : []}
-          variant={kind.kind === 'classes' || kind.kind === 'races' ? 'class' : kind.kind === 'mechanics' ? 'editorial' : kind.kind === 'properties' ? 'property' : 'compact'} /></li>
+          metrics={kind.kind === 'properties' ? [
+            { label: 'Price', amount: number(row, 'price'), currency: row.relations?.priceCurrency?.[0] ?? null },
+            { label: 'Income', amount: number(row, 'income'), currency: row.relations?.incomeCurrency?.[0] ?? null, interval: number(row, 'incomeInterval') ?? undefined },
+          ] : []}
+          variant={kind.kind === 'classes' ? 'class' : kind.kind === 'races' || kind.kind === 'factions' ? 'portrait-art' : kind.kind === 'mechanics' ? 'editorial' : kind.kind === 'properties' ? 'property' : 'compact'} /></li>
       {/each}
     </ul>
   </section>
@@ -62,5 +64,5 @@
   ul.races :global(.separator) { display: none; }
   li { min-width: 0; }
   @media (max-width: 740px) { ul, ul.portraits { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 390px) { ul.properties, ul.races { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 640px) { ul.properties, ul.races { grid-template-columns: minmax(0, 1fr); } }
 </style>

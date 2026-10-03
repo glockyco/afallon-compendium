@@ -1214,6 +1214,8 @@ export const ListRangeSchema = Type.Object({ min: Type.Number(), max: optional(T
 export type ListRange = Static<typeof ListRangeSchema>;
 export const ListRowSchema = Type.Object({
   ref: EntityRefSchema, values: Type.Record(Type.String(), listValue), facets: Type.Record(Type.String(), Type.Array(Type.String())),
+  // Full-size scene artwork for small illustrated lists; an entity reference keeps its compact icon.
+  artwork: optional(ArtRefSchema),
   // References for relation-valued columns, in the same order as their displayed names.
   relations: optional(Type.Record(Type.String(), Type.Array(RefSchema, { minItems: 1 }))),
   // Additional text after each linked name, such as the talent tree through which a class grants an ability.

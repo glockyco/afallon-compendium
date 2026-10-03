@@ -26,11 +26,11 @@ The Classes, Skills, Races, Factions, and Properties lists SHALL show linked til
 
 #### Scenario: Comparing Property Investments
 - **WHEN** a reader opens Properties
-- **THEN** price and income remain labeled and aligned for comparison across entries, with their published currencies and income intervals displayed where present
+- **THEN** each property tile shows its published scene as a wide picture above its name and place, with purchase price and income in aligned columns, currency names and coin artwork, and the published income interval where present
 
 #### Scenario: Reading Other Small Catalogs
 - **WHEN** a reader opens Races, Factions, or Mechanics
-- **THEN** each entry remains linked and its facts or topic description reflect published data, including missing facts remaining unavailable rather than invented
+- **THEN** race and faction portraits stay recognizable above their names, each published count includes its unit, and linked facts or topic descriptions reflect published data without inventing missing facts
 
 #### Scenario: Finding Creature Loot
 - **WHEN** a reader scans the Loot topic in the Mechanics index or menu

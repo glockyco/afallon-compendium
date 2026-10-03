@@ -10,11 +10,12 @@ The home page has separate local class and skill tile CSS. Small catalog lists s
 
 ## Decisions
 
-- Render one `OverviewTile` component with class, compact, and editorial arrangements, using an EntityLink stretched across its tile. It accepts an existing entity reference and a small array of contextual facts, not a new duplicated catalog model.
+- Render one `OverviewTile` component with class icons, compact skills, art-free editorial topics, and image-on-top cards for scenery and portrait art. An EntityLink stretches across each tile. Properties use their full-size published scene at a fixed crop ratio; square race and faction portraits retain their faces within a shallow image band instead of stretching a 128-pixel image across the card.
 - The list route selects six kinds for a gallery and retains ListTable behind a Gallery/Table control. Group skills by the published `type` field and use data facts in a stable grid. A table can still sort the same rows.
-- Add class descriptions, skill starting status, faction starting stance, and property price currencies and income intervals to publication list values without adding unused table columns. Keep a zero NPC count rather than treating it as unavailable; omit truly missing values instead of inferring them.
+- Add class descriptions, skill starting status, faction starting stance, and property price amounts and income intervals to publication list values without adding unused table columns. Keep a zero NPC count rather than treating it as unavailable; omit truly missing values instead of inferring them.
+- Put the existing property document's full artwork reference on its list row and its published currency references in relation fields. Render the price through the same Price component as the detail page, so coin art, amount, and name stay consistent. Keep income interval available alongside the amount.
 - Use responsive column constraints and a compact two-column phone layout when space allows. Editorial Mechanics tiles use text instead of generic or fabricated illustrations.
 
 ## Risks / Trade-offs
 
-Rebuilding publication is necessary before the class playstyle and faction stance appear on the static site. A tile cannot describe a faction beyond its known standing and NPC count; its detail page remains the source for deeper relations.
+Rebuilding publication is necessary before gallery cards can load full property artwork and currency icons from list rows. Without full artwork, a property tile presents its compact icon centered in an image band instead of enlarging that icon as scenery. A tile cannot describe a faction beyond its known standing and NPC count; its detail page remains the source for deeper relations.

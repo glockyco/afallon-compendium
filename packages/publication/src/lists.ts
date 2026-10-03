@@ -151,10 +151,13 @@ function placeRow(document: PublicPlace): ListRow {
 
 function propertyRow(document: PublicProperty): ListRow {
   const place = refName(document.place), type = document.facts.propertyType ?? null;
-  return { ref: document.ref, values: { type, place, price: document.facts.price?.amount ?? null, priceCurrency: refName(document.facts.price?.currency),
-    income: document.facts.income?.amount ?? null, incomeCurrency: refName(document.facts.income?.currency), incomeInterval: document.facts.incomeInterval ?? null },
+  const price = document.facts.price, income = document.facts.income;
+  return { ref: document.ref, ...(document.art.artwork ? { artwork: document.art.artwork } : {}),
+    values: { type, place, price: price?.amount ?? null, income: income?.amount ?? null, incomeInterval: document.facts.incomeInterval ?? null },
     facets: { type: facetValue(type), place: facetValue(place) },
-    ...(document.place ? { relations: { place: [document.place] } } : {}) };
+    relations: { ...(document.place ? { place: [document.place] } : {}),
+      ...(price ? { priceCurrency: [price.currency] } : {}),
+      ...(income ? { incomeCurrency: [income.currency] } : {}) } };
 }
 
 function abilityRow(document: PublicAbility): ListRow {
