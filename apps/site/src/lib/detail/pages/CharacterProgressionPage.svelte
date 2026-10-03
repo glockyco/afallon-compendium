@@ -9,16 +9,16 @@
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
-  import LevelCurve from '../sections/LevelCurve.svelte';
+  import ProgressionAnswer from '../sections/ProgressionAnswer.svelte';
 
   export let document: CharacterProgression;
   export let registry: PublicKindEntry[];
 
-  // Readers come for the level curve first. The calculator applies the level difference table, so it follows that table.
-  // The curve and the calculator share the character level, which starts at the lowest level of the default creature.
+  // Keep the published example's starting level when the reader has not saved a character level.
   const calculator = document.killCalculator;
-  let characterLevel = calculator.groups.flatMap((group) => group.creatures)
+  const fallbackLevel = calculator.groups.flatMap((group) => group.creatures)
     .find((entry) => entry.creature.key === calculator.defaultCreature.key && entry.creature.variant === calculator.defaultCreature.variant)!.level.min;
+  let characterLevel = fallbackLevel;
 
   $: sources = document.sources;
   $: cap = document.curve.cap;
@@ -26,14 +26,16 @@
   $: withoutModifier = sources.fixedCreatures.count + sources.scalingCreatures.count - sources.levelModifiers.reduce((sum, row) => sum + row.creatures, 0);
   const modifierText = (value: number) => value === 0 ? 'No change' : signedAmount(value, true);
 
-  function pointText(points: TalentPoints, single: boolean): string {
+  function pointText(points: TalentPoints, single: boolean, selectedLevel: number): string {
     const name = single ? points.name.toLocaleLowerCase('en-US') : points.name;
     const noun = (count: number) => count === 1 ? name.replace(/s$/i, '') : name;
-    const perLevel = points.gains.reduce((sum, gain) => sum + gain.amount, 0);
+    const perLevel = points.gains.filter((gain) => gain.trigger === 'characterLevelUp')
+      .reduce((sum, gain) => sum + gain.amount, 0);
+    const atLevel = Math.min(points.max, points.start + perLevel * (selectedLevel - 1));
     const total = points.start + perLevel * (cap - 1);
-    // Without game modifiers, a character at the cap has its start amount and one gain for each level below the cap.
     return [
       `You start with ${formatNumber(points.start)} ${noun(points.start)} and gain ${formatNumber(perLevel)} at each level-up.`,
+      `By level ${formatNumber(selectedLevel)}, that gives up to ${formatNumber(atLevel)} ${noun(atLevel)} from starting points and level-ups, before other gains or game effects.`,
       total <= points.max
         ? `That makes ${formatNumber(total)} by level ${formatNumber(cap)}, and the limit is ${formatNumber(points.max)}.`
         : `The limit of ${formatNumber(points.max)} stops the gains before level ${formatNumber(cap)}.`,
@@ -49,7 +51,7 @@
       <GuideSection {section} {registry} line={section.id === 'level-curve' ? `Character level cap: ${formatNumber(cap)}.` : undefined}>
         <svelte:fragment slot="top">
           {#if section.id === 'level-curve'}
-            <LevelCurve curve={document.curve} bind:level={characterLevel} />
+            <ProgressionAnswer guide={document} {registry} fallback={fallbackLevel} bind:level={characterLevel} />
           {:else if section.id === 'kill-experience'}
             <p class="counts">{formatNumber(sources.scalingCreatures.count)} creatures that give experience match your level within the level range of their zone. Another {formatNumber(sources.fixedCreatures.count)} have a fixed level between {formatNumber(sources.fixedCreatures.minLevel)} and {formatNumber(sources.fixedCreatures.maxLevel)}.</p>
             {#if sources.scalingCreatures.aboveFixed.length}
@@ -64,7 +66,7 @@
               {#each document.talentPoints as points}
                 <div class="point-group c-stack">
                   {#if document.talentPoints.length > 1}<h3>{points.name}</h3>{/if}
-                  <p>{pointText(points, document.talentPoints.length === 1)}</p>
+                  <p>{pointText(points, document.talentPoints.length === 1, characterLevel)}</p>
                 </div>
               {/each}
             </div>

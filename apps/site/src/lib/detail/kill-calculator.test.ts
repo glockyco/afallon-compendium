@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { calculateKillAward, creatureLevels, killsToNextLevel, nearestCreatureLevel } from './kill-calculator';
+import { calculateKillAward, creatureLevels, killsToNextLevel, nearestCreatureLevel, progressionExample } from './kill-calculator';
 
 // The publication gives the possible rolls, so the maximum here is a roll that can happen.
 const creature = { minExperience: 100, maxExperience: 159, experiencePerLevel: 0, lowerModifier: -25, higherModifier: 15 };
@@ -55,4 +55,23 @@ test('kills to next level invert high and low awards and exclude the capped leve
   expect(killsToNextLevel(100, { low: 20, high: 34 })).toEqual({ low: 3, high: 5 });
   expect(killsToNextLevel(100, { low: 0, high: 34 })).toEqual({ low: 3, high: null });
   expect(killsToNextLevel(100, { low: 0, high: 0 })).toBeNull();
+});
+
+test('opening estimate chooses a real level-matched creature and keeps the published fixed-level fallback', () => {
+  const brinecrest = { minExperience: 70, maxExperience: 119, experiencePerLevel: 1, lowerModifier: 0, higherModifier: -30,
+    creature: { key: 'npcs:brinecrest', variant: null }, level: { min: 23, max: 23, scales: false } };
+  const scaling = { ...brinecrest, creature: { key: 'npcs:scaling', variant: null }, level: { min: 30, max: 50, scales: true } };
+  const guide = { curve: { cap: 60, rows: [{ level: 40, toNext: 24496 }] }, killCalculator: {
+    defaultCreature: brinecrest.creature, groups: [{ name: 'Grotto', creatures: [brinecrest] }, { name: 'Hills', creatures: [scaling] }],
+  } } as unknown as Parameters<typeof progressionExample>[0];
+  const at40 = progressionExample(guide, 40);
+  expect(at40.entry.creature.key).toBe('npcs:scaling');
+  expect(at40.creatureLevel).toBe(40);
+  expect(at40.award).toEqual({ low: 110, high: 159 });
+  expect(at40.kills).toEqual({ low: 155, high: 223 });
+  const fixed = progressionExample(guide, 23);
+  expect(fixed.entry.creature.key).toBe('npcs:brinecrest');
+  expect(fixed.award).toEqual({ low: 93, high: 142 });
+  expect(progressionExample(guide, 60).kills).toBeNull();
+  expect(killsToNextLevel(24496, fixed.award)).toEqual({ low: 173, high: 264 });
 });

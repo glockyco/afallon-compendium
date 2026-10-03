@@ -69,3 +69,17 @@ export function killsToNextLevel(toNext: number, award: ExperienceRange): { low:
   if (award.high <= 0) return null;
   return { low: Math.ceil(toNext / award.high), high: award.low <= 0 ? null : Math.ceil(toNext / award.low) };
 }
+
+/** Prefer a published creature that scales to the selected character level at this place. */
+export function progressionExample(guide: CharacterProgression, characterLevel: number) {
+  const groups = guide.killCalculator.groups;
+  const choices = groups.flatMap((group) => group.creatures.map((entry) => ({ group, entry })));
+  const choice = choices.find(({ entry }) => entry.level.scales && entry.level.min <= characterLevel
+    && (entry.level.max === undefined || entry.level.max >= characterLevel))
+    ?? choices.find(({ entry }) => entry.creature.key === guide.killCalculator.defaultCreature.key
+      && entry.creature.variant === guide.killCalculator.defaultCreature.variant)!;
+  const creatureLevel = nearestCreatureLevel(choice.entry.level, characterLevel, guide.curve.cap);
+  const award = calculateKillAward(choice.entry, creatureLevel, characterLevel, undefined, 0, 0).award;
+  const toNext = guide.curve.rows.find((row) => row.level === characterLevel)?.toNext;
+  return { ...choice, creatureLevel, award, toNext, kills: toNext === undefined ? null : killsToNextLevel(toNext, award) };
+}

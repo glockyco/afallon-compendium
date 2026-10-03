@@ -9,8 +9,10 @@
   export let subject = 'Character';
   /** In the detail-page aside, fit the chart without making the page scroll sideways. */
   export let compact = false;
-  // A page shows at most one curve, so the subject names its ids the same way on the server and in the browser.
-  $: uid = `curve-${subject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  /** Character Progression owns one remembered control outside its two chart views. */
+  export let chartOnly = false;
+  // Full and compact chart views need distinct SVG label ids on the progression page.
+  $: uid = `curve-${subject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}${compact ? '-compact' : ''}`;
 
   $: width = compact ? 320 : 920;
   $: height = compact ? 180 : 320;
@@ -21,6 +23,8 @@
   $: plotWidth = width - left - right;
   $: plotHeight = height - top - bottom;
   const format = (value: number) => value.toLocaleString('en-US');
+  const shortTick = (value: number) => value >= 1_000_000 ? `${format(value / 1_000_000)}m`
+    : value >= 1_000 ? `${format(value / 1_000)}k` : format(value);
 
   $: cumulative = cumulativeExperience(curve);
   $: total = cumulative[curve.cap] ?? 0;
@@ -44,16 +48,16 @@
   }
 </script>
 
-<p class="intro">Each point shows the experience from that level to the next. The scale is logarithmic, so each grid line is ten times the one below it.</p>
+{#if !compact}<p class="intro">Each point shows the experience from that level to the next. The scale is logarithmic, so each grid line is ten times the one below it.</p>{/if}
 <!-- The scrollable chart needs focus so keyboard readers can pan it without changing the selected level. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div class="chart-scroll" class:compact role="region" aria-label={compact ? 'Level curve chart' : 'Level curve chart; scroll horizontally to see all levels'} tabindex="0">
   <svg viewBox={`0 0 ${width} ${height}`} role="img" preserveAspectRatio="xMidYMid meet" aria-labelledby={`${uid}-title ${uid}-description`}>
     <title id={`${uid}-title`}>Experience to next level by {subject.toLowerCase() === "character" ? "character" : subject} level</title>
-    <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each published level below the cap. Select a level below for exact values.</desc>
+    <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each published level below the cap. The marked point follows the selected level.</desc>
     {#each ticks as tick}
       <line class="grid" x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} />
-      <text class="tick" x={left - 10} y={y(tick) + 4} text-anchor="end">{format(tick)}</text>
+      <text class="tick" x={left - 10} y={y(tick) + 4} text-anchor="end">{compact ? shortTick(tick) : format(tick)}</text>
     {/each}
     <line class="axis" x1={left} x2={left} y1={top} y2={top + plotHeight} />
     <line class="axis" x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} />
@@ -71,14 +75,16 @@
     {#if !compact}<text class="axis-label" transform={`translate(18 ${top + plotHeight / 2}) rotate(-90)`} text-anchor="middle">Experience to next level (logarithmic)</text>{/if}
   </svg>
 </div>
-<div class="selector">
-  <LevelSlider id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level readout={format} />
-  <dl class="totals">
-    <div><dt>Experience to the next level</dt><dd>{format(next)}</dd></div>
-    <div><dt>Total experience to reach level {format(level)}</dt><dd>{format(earned)}</dd></div>
-    <div><dt>Experience from level {format(level)} to {format(curve.cap)}</dt><dd>{format(remaining)}</dd></div>
-  </dl>
-</div>
+{#if !chartOnly}
+  <div class="selector">
+    <LevelSlider id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level readout={format} />
+    <dl class="totals">
+      <div><dt>Experience to the next level</dt><dd>{format(next)}</dd></div>
+      <div><dt>Total experience to reach level {format(level)}</dt><dd>{format(earned)}</dd></div>
+      <div><dt>Experience from level {format(level)} to {format(curve.cap)}</dt><dd>{format(remaining)}</dd></div>
+    </dl>
+  </div>
+{/if}
 
 <style>
   .intro { color: var(--c-text-dim); line-height: 1.5; }
