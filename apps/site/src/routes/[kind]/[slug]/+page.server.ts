@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ params }) => {
           if (document.kind !== 'items') continue;
           const existing = byKey.get(document.document.ref.key);
           if (existing) {
-            if (existing.slot !== group.place.name) existing.slot = 'Multiple Dungeons';
+            if (existing.slot !== group.place.name) existing.slot = 'Multiple dungeons';
           } else byKey.set(document.document.ref.key, {
             ref: document.document.ref, slot: group.place.name, rarity: document.document.facts.rarity,
           });

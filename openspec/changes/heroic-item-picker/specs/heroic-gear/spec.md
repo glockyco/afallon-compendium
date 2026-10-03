@@ -6,7 +6,7 @@ A creature-drop path is eligible when the creature can drop the item while the H
 
 The Heroic Tier item comparison SHALL offer every published item whose item page has an eligible Heroic version, including weapons, armor, and eligible trinkets, rather than a fixed example list. It SHALL sort choices by slot and name. Its searchable item control SHALL keep its label immediately above it, display item icons and rarity colors in both its results and closed selection, filter by typed name, and support keyboard selection without automatically highlighting the selected name. The Corruption item comparison SHALL use the same searchable control for every item it offers. The selected item's explanation SHALL independently state that creature drops can be Heroic while the tier is live and link the item's drop sources when present. It SHALL NOT imply that the item drops from the creature selected in a separate comparison.
 
-On wide screens, the comparison's changes card SHALL align with and stretch to the same row height as the two item cards. On phones, the changes card SHALL follow both item cards. Table row backgrounds and dividers SHALL span stat names and values together. Item metadata separators SHALL be centered between adjacent facts and SHALL NOT start wrapped lines. An unavailable source icon SHALL NOT leave an empty frame beside the source's name.
+On wide screens, the comparison's changes card SHALL align with and stretch to the same row height as the two item cards. On phones, the changes card SHALL follow both item cards. Table row backgrounds and dividers SHALL span stat names and values together. Item metadata separators SHALL be centered between adjacent facts and SHALL NOT start wrapped lines. Drop source links SHALL show available artwork after it loads and SHALL NOT leave an empty frame when artwork is unavailable.
 
 #### Scenario: Eligible Equipment
 - **WHEN** a player chooses the Heroic version of equipment that a creature drops where the tier can be live
@@ -58,3 +58,7 @@ On wide screens, the comparison's changes card SHALL align with and stretch to t
 #### Scenario: Corruption Source Without Artwork
 - **WHEN** a corrupted item's drop source has no available icon
 - **THEN** its name remains visible without an empty icon frame
+
+#### Scenario: Corruption Source With Artwork
+- **WHEN** a corrupted item's drop source has an icon
+- **THEN** its link displays that icon beside the source name after loading

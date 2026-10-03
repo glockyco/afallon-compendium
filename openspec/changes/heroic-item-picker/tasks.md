@@ -9,6 +9,7 @@
 - [x] 2.3 Stretch both comparisons' changes cards to their tooltip row, align table row dividers and stripes, and keep wrapped metadata separators off line starts; verify both guides and other row-header tables.
 - [x] 2.4 Reuse a searchable item control with icons and rarity in both guides and no selected-text highlight; verify keyboard selection, filtering, and no overflow at 1440, 1100, and 390.
 - [x] 2.5 Place changes after item cards on phones, center metadata separators, and remove empty Corruption drop-source icon frames; inspect both guides in Firefox and Chromium.
+- [x] 2.6 Match the Browse chevron, keep the warm Corruption boss icon beside its link, and sentence-case picker details and placeholders; verify both browsers and the scoped option test.
 
 ## 3. Validate And Ship
 

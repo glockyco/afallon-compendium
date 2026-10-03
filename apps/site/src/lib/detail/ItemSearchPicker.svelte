@@ -74,7 +74,7 @@
     {#if open}
       <input {id} bind:this={input} type="search" bind:value={query} autocomplete="off" role="combobox"
         aria-labelledby={`${id}-label`} aria-autocomplete="list" aria-expanded="true" aria-controls={`${id}-list`}
-        aria-activedescendant={visible.length ? `${id}-option-${active}` : undefined} placeholder="Search Items"
+        aria-activedescendant={visible.length ? `${id}-option-${active}` : undefined} placeholder="Search items"
         on:input={() => (active = 0)} on:keydown={onKeydown} />
     {:else}
       <button type="button" class="chosen" bind:this={trigger} aria-labelledby={`${id}-label ${id}-chosen`} on:click={openPicker}
@@ -86,7 +86,7 @@
           </span>
           <span class="selected-name" id={`${id}-chosen`} data-rarity={selected.rarity?.toLocaleLowerCase()}>{selected.ref.name}</span>
         {:else}<span id={`${id}-chosen`}>Select an item</span>{/if}
-        <span class="chevron" aria-hidden="true">⌄</span>
+        <span class="chevron" aria-hidden="true"></span>
       </button>
     {/if}
     {#if loading}<span class="spinner" aria-hidden="true"></span>{/if}
@@ -106,7 +106,7 @@
       {#if matches.length > visible.length}<p class="more">Keep typing to narrow {matches.length} matches.</p>{/if}
     </div>
   {/if}
-  <span class="visually-hidden" role="status" aria-live="polite">{loading ? 'Loading Item…' : error}</span>
+  <span class="visually-hidden" role="status" aria-live="polite">{loading ? 'Loading item…' : error}</span>
 </div>
 
 <style>
@@ -121,7 +121,7 @@
   input:focus-visible, button:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .selected-art img, .selected-art .kind-icon { border: 1px solid var(--c-rarity); }
   .selected-name { min-width: 0; overflow: hidden; color: var(--c-rarity); text-overflow: ellipsis; white-space: nowrap; }
-  .chevron { margin-left: auto; color: var(--c-text-dim); font-size: 1.2rem; line-height: 1; }
+  .chevron { flex: none; width: .38rem; height: .38rem; margin: -.2rem .15rem 0 auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; color: var(--c-text-dim); transform: rotate(45deg); opacity: .7; }
   .spinner { position: absolute; top: 50%; right: 2rem; width: 1rem; height: 1rem; margin-top: -.5rem; border: 2px solid var(--c-text-mute); border-top-color: var(--c-accent); border-radius: 50%; pointer-events: none; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

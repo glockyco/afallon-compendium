@@ -10,7 +10,7 @@ export interface ItemPickerOption {
 export function heroicItemOption(item: PublicItem): ItemPickerOption | undefined {
   if (!item.facts.heroic) return undefined;
   const slot = item.facts.slot ?? item.facts.weaponSlot ?? (item.facts.itemType === 'WEAPON' ? 'Weapon' : 'Other');
-  return { ref: item.ref, slot: categoryLabel(slot), rarity: item.facts.rarity };
+  return { ref: item.ref, slot: categoryLabel(slot).toLocaleLowerCase(), rarity: item.facts.rarity };
 }
 
 export function sortHeroicItemOptions(options: ItemPickerOption[]): ItemPickerOption[] {

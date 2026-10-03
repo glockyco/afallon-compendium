@@ -14,6 +14,6 @@ test('Heroic picker includes eligible weapons, armor and trinkets, not gear limi
     gear('Runed Boots', 'FEET', true), gear('Moon Charm', 'Trinket', true)];
   const choices = sortHeroicItemOptions(items.flatMap((item) => heroicItemOption(item) ?? []));
   expect(choices.map(({ ref, slot, rarity }) => [ref.name, slot, rarity])).toEqual([
-    ['Runed Boots', 'Feet', 'Rare'], ['Dragon Rend', 'Main Hand', 'Rare'], ['Moon Charm', 'Trinket', 'Rare'],
+    ['Runed Boots', 'feet', 'Rare'], ['Dragon Rend', 'main hand', 'Rare'], ['Moon Charm', 'trinket', 'Rare'],
   ]);
 });
