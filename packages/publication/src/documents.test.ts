@@ -86,7 +86,7 @@ const relations: CatalogRelations = {
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
-function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map(), rewards?: CorruptionRewards) {
+function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map(), rewards?: CorruptionRewards, recovered: Partial<DocumentProjectionInput> = {}) {
   // Published stat references need definitions, just as the real catalog supplies them.
   const statFacts = projectEntities.filter((entity) => entity.kind === "stats" && !projectFacts.progression.facts.some((row) => row.entityKey === entity.entityKey))
     .map((entity) => ({ kind: "stats", entityKey: entity.entityKey, name: entity.name, details: {
@@ -96,9 +96,41 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
     } }) as CatalogProgressionFact);
   const withStats: CatalogFacts = { ...projectFacts, progression: { ...projectFacts.progression, facts: [...projectFacts.progression.facts, ...statFacts] } };
   const references = buildEntityReferences(projectEntities, { facts: withStats, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards, ...recovered });
   return { refs: references.refs, documents };
 }
+
+test("starter inventory, direct item gain and loot-table membership keep unbound tables separate from acquisition", () => {
+  const belt: CatalogEntityRow = { ...entities[0]!, entityKey: "items:1187", nativeId: 1187, name: "Ironbark Belt" };
+  const candy: CatalogEntityRow = { ...entities[0]!, entityKey: "items:335", nativeId: 335, name: "Glowing Candy" };
+  const action = (alterAction: "Gain" | "Remove", target: string) => ({
+    type: "Item", alterAction, target: { entityKey: target, label: target }, amount: 1, chance: 100,
+  }) as CatalogFacts["items"][number]["gameActions"][number];
+  const item = (entityKey: string, gameActions: CatalogFacts["items"][number]["gameActions"]) =>
+    ({ ...facts.items[0]!, entityKey, gameActions, gearSet: null, conditionIds: [], equipmentRequirements: [] });
+  const table = (id: number, name: string, key: string): CatalogFacts["itemLootTables"][number] => ({
+    id, name, includeWorldLoot: false, worldLootShare: 0, bonusDropChance: 0, hasMinimumDrops: false,
+    minDroppedItems: 0, limitDroppedItems: false, maxDroppedItems: 0, worldLootStats: null, worldLootArmorType: null,
+    entries: [{ item: { entityKey: key, label: key }, min: 1, max: 1, rate: 25 }],
+  });
+  const source: CatalogFacts = { ...facts, items: [
+    item("items:1", [action("Gain", belt.entityKey)]),
+    item(belt.entityKey, [action("Remove", belt.entityKey)]),
+    item(candy.entityKey, [action("Remove", candy.entityKey)]),
+  ], itemLootTables: [table(95, "Halloween Loot", candy.entityKey), table(96, "Guardian Loot", belt.entityKey)] };
+  const { documents } = project([...entities, belt, candy], source, { ...relations, drops: [], gathers: [], containers: [], placements: [] },
+    new Map(), new Map(), new Map(), new Map(), new Map(), undefined, {
+      adventurerStartingItems: new Map([[belt.entityKey, ["npcs:2"]]]),
+      lootBindings: [{ tableId: 96, sourceKey: "npcs:2", world: false }],
+    });
+  const beltPage = documents.get(belt.entityKey) as PublicItem;
+  const candyPage = documents.get(candy.entityKey) as PublicItem;
+  expect(beltPage.startingGearOfAdventurers.map((ref) => ref.key)).toEqual(["npcs:2"]);
+  expect(beltPage.gainedFromItems.map((ref) => ref.key)).toEqual(["items:1"]);
+  expect(beltPage.lootTables).toMatchObject([{ name: "Guardian Loot", source: { key: "npcs:2" } }]);
+  expect(candyPage.gainedFromItems).toEqual([]);
+  expect(candyPage.lootTables).toEqual([{ name: "Halloween Loot" }]);
+});
 test("item effects include direct use, ranked ability, and stat proc without mixing their triggers", () => {
   const effect = (key: string, duration: number) => ({ entityKey: key, name: key, kind: "effects",
     details: { duration, endless: false } } as CatalogProgressionFact);
@@ -596,7 +628,7 @@ test("projects representative item use text, effective stats and contextual abil
   expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
   const cleave = documents.get("abilities:201") as PublicAbility;
   const healingPotion = documents.get("abilities:202") as PublicAbility;
-  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], useRequirements: [], learnedBy: [], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], usedByItems: [{ key: "items:103", kind: "items", name: "Red Gem of Lifesteal", slug: "red-gem-of-lifesteal" }], taughtBy: [], appliedEffects: [] }]);
+  expect(cleave.versions[0]).toMatchObject({ ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], usedBy: [{ key: "npcs:2" }], usedByItems: [{ key: "items:103" }] });
   expect(healingPotion.versions[0]!.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
   expect(healingPotion.versions[0]!.usedBy).toEqual([]);
   expect(healingPotion.versions[0]!.usedByItems).toEqual([{ key: "items:101", kind: "items", name: "Minor Health Potion", slug: "minor-health-potion" }]);
@@ -678,7 +710,7 @@ test("ability list sources prefer classes, summarize many creatures, and retain 
   const npcRef = (name: string) => ({ key: `npcs:${name}`, kind: "npcs" as const, name, slug: name.toLowerCase() });
   const itemRef = { key: "items:101", kind: "items" as const, name: "Brown Horse", slug: "brown-horse" };
   const base = { ref: { key: "abilities:1", kind: "abilities" as const, name: "Ambush", slug: "ambush" }, art: {}, description: "Strikes from the shadows." };
-  const version = { keys: ["abilities:1"], anchor: "n1", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Hit", tone: null, italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], appliedEffects: [] } satisfies PublicAbility["versions"][number];
+  const version = { keys: ["abilities:1"], anchor: "n1", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Hit", tone: null, italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], unlockedByActions: [], appliedEffects: [] } satisfies PublicAbility["versions"][number];
   const documents = new Map<string, PublicDocument>([
     ["class", { ...base, versions: [{ ...version, learnedBy: [{ class: classRef, via: "talentTree", tree: "Shadowcraft", requirements: [] }], usedBy: [npcRef("Goblin")], usedByItems: [itemRef] }] }],
     ["creature", { ...base, ref: { ...base.ref, key: "abilities:2", name: "Basic Strike", slug: "basic-strike" }, versions: [{ ...version, usedBy: [npcRef("Goblin"), npcRef("Bandit"), npcRef("Spider")] }] }],

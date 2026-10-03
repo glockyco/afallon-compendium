@@ -325,6 +325,27 @@
         </div>
       </Section>
     {/if}
+    {#if document.startingGearOfAdventurers.length}
+      <Section id="adventurer-starting-gear" title="Adventurer Starting Gear" count={document.startingGearOfAdventurers.length}>
+        <p>These adventurers begin with {document.ref.name}.</p>
+        <LinkGrid refs={document.startingGearOfAdventurers} {registry} />
+      </Section>
+    {/if}
+    {#if document.gainedFromItems.length}
+      <Section id="gained-from-items" title="Using Items" count={document.gainedFromItems.length}>
+        <p>Using these items gives {document.ref.name}.</p>
+        <LinkGrid refs={document.gainedFromItems} {registry} />
+      </Section>
+    {/if}
+    {#if document.lootTables.length}
+      <Section id="loot-tables" title="Loot Tables" count={document.lootTables.length}>
+        <div class="c-stack">
+          {#each document.lootTables as table}
+            <p>{table.name}: {#if table.source}Dropped by <EntityLink ref={table.source} {registry} />.{:else if table.world}World loot.{:else}No source for this loot table is known.{/if}</p>
+          {/each}
+        </div>
+      </Section>
+    {/if}
     {#if document.fromItems.length}
       <Section id="from-items" title="From items" count={document.fromItems.length}>
         <RelationTable columns={fromItemPlan.columns} rows={document.fromItems} label="From items">

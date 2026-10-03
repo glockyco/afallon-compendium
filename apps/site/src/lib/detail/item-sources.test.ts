@@ -11,7 +11,7 @@ function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicI
   return {
     ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {}, sourceSpotCount: 0, sourceAvailabilities: [[]],
     facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 20, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy, soldBy, buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, fromItems: [], questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
+    droppedBy, soldBy, buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, startingGearOfAdventurers: [], gainedFromItems: [], lootTables: [], fromItems: [], questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
   };
 }
 
@@ -43,6 +43,16 @@ test('starting gear only links published classes and no source remains unknown',
   const lines = itemSourceLines(item([], [], [{ class: heroClass(1, 'Wizard') }, { class: { ...heroClass(2, 'Berserker'), slug: undefined } }]));
   expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Starting gear', 'Wizard']]);
   expect(lineHref(lines[0]!, registry, '/base')).toBe('/base/classes/wizard/#starting-gear');
+});
+
+test('unbound loot tables and consuming an item are not acquisition routes, but adventurer inventory is', () => {
+  const unbound = item([], []);
+  unbound.lootTables = [{ name: 'Halloween Loot' }];
+  unbound.whenUsed.itemChanges = [{ action: 'Remove', item: unbound.ref, count: 1 }];
+  expect(itemSourceLines(unbound)).toEqual([]);
+  unbound.startingGearOfAdventurers = [npc(412, 'Agra Emberhide')];
+  expect(itemSourceLines(unbound).map((route) => [route.label, summaryText(route)]))
+    .toEqual([['Adventurer Starting Gear', 'Agra Emberhide']]);
 });
 
 test('craft output outranks chance routes and links its own section', () => {

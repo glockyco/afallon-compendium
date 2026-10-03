@@ -12,7 +12,7 @@ import type { PublishedPage } from "../references";
 import { plainText } from "../text";
 import { shownNpcStats } from "../variants";
 import { assertDistinctLootRules, lootFields } from "./loot";
-import { type DocumentProjectionInput, endpointOrUnknown, mergeRefs, optionalFactRef, pageBase, projectAvailability, type RelationIndexes, requirementsFor } from "./projection";
+import { type DocumentProjectionInput, endpointOrUnknown, grantedByActions, mergeRefs, optionalFactRef, pageBase, projectAvailability, type RelationIndexes, requirementsFor } from "./projection";
 import { objectiveForRow } from "./quests";
 import { appliedEffectsByAbility } from "./effects";
 
@@ -187,6 +187,14 @@ function appliedEffects(page: PublishedPage, input: DocumentProjectionInput, rec
   return [...new Map(result.map((row) => [JSON.stringify(row), row])).values()];
 }
 
+/** Pet ranks summon a creature; other owner actions and effects do not establish a summon. */
+export function summoningEffects(keys: ReadonlySet<string>, input: DocumentProjectionInput) {
+  return mergeRefs(input.facts.progression.facts.flatMap((fact) =>
+    fact.kind === "effects" && fact.details?.effectType?.name === "Pet"
+      && fact.details.ranks.some((rank) => rank.pet?.entityKey && keys.has(rank.pet.entityKey))
+      ? [input.resolve({ entityKey: fact.entityKey, label: fact.name ?? fact.entityKey })] : []), input);
+}
+
 export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, adventurers: ReadonlyMap<string, NpcAdventurer>): PublicNpc {
   const variantFields = [...page.variantFields];
   const records = page.members.map((member) => ({ member, fact: npcFact(member.entity.entityKey, indexes) }));
@@ -255,6 +263,13 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
   const flights = records.some(({ fact }) => fact.flightNetwork?.stopId) ? npcFlights(input.facts, memberKeys, flightNetworks(input.facts, input.resolve)) : [];
   const effects = appliedEffects(page, input, records, adventurers);
+  const summonedBy = summoningEffects(memberKeys, input);
+  const spawnedBy = [...new Set([...memberKeys].flatMap((key) => input.npcSpawnerScenes?.get(key) ?? []))]
+    .flatMap((key) => {
+      const scene = input.entities.find((entity) => entity.entityKey === key);
+      return scene ? [{ label: "Spawner", place: input.resolve({ entityKey: key, label: scene.name }) }] : [];
+    });
+  const recruitedByActions = grantedByActions(input, memberKeys, "NPC");
   const adventurerRules: PlacedRule[] = [
     ...(adventurerFacts ? [{ target: "adventurer", guide: topicRef("adventurers"), section: "roster" }] : []),
     ...(adventurer ? [{ target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : []),
@@ -271,7 +286,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     }),
     locations, places: placeSpots(locations.flatMap((location) => location.placements)),
     spotCount: new Set(locations.flatMap((location) => location.placements.map((spot) => spot.placementId))).size,
-    drops, sells, quests,
+    drops, sells, quests, summonedBy, spawnedBy, recruitedByActions,
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
     usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
     appliedEffects: effects,

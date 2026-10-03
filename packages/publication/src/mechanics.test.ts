@@ -84,7 +84,7 @@ const npcPage = (id: number, locations: NpcLocation[] = []): PublicNpc => ({
   ref: { key: `npcs:${id}`, kind: "npcs", name: entities.find((row) => row.entityKey === `npcs:${id}`)!.name, slug: `npc-${id}` },
   description: null, art: {}, facts: { roles: [], stats: [], immunities: [] }, variantFields: [],
   variants: [{ key: `npcs:${id}`, anchor: `n${id}`, label: `NPC ${id}`, facts: {} }],
-  locations, places: [], spotCount: locations.length, drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [],
+  locations, places: [], spotCount: locations.length, drops: [], sells: [], quests: [], summonedBy: [], spawnedBy: [], recruitedByActions: [], abilityPhases: [], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [],
 });
 const place = (name: string, mapSpaceId: string): PublicPlace => ({
   ref: { key: `scenes:${mapSpaceId}`, kind: "places", name, slug: mapSpaceId }, description: null, art: {},

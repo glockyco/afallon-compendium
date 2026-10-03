@@ -16,7 +16,7 @@ export function actionWords(entry: Action): { before: string; after: string } {
     case 'Authored Damage': return { before: `Deals ${amount} damage`, after: '' };
     case 'Authored Healing': return { before: `Heals ${amount}`, after: '' };
     case 'Summons': return { before: 'Summons ', after: '' };
-    case 'Destination Scene': return { before: 'Travels to ', after: '' };
+    case 'Destination Scene': return entry.target ? { before: 'Travels to ', after: '' } : { before: 'Its destination is not part of this version of the game.', after: '' };
     case 'Removes Effect': return { before: 'Removes ', after: '' };
     case 'Affects': return { before: 'Affects ', after: '' };
     case 'Restores': return { before: 'Restores ', after: '' };

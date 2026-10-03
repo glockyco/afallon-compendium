@@ -16,6 +16,22 @@ import { currencyPurchases } from "./currencies";
 import { projectItemGearSet } from "./gear-sets";
 
 const refLabel = (ref: Ref) => isEntityRef(ref) ? ref.name : ref.label;
+const directGainsByInput = new WeakMap<DocumentProjectionInput, ReadonlyMap<string, string[]>>();
+function directGains(input: DocumentProjectionInput): ReadonlyMap<string, string[]> {
+  const cached = directGainsByInput.get(input);
+  if (cached) return cached;
+  const gains = new Map<string, string[]>();
+  for (const item of input.facts.items) for (const action of item.gameActions) {
+    if (action.type !== "Item" || action.alterAction !== "Gain" || !action.target?.entityKey
+      || action.amount <= 0 || action.target.entityKey === item.entityKey) continue;
+    const sources = gains.get(action.target.entityKey) ?? [];
+    if (!sources.includes(item.entityKey)) sources.push(item.entityKey);
+    gains.set(action.target.entityKey, sources);
+  }
+  directGainsByInput.set(input, gains);
+  return gains;
+}
+
 
 const worldLootByInput = new WeakMap<DocumentProjectionInput, { tables: WorldLootTable[]; items: Map<string, WorldLootItem> }>();
 
@@ -414,6 +430,19 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
     return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
   });
+  const startingGearOfAdventurers = (input.adventurerStartingItems?.get(entity.entityKey) ?? [])
+    .map((key) => input.resolve({ entityKey: key, label: key }));
+  const gainedFromItems = (directGains(input).get(entity.entityKey) ?? [])
+    .map((key) => input.resolve({ entityKey: key, label: key }));
+  const lootTables = (input.facts.itemLootTables ?? []).filter((table) => table.entries.some((entry) => entry.item.entityKey === entity.entityKey))
+    .flatMap((table) => {
+      const bindings = input.lootBindings?.filter((binding) => binding.tableId === table.id) ?? [];
+      if (!bindings.length) return [{ name: plainText(table.name) }];
+      return bindings.map((binding) => ({
+        name: plainText(table.name), ...(binding.sourceKey ? { source: input.resolve({ entityKey: binding.sourceKey, label: binding.sourceKey }) } : {}),
+        ...(binding.world ? { world: true } : {}),
+      }));
+    });
   return {
     ...baseDocument(entity, ref, input),
     facts: {
@@ -478,6 +507,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     }),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: objectiveForRow(row, input, indexes, conditions) })),
     startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
+    startingGearOfAdventurers, gainedFromItems, lootTables,
     fromItems: [...fromItems.get(entity.entityKey) ?? []],
     ...(clothDrop ? { clothDrop } : {}),
     questPickups,

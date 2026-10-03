@@ -27,7 +27,7 @@ function fixture() {
       document: {
         ref, description: null, art: {}, sourceSpotCount: 1, sourceAvailabilities: [],
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-        droppedBy: [], soldBy: [], buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [], fromItems: [], questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
+        droppedBy: [], soldBy: [], buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [], startingGearOfAdventurers: [], gainedFromItems: [], lootTables: [], fromItems: [], questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
       },
     }));
   }

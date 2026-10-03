@@ -4,7 +4,7 @@ import { phaseAbilities } from "../adventurers";
 import type { PublishedPage } from "../references";
 import { learnersOf } from "./classes";
 import { appliedEffectsByAbility } from "./effects";
-import { type DocumentProjectionInput, mergeRefs, pageBase, requirementsFor } from "./projection";
+import { type DocumentProjectionInput, grantedByActions, mergeRefs, pageBase, requirementsFor } from "./projection";
 
 // An ability page shows one version for each set of records that share their rank texts, with creatures that use
 // them, items that cast them, and items that teach them.
@@ -43,7 +43,7 @@ export function projectAbilityPage(page: PublishedPage, input: DocumentProjectio
         ...(row.chance === undefined ? {} : { chance: row.chance }), ...(row.target ? { target: row.target } : {}),
         ...(duration > 0 ? { durationSeconds: duration } : {}), ...(endless ? { endless: true } : {}) });
     }
-    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, usedByItems, taughtBy, appliedEffects };
+    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, usedByItems, taughtBy, unlockedByActions: grantedByActions(input, keySet, "Ability"), appliedEffects };
   });
   return { ...base, versions };
 }

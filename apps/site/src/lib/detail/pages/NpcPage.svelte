@@ -12,6 +12,7 @@
   import SideCard from '../SideCard.svelte';
   import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import LinkGrid from '../LinkGrid.svelte';
   import { calculateKillAward, nearestCreatureLevel } from '../kill-calculator';
   import ReaderLevel from '../ReaderLevel.svelte';
   import { CHARACTER_LEVEL } from '../../reader-levels';
@@ -156,8 +157,28 @@
   </svelte:fragment>
 
   <Sections>
-    {#if !answer && !document.appliedEffects.length && !document.sells.length && !document.quests.length && !document.usedInQuests.length && !document.abilityPhases.some((phase) => phase.abilities.length) && !document.locations.length && !adventurer && !variantTable}
+    {#if !answer && !document.summonedBy.length && !document.spawnedBy.length && !document.recruitedByActions.length && !document.appliedEffects.length && !document.sells.length && !document.quests.length && !document.usedInQuests.length && !document.abilityPhases.some((phase) => phase.abilities.length) && !document.locations.length && !adventurer && !variantTable}
       <p class="empty">No location or services are known for this NPC.</p>
+    {/if}
+    {#if document.summonedBy.length}
+      <Section id="summoned-by" title="Summoned By" count={document.summonedBy.length}>
+        <p>These effects summon {document.variants.length > 1 ? `a variant of ${document.ref.name}` : document.ref.name}.</p>
+        <LinkGrid refs={document.summonedBy} {registry} />
+      </Section>
+    {/if}
+    {#if document.spawnedBy.length && !document.locations.length}
+      <Section id="spawned-by" title="Spawned By" count={document.spawnedBy.length}>
+        {#each document.spawnedBy as spawner}
+          <p>A spawner in <EntityLink ref={spawner.place} {registry} /> can spawn {document.ref.name}. No map spot is available for this spawner.</p>
+        {/each}
+      </Section>
+    {/if}
+    {#if document.recruitedByActions.length}
+      <Section id="recruited-by" title="Recruitment">
+        {#each document.recruitedByActions as action}
+          <p>A {action.label.toLowerCase()} action adds {document.ref.name} to the group{#if action.owner}{' '}in <EntityLink ref={action.owner} {registry} />{/if}.</p>
+        {/each}
+      </Section>
     {/if}
     {#if document.sells.length}<VendorSection id="sells" title="Sells" counterpartLabel="Item" rows={document.sells} variants={document.variants} sort={{ id: 'name', dir: 'asc' }} {registry} />{/if}
     {#if !document.sells.length && !document.locations.length}<AbilitiesSection phases={document.abilityPhases} {registry} />{/if}

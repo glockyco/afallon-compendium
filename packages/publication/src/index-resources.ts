@@ -47,6 +47,37 @@ import { displayName } from "./text";
 import { categoryLabel } from "@afallon/contracts/public";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
+/** Raw catalog relationships not covered by the standard placement and item-source projections. */
+export function recoveredSourceEvidence(db: Database, roster: ReadonlySet<string>) {
+  const starting = new Map<string, string[]>();
+  for (const row of db.query<{ itemKey: string; npcKey: string }, []>(`
+    SELECT item_entity_key AS itemKey, json_extract(context_json, '$.ownerEntityKey') AS npcKey
+    FROM item_sources WHERE source_kind = 'npc-start-item' ORDER BY item_entity_key, source_key
+  `).all()) {
+    if (!roster.has(row.npcKey)) continue;
+    const owners = starting.get(row.itemKey) ?? [];
+    if (!owners.includes(row.npcKey)) owners.push(row.npcKey);
+    starting.set(row.itemKey, owners);
+  }
+  const spawners = new Map<string, string[]>();
+  for (const row of db.query<{ npcKey: string; sceneId: number }, []>(`
+    SELECT DISTINCT c.npc_entity_key AS npcKey, p.scene_native_id AS sceneId
+    FROM spawn_candidates c JOIN source_identities s ON s.source_id = c.source_id
+      JOIN placements p ON p.placement_id = s.placement_id
+    WHERE c.npc_entity_key IS NOT NULL AND s.type_name LIKE '%NPCSpawner%'
+    ORDER BY c.npc_entity_key, p.scene_native_id
+  `).all()) {
+    const scenes = spawners.get(row.npcKey) ?? [];
+    scenes.push(`scenes:${row.sceneId}`);
+    spawners.set(row.npcKey, scenes);
+  }
+  const lootBindings = db.query<{ tableId: number; sourceKey: string | null; world: number }, []>(`
+    SELECT loot_table_id AS tableId, owner_entity_key AS sourceKey, (context = 'world') AS world
+    FROM loot_bindings ORDER BY loot_table_id, owner_entity_key
+  `).all().map((row) => ({ tableId: row.tableId, sourceKey: row.sourceKey, world: row.world === 1 }));
+  return { adventurerStartingItems: starting, npcSpawnerScenes: spawners, lootBindings };
+}
+
 /** World effect actions include nested game actions, which the general relation query does not expose. */
 function worldEffectSources(db: Database): EffectWorldSource[] {
   const rows = db.query<{ effectId: number; family: string; sceneId: number; placementId: string; sourceId: string; label: string | null }, []>(`
@@ -285,10 +316,11 @@ export async function generateIndexResources(
     : undefined;
   const stoneUses = projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes);
   const challengeStones = new Map((stoneUses ?? []).flatMap((use) => use.spot ? use.destinations.map((destination) => [destination.key, use.spot!] as const) : []));
+  const recovery = recoveredSourceEvidence(db, new Set(facts.records.adventurerInviteEffects.map((row) => row.adventurer.entityKey).filter((key): key is string => key !== null)));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants, heroicConsolesByPlace,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
-    worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks });
+    worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks, ...recovery });
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
 

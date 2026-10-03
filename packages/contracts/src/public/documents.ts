@@ -14,12 +14,12 @@ const identity = StaticResourceIdentityFields;
 // Register each paged kind once. Schema getters are deferred because entity references use the
 // kind union before the document schemas (which themselves contain entity references) are defined.
 const PAGE_DOCUMENTS = {
-  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v23" },
-  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v13" },
+  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v24" },
+  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v14" },
   quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
   properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
-  abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v7" },
+  abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v8" },
   classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v9" },
   skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
   mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v18" },
@@ -466,6 +466,11 @@ export const FromItemRowSchema = Type.Union([
   Type.Object({ kind: Type.Literal("chest"), source: EntityRefSchema, min: count, max: count, chance: percent }, { additionalProperties: false }),
 ]);
 export type FromItemRow = Static<typeof FromItemRowSchema>;
+export const LootTableMembershipSchema = Type.Object({
+  name: text, source: optional(RefSchema), world: optional(Type.Boolean()),
+}, { additionalProperties: false });
+export type LootTableMembership = Static<typeof LootTableMembershipSchema>;
+
 // The supplemental cloth drops that give this cloth: the creature types that roll for cloth on a kill, the roll chance
 // and the count of one drop, and the chance that one kill gives this cloth over ranges of the creature's level. Inside a
 // range the chance moves one way from `startChance` at `minLevel` to `endChance` at `maxLevel`; `endChance` is absent
@@ -500,7 +505,8 @@ export const PublicItemSchema = Type.Object({
   // which the game's item tooltip reads. A row of `usedInRecipes` links the product's Crafting section and carries the
   // matching product quantity, skill, and verified first-rank gate for the material's recipe equation.
   crafting: optional(CraftSchema), teaches: optional(CraftSchema), usedInRecipes: Type.Array(UsedInRecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
-  startingGearOf: Type.Array(StartingGearOfRowSchema), fromItems: Type.Array(FromItemRowSchema), clothDrop: optional(ClothDropSchema),
+  startingGearOf: Type.Array(StartingGearOfRowSchema), startingGearOfAdventurers: refs,
+  fromItems: Type.Array(FromItemRowSchema), gainedFromItems: refs, lootTables: Type.Array(LootTableMembershipSchema), clothDrop: optional(ClothDropSchema),
   questPickups: Type.Array(QuestPickupRowSchema), dungeonFinder: optional(DungeonFinderRewardSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
   whenUsed: ItemUseSchema, appliesEffects: Type.Array(ItemAppliedEffectSchema),
@@ -608,6 +614,8 @@ export const NpcAppliedEffectSchema = Type.Object({
   rank: optional(count), chance: optional(number), target: optional(text),
 }, { additionalProperties: false });
 export type NpcAppliedEffect = Static<typeof NpcAppliedEffectSchema>;
+export const SourceActionSchema = Type.Object({ label: text, owner: optional(RefSchema) }, { additionalProperties: false });
+export type SourceAction = Static<typeof SourceActionSchema>;
 
 // A page groups the records that share a display name. `variantFields` lists the record facts that differ between
 // them, so an empty list means that the variants differ only in where, when, and with what services they appear.
@@ -616,6 +624,8 @@ export const PublicNpcSchema = Type.Object({
   variantFields: Type.Array(npcVariantField, { uniqueItems: true }), variants: Type.Array(NpcVariantSchema, { minItems: 1 }),
   locations: Type.Array(NpcLocationSchema), places: Type.Array(PlaceSpotsSchema), spotCount: count,
   drops: Type.Array(NpcDropRowSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
+  summonedBy: refs, spawnedBy: Type.Array(Type.Object({ label: text, place: RefSchema }, { additionalProperties: false })),
+  recruitedByActions: Type.Array(SourceActionSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
   usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, hunter: optional(RefSchema), linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
   appliedEffects: Type.Array(NpcAppliedEffectSchema),
@@ -731,7 +741,7 @@ export type AbilityAppliedEffect = Static<typeof AbilityAppliedEffectSchema>;
 export const AbilityVersionSchema = Type.Object({
   keys: Type.Array(text, { minItems: 1, uniqueItems: true }), anchor, icon: optional(ArtRefSchema),
   ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, usedByItems: refs, taughtBy: refs,
-  appliedEffects: Type.Array(AbilityAppliedEffectSchema),
+  unlockedByActions: Type.Array(SourceActionSchema), appliedEffects: Type.Array(AbilityAppliedEffectSchema),
 }, { additionalProperties: false });
 export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 

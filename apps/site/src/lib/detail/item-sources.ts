@@ -126,6 +126,8 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
       { detail: 'While the quest needs it' }),
     item.dungeonFinder && { id: 'dungeon-finder', label: 'Dungeon Finder', names: [], more: 0, text: `Each successful Random run gives one ${item.ref.name}` },
     line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See all items that give it' }),
+    line('adventurer-starting-gear', 'Adventurer Starting Gear', item.startingGearOfAdventurers.map((ref) => ({ ref }))),
+    line('gained-from-items', 'Use', item.gainedFromItems.map((ref) => ({ ref })), { linkText: 'See Items That Give It' }),
     startingGearLine(item),
   ];
   return routes.filter((entry): entry is SummaryLine => entry !== undefined)

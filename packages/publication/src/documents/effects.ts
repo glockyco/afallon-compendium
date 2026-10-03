@@ -170,7 +170,7 @@ function readable(name: string): string {
   return name.replaceAll(/([a-z])([A-Z])/g, "$1 $2").replaceAll(/_/g, " ").replaceAll(/\s+/g, " ").trim().replace(/^./, (first) => first.toUpperCase());
 }
 
-function rankActions(effect: ProgressionEffect, rank: ProgressionEffectRank, input: DocumentProjectionInput) {
+export function rankActions(effect: ProgressionEffect, rank: ProgressionEffectRank, input: DocumentProjectionInput) {
   const type = effect.effectType.name;
   const actions: PublicEffect["ranks"][number]["actions"] = [];
   if (type === "Stat") for (const stat of rank.statEffects) actions.push(action("Changes", ref(stat.stat, input), stat.amount, stat.isPercent ? "%" : undefined));
@@ -195,7 +195,10 @@ function rankActions(effect: ProgressionEffect, rank: ProgressionEffectRank, inp
     if (rank.petDuration > 0) actions.push(action("Pet Duration", undefined, rank.petDuration, "Seconds"));
   }
   if (type === "Teleport") {
-    if (rank.teleportScene) actions.push(action("Destination Scene", ref(rank.teleportScene, input)));
+    if (rank.teleportScene) {
+      const present = rank.teleportScene.entityKey !== null && input.entities.some((entity) => entity.entityKey === rank.teleportScene!.entityKey && entity.kind === "scenes");
+      actions.push(action("Destination Scene", present ? ref(rank.teleportScene, input) : undefined));
+    }
     if (rank.teleportType.name !== "None") actions.push(action("Teleport Type", undefined, undefined, undefined, readable(rank.teleportType.name)));
   }
   if (type === "Dispel") {

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
 import { PUBLICATION_PART_BUDGET, type PublicClass, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
-import { generateIndexResources } from "./index-resources";
+import { generateIndexResources, recoveredSourceEvidence } from "./index-resources";
 import { buildKindLists } from "./lists";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 
@@ -71,6 +71,35 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     await rm(root, { recursive: true, force: true });
   }
 });
+test("catalog starter inventories and NPCSpawner candidates retain only the supported provenance", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run("build", "items", 1187, "items:1187", "Ironbark Belt", null, null, null, "{}", "[]",
+        "build", "npcs", 412, "npcs:412", "Agra Emberhide", null, null, null, "{}", "[]",
+        "build", "npcs", 345, "npcs:345", "Balin", null, null, null, "{}", "[]");
+    db.query("INSERT INTO item_sources (item_entity_key, source_kind, source_key, placement_ids_json, condition_ids_json, context_json, probability_json) VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)")
+      .run("items:1187", "npc-start-item", "412:0", "[]", "[]", JSON.stringify({ ownerEntityKey: "npcs:412" }), "null",
+        "items:1187", "npc-start-item", "345:0", "[]", "[]", JSON.stringify({ ownerEntityKey: "npcs:345" }), "null");
+    db.query("INSERT INTO identity_scenes VALUES (?, ?, ?)").run("build", 21, "Abandoned Mine");
+    db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, world_x, world_y, world_z, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run("p1", "build", 21, "Abandoned Mine", 0, 0, 0, "[]");
+    db.query("INSERT INTO placement_identities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("p1", "build", 21, "scene-sha", "source-sha", "scene", "1", "scene", null);
+    db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)")
+      .run("spawner", "p1", "build", 21, "1", "BLINK.RPGBuilder.AI.NPCSpawner", "Assembly-CSharp",
+        "not-spawner", "p1", "build", 21, "2", "BLINK.RPGBuilder.AI.NPC", "Assembly-CSharp");
+    db.query("INSERT INTO spawn_candidates VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run("spawner", 0, "npcs:345", 1, 1, 100, "authored", "{}", "[]",
+        "not-spawner", 0, "npcs:412", 1, 1, 100, "authored", "{}", "[]");
+    const evidence = recoveredSourceEvidence(db, new Set(["npcs:412"]));
+    expect(evidence.adventurerStartingItems.get("items:1187")).toEqual(["npcs:412"]);
+    expect(evidence.npcSpawnerScenes.get("npcs:345")).toEqual(["scenes:21"]);
+    expect(evidence.npcSpawnerScenes.has("npcs:412")).toBe(false);
+    expect(evidence.lootBindings).toEqual([]);
+  } finally { db.close(); }
+});
+
 
 test("an NPC row counts its places in the column and offers each place in the filter", () => {
   const placement = (label: string): PublicNpc["locations"][number] => ({ label, placements: [{ placementId: label, mapSpaceId: "world", label }], spotCount: 1, availability: [], level: { min: 5, max: 5, scales: false }, variants: [], roles: ["enemy"], quests: [] });
@@ -79,7 +108,7 @@ test("an NPC row counts its places in the column and offers each place in the fi
     facts: { level: { min: 5, max: 5, scales: false }, roles: ["enemy"], stats: [], immunities: [] }, variantFields: [], variants: [],
     locations: [placement("Oakenvale"), placement("Coalway Woods")],
     places: [placement("Oakenvale"), placement("Coalway Woods")].map(({ label, placements }) => ({ label, mapSpaceId: "world", placementIds: placements.map((spot) => spot.placementId), spotCount: 1 })), spotCount: 2,
-    drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [],
+    drops: [], sells: [], quests: [], summonedBy: [], spawnedBy: [], recruitedByActions: [], abilityPhases: [], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "npcs")!;
   const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[npc.ref.key, npc]])).get("npcs")![0]!.rows[0]!;

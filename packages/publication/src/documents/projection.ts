@@ -1,5 +1,5 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogGatedSourceRow, CatalogGatheringNode, CatalogNpcFacts, CatalogPlacementRow, CatalogRelations, CatalogRequirement, CatalogRequirementGroup } from "@afallon/contracts/catalog";
-import { type Art, type AvailabilityRule, type EntityRef, isEntityRef, isPublicPageKind, type PlacementRef, type PlaceSpots, type PublicLevel, type PublicMarkerCategory, type Ref, type RequirementGroup, type RequirementRef } from "@afallon/contracts/public";
+import { type Art, type AvailabilityRule, type EntityRef, isEntityRef, isPublicPageKind, type PlacementRef, type PlaceSpots, type PublicLevel, type PublicMarkerCategory, type Ref, type RequirementGroup, type RequirementRef, type SourceAction } from "@afallon/contracts/public";
 import type { CatalogWorldLootTable } from "@afallon/catalog";
 import type { CorruptionRewards } from "../corruption-rewards";
 import { type CraftingRule, craftingRule, recipeTeachings } from "../crafting";
@@ -27,6 +27,8 @@ export interface EffectWorldCheck {
   place: CatalogEndpoint | null;
   sourceId: string;
 }
+
+export interface CatalogLootBinding { tableId: number; sourceKey: string | null; world: boolean }
 
 export interface DocumentProjectionInput {
   entities: readonly CatalogEntityRow[];
@@ -56,7 +58,28 @@ export interface DocumentProjectionInput {
   worldLootTables?: readonly CatalogWorldLootTable[];
   effectWorldSources?: readonly EffectWorldSource[];
   effectWorldChecks?: readonly EffectWorldCheck[];
+  /** Starter inventories of adventurers, indexed by item key. */
+  adventurerStartingItems?: ReadonlyMap<string, readonly string[]>;
+  /** Scanned NPC spawner scenes, indexed by NPC key. */
+  npcSpawnerScenes?: ReadonlyMap<string, readonly string[]>;
+  lootBindings?: readonly CatalogLootBinding[];
 }
+/** Unlocks and group additions are grants, not ability casts or creature world spawns. */
+export function grantedByActions(input: DocumentProjectionInput, keys: ReadonlySet<string>, kind: "Ability" | "NPC") {
+  const result: SourceAction[] = [];
+  for (const row of input.facts.ownerGameActions ?? []) {
+    if (row.type !== kind || !row.target?.entityKey || !keys.has(row.target.entityKey)
+      || row.alterAction !== "Gain" || row.progressionType !== "Unlock") continue;
+    if (row.ownerKind !== "dialogues" && (kind !== "Ability" || row.ownerKind !== "interactableObjects")) continue;
+    const place = row.sceneNativeId === null ? undefined : input.entities.find((entity) => entity.entityKey === `scenes:${row.sceneNativeId}`);
+    const owner = place ? input.resolve({ entityKey: place.entityKey, label: place.name }) : undefined;
+    const label = row.ownerKind === "dialogues" ? "Dialogue" : displayName(row.ownerName ?? "").replace(/\s*\[\d+\]$/, "") || "Object";
+    const entry = { label, ...(owner ? { owner } : {}) };
+    if (!result.some((existing) => JSON.stringify(existing) === JSON.stringify(entry))) result.push(entry);
+  }
+  return result;
+}
+
 
 export type RelationIndexes = {
   entities: Map<string, CatalogEntityRow>;
