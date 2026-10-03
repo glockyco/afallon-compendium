@@ -7,6 +7,7 @@
   import DetailFrame from '../DetailFrame.svelte';
   import FactsCard from '../FactsCard.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import LinkGrid from '../LinkGrid.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -60,6 +61,15 @@
   $: guideSection = document.onHit.length ? 'on-hit-effects' : document.vitality || document.recovery.length ? 'recovery' : document.category === 'Defense' || document.bonuses.some((row) => ['Resistance', 'Penetration', 'Damage'].includes(row.type)) ? 'damage-and-defense' : 'building-stats';
   $: itemsHref = document.itemListColumn ? `${base}/items/?min.${encodeURIComponent(document.itemListColumn)}=0&sort=${encodeURIComponent(document.itemListColumn)}&dir=desc` : `${base}/items/?stat=${encodeURIComponent(`${document.ref.name}*`)}`;
   $: onHit = document.onHit.length > 0;
+  $: scalingGroups = [
+    { label: 'Player Abilities', refs: document.scalesWith.playerAbilities },
+    { label: 'Player Effects', refs: document.scalesWith.playerEffects },
+    { label: 'Creature Abilities', refs: document.scalesWith.creatureAbilities },
+    { label: 'Creature Effects', refs: document.scalesWith.creatureEffects },
+    { label: 'Unassigned Abilities', refs: document.scalesWith.otherAbilities },
+    { label: 'Unassigned Effects', refs: document.scalesWith.otherEffects },
+  ].filter((group) => group.refs.length);
+  $: scalingCount = new Set(scalingGroups.flatMap((group) => group.refs.map((ref) => ref.key === null ? `unresolved:${ref.label}` : ref.key))).size;
 </script>
 
 <article class="detail-page">
@@ -77,6 +87,11 @@
     </AnswerCard></div>
     <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>
     <Sections>
+      {#if scalingCount}<Section id="scales-with" title="What Scales With It" count={scalingCount} line="These effects use this stat in their damage or healing calculation. Unassigned sources have no confirmed player or creature user.">
+        <div class="scaling-groups">{#each scalingGroups as group (group.label)}
+          <div><h3>{group.label}</h3><LinkGrid refs={group.refs} {registry} /></div>
+        {/each}</div>
+      </Section>{/if}
       {#if groups.length}<Section id="sources" title="Sources" count={document.grants.length} line={document.sources.randomItems.length ? 'Fixed bonuses always apply. Possible item rolls vary by copy.' : undefined}>
         <TabSet {tabs} label="Stat Source Types" idPrefix="stat-sources" param="source" let:key>
           {#each groups.filter((group) => group.key === key) as group (group.key)}
@@ -116,4 +131,6 @@
   .static-sources { display: grid; gap: 1rem; padding: 0 .75rem .75rem; }
   .static-sources h3 { margin: 0 0 .35rem; font-size: var(--c-text-body); }
   .static-sources ul { margin: 0; padding-left: 1.25rem; }
+  .scaling-groups { display: grid; gap: 1.1rem; }
+  .scaling-groups h3 { margin: 0 0 .45rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
 </style>

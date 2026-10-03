@@ -30,6 +30,7 @@
   const gearRule = (rule: MechanicsRule) => rule.id.startsWith('combat-gear-set-');
   const persistenceRule = (rule: MechanicsRule) => rule.id === 'effect-persistent-save';
   const requirementRule = (rule: MechanicsRule) => rule.id === 'effect-requirement-presence';
+  const scalingRule = (rule: MechanicsRule) => ['combat-damage-stat-scaling', 'combat-explicit-stat-scaling', 'combat-weapon-scaling'].includes(rule.id);
   const specialized = ['building-stats', 'damage-and-defense', 'on-hit-effects', 'effects'];
 </script>
 
@@ -55,7 +56,15 @@
             </svelte:fragment>
           </RelationTable>
         {:else if section.id === 'damage-and-defense' || section.id === 'on-hit-effects'}
-          {#each section.rules.filter((rule) => rule.status === 'verified') as rule (rule.id)}
+          {#if section.id === 'damage-and-defense' && section.rules.some((rule) => scalingRule(rule) && rule.status === 'verified')}
+            <div class="rule-group"><h3>Damage Scaling</h3>
+              <p>How damage scales depends on the effect and its rank.</p>
+              {#each section.rules.filter((rule) => scalingRule(rule) && rule.status === 'verified') as rule (rule.id)}
+                <div class="rule"><RulePhrase {rule} {registry} /></div>
+              {/each}
+            </div>
+          {/if}
+          {#each section.rules.filter((rule) => rule.status === 'verified' && !scalingRule(rule)) as rule (rule.id)}
             <div class="rule"><RulePhrase rule={rule.links.length > PREVIEW ? { ...rule, links: [] } : rule} {registry} /></div>
             {#if rule.links.length > PREVIEW}
               <div class="examples"><h3>{section.id === 'damage-and-defense' ? 'Resistance and Penetration Stats' : 'On-Hit Stats'}</h3>

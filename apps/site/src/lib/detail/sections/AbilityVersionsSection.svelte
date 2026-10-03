@@ -28,7 +28,7 @@
   $: rows = versions.map((version, index): Version => ({ version, index }));
   $: facts = [
     { id: 'text', label: 'What It Does' },
-    ...(versions.some((version) => version.appliedEffects.some(isNamedAppliedEffect)) ? [{ id: 'effects', label: 'Applies' }] : []),
+    ...(versions.some((version) => version.appliedEffects.some(isNamedAppliedEffect)) && differ(versions.map((version) => JSON.stringify(version.appliedEffects))) ? [{ id: 'effects', label: 'Applies' }] : []),
     ...(differ(versions.map((version) => JSON.stringify(version.useRequirements))) ? [{ id: 'requirements', label: 'Requirements' }] : []),
     ...(differ(versions.map((version) => version.learnedBy.map((entry) => entry.class.key).join())) ? [{ id: 'learnedBy', label: 'Learned By' }] : []),
     ...(versions.some((version) => users(version).length) ? [{ id: 'users', label: 'Used By' }] : []),

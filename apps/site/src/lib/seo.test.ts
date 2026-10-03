@@ -85,6 +85,28 @@ test('related names do not substitute for abilities, places, and stat facts', ()
   expect(entityDescription(stat)).toBe('Health is an Afallon stat. Death occurs when reaching 0.');
 });
 
+test('ability and effect summaries prefer verified scaling over a conflicting game description', () => {
+  const intellect = { key: 'stats:28', kind: 'stats', name: 'Intellect' };
+  const strength = { key: 'stats:27', kind: 'stats', name: 'Strength' };
+  const ability = { kind: 'abilities', document: {
+    ref: { name: 'Brutal Slice' }, description: 'A powerful strike dealing high physical damage.',
+    versions: [{ learnedBy: [], usedBy: [], ranks: [], appliedEffects: [{ scaling: {
+      mainType: 'Magical', stats: [{ stat: intellect, coefficientPercent: 100, source: 'damageType' }],
+    } }] }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(ability)).toContain('Scales with Intellect.');
+  expect(entityDescription(ability)).not.toContain('physical damage');
+  const weapon = { kind: 'effects', document: {
+    ref: { name: 'Toxic Fang' }, type: 'Instant Damage', description: null, stackLimit: 1, appliedBy: [],
+    ranks: [{ actions: [], scaling: { weaponPercent: 150, stats: [{ stat: strength, coefficientPercent: 100, source: 'damageType' }],
+      baseKind: 'flat', baseAmount: 0 } }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(weapon)).toContain('150% of selected weapon damage and scales with Strength.');
+  const unknown = { ...weapon, document: { ...weapon.document, ranks: [{ actions: [{ label: 'Authored Damage', amount: 25 }],
+    scaling: { weaponPercent: 0, stats: [], baseKind: 'unknown', baseAmount: 25 } }] } } as unknown as StaticDocument;
+  expect(entityDescription(unknown)).not.toContain('base damage is 25');
+});
+
 test('internal qualifiers stay out of quest and self-named companion snippets', () => {
   const quest = { kind: 'quests', document: {
     ref: { name: 'The Drowned Archon' }, facts: {}, objectives: [],

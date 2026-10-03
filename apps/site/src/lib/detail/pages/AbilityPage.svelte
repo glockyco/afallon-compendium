@@ -9,10 +9,12 @@
   import DetailFrame from '../DetailFrame.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import AppliedEffects from '../sections/AppliedEffects.svelte';
+  import AbilityScalingSection from '../sections/AbilityScalingSection.svelte';
   import AbilityReferencesSection from '../sections/AbilityReferencesSection.svelte';
   import AbilityVersionsSection from '../sections/AbilityVersionsSection.svelte';
   import LearnedBySection from '../sections/LearnedBySection.svelte';
   import { shownRowCount } from '../relation-table';
+  import { rankStatNote } from '../scaling-formula';
   import SideCard from '../SideCard.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
@@ -36,12 +38,15 @@
       {#if firstRank}
         {#if main.ranks.length > 1}<h3>Rank {firstRank.rankIndex + 1}</h3>{/if}
         <NativeText lines={firstRank.lines} />
+        {@const stats = rankStatNote(main.appliedEffects, firstRank.rankIndex)}
+        {#if stats}<p class="stats">{stats}</p>{/if}
       {/if}
       {#if main.appliedEffects.some(isNamedAppliedEffect)}<AppliedEffects rows={main.appliedEffects} {registry} heading={false} />{/if}
       {#if !hasSources}<p class="source-note">No learner or user is listed for this ability.</p>{/if}
     </AnswerCard></div>
     <div slot="side"><SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard></div>
     <Sections>
+      <AbilityScalingSection rows={main.appliedEffects} {registry} />
       {#if hasSources}
         <Section id="learners-and-users" title={grantOnly ? 'How it is granted' : 'Who learns and uses it'}>
           <div class="sources">
@@ -65,5 +70,6 @@
   .source-note { color: var(--c-text-dim); }
   .sources { display: grid; gap: 1rem; }
   .version { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .stats { color: var(--c-text-dim); font-size: var(--c-text-small); }
   h3 { color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.25 var(--c-serif); }
 </style>

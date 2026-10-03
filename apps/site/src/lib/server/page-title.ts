@@ -26,18 +26,22 @@ function sharedNamePages(indexes: MapIndexes, name: string): PublicSearchEntry[]
 }
 
 function effectOutcomeLabel(effect: PublicEffect): string {
+  const scaling = effect.ranks[0]?.scaling;
   const actions = effect.ranks[0]?.actions ?? [];
   const damage = actions.find((action) => action.label === 'Authored Damage' && action.amount !== undefined);
   const category = actions.find((action) => action.label === 'Damage Category')?.detail;
-  if (damage?.amount !== undefined) return `${formatNumber(damage.amount)}${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage`;
+  if (damage?.amount !== undefined && (!scaling || scaling.baseKind === 'flat')) return `${formatNumber(damage.amount)}${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage`;
   const change = actions.find((action) => action.label === 'Changes' && action.amount !== undefined && action.target);
   if (change?.amount !== undefined && change.target) return `${formatNumber(change.amount)}${change.unit === '%' ? '%' : ''} ${nameOf(change.target)}`;
   const summon = actions.find((action) => action.label === 'Summons' && action.target)?.target;
   if (summon) return `summons ${nameOf(summon)}`;
   const destination = actions.find((action) => action.label === 'Destination Scene' && action.target)?.target;
   if (destination) return `travels to ${nameOf(destination)}`;
-  const weapon = actions.find((action) => action.label === 'Weapon Damage Modifier' && action.amount !== undefined);
-  if (weapon?.amount !== undefined) return `${formatNumber(weapon.amount)} weapon modifier`;
+  if (scaling?.weaponPercent) return `${formatNumber(scaling.weaponPercent)}% weapon damage`;
+  if (scaling?.baseAmount && (scaling.baseKind === 'percentMax' || scaling.baseKind === 'percentCurrent') && scaling.baseStat)
+    return `${formatNumber(scaling.baseAmount)}% of ${scaling.baseKind === 'percentMax' ? 'maximum' : 'current'} ${nameOf(scaling.baseStat)}`;
+  if (scaling?.stats.length) return scaling.stats.map((row) => `${formatNumber(row.coefficientPercent)}% of ${nameOf(row.stat)}`).join(' + ');
+  if (scaling?.baseKind === 'unknown' && scaling.baseAmount) return `recorded amount ${formatNumber(scaling.baseAmount)}`;
   return effectImpact(effect).split(' · ')[0]!.replace(/[.!?]$/, '');
 }
 

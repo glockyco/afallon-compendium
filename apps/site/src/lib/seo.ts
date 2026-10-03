@@ -188,8 +188,13 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const summonLine = opening ? undefined : version?.ranks[0]?.lines?.find((line) => line.spans?.some((span) => span.tone === 'effect' && /^Summons /.test(span.text)));
       const summon = summonLine?.spans?.find((span) => span.tone === 'effect' && /^Summons /.test(span.text))?.text;
       const applied = version?.appliedEffects[0]?.effect;
+      const firstScaling = version?.appliedEffects.find((row) => row.scaling?.stats.length)?.scaling;
+      const scalingStats = [...new Set(firstScaling?.stats.map((row) => nameOf(row.stat)) ?? [])];
+      const contradictsMainType = firstScaling?.mainType === 'Magical' && /\bphysical damage\b/i.test(opening ?? '')
+        || firstScaling?.mainType === 'Physical' && /\bmagical damage\b/i.test(opening ?? '');
       return describe(`${name} is an Afallon ability.`,
-        opening,
+        contradictsMainType ? undefined : opening,
+        scalingStats.length ? `Scales with ${scalingStats.join(' and ')}.` : undefined,
         summon ? `It ${summon[0]!.toLowerCase()}${summon.slice(1).replace(/[.!?]$/, '')}.` : undefined,
         learner ? `${nameOf(learner)} can learn it.` : user ? `${nameOf(user)} uses it.` : undefined,
         !opening && !summon && !learner && !user && applied && nameOf(applied) !== name ? `It applies ${nameOf(applied)}.` : undefined);
@@ -203,17 +208,19 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const category = actions.find((action) => action.label === 'Damage Category')?.detail;
       const summon = actions.find((action) => action.label === 'Summons' && action.target)?.target;
       const destination = actions.find((action) => action.label === 'Destination Scene' && action.target)?.target;
-      const weaponModifier = actions.find((action) => action.label === 'Weapon Damage Modifier' && action.amount !== undefined)?.amount;
+      const scaling = effect.ranks[0]?.scaling;
+      const weaponPercent = scaling?.weaponPercent;
+      const scaledStat = scaling?.stats.find((row) => row.coefficientPercent !== 0)?.stat;
       const source = effect.appliedBy.find((row) => effectSubtitle && nameOf(row.source) === effectSubtitle)?.source ?? effect.appliedBy[0]?.source;
       if (effect.type === 'Pet' && summon && nameOf(summon) === name) {
         return `${name} can be summoned as a companion in Afallon.`;
       }
       const outcome = change
         ? `It changes ${nameOf(change.target!)} by ${formatNumber(change.amount!)}${change.unit === '%' ? '%' : ''}.`
-        : damage ? `It deals ${formatNumber(damage.amount!)}${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage.`
+        : damage && scaling?.baseKind === 'flat' ? `Its base${category ? ` ${category.replace(/ Damage$/i, '').toLowerCase()}` : ''} damage is ${formatNumber(damage.amount!)}${scaledStat ? ` and scales with ${nameOf(scaledStat)}` : ''}.`
         : summon ? `It summons ${nameOf(summon) === name ? 'a companion' : nameOf(summon)}.`
-        : weaponModifier !== undefined ? `Its weapon damage modifier is ${formatNumber(weaponModifier)}.`
-        : destination ? `It leads to ${nameOf(destination)}.` : openingSentence(effect.description);
+        : weaponPercent ? `It adds ${formatNumber(weaponPercent)}% of selected weapon damage${scaledStat ? ` and scales with ${nameOf(scaledStat)}` : ''}.`
+        : scaledStat ? `It scales with ${nameOf(scaledStat)}.` : destination ? `It leads to ${nameOf(destination)}.` : openingSentence(effect.description);
       const stacking = effectSubtitle?.startsWith('stacks up to')
         ? effect.stackLimit > 1 ? `Can stack up to ${formatNumber(effect.stackLimit)} times.` : 'Does not stack.'
         : undefined;

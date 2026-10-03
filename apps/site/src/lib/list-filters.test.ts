@@ -64,6 +64,21 @@ test('a stat page finds both item bonus units without widening ordinary variant 
   expect(statMatches(flat, { ...statPage, key: 'Movement Speed%' })).toBe(false);
 });
 
+test('the Scales with filter includes abilities with the selected rank stat and excludes unrelated abilities', () => {
+  const abilityKind: PublicKindEntry = { ...kind, kind: 'abilities', facets: [{ id: 'scalesWith', label: 'Scales With' }] };
+  const ability = (name: string, stats: string[]): ListRow => ({
+    ref: { key: `abilities:${name}`, kind: 'abilities', name, slug: name.toLowerCase().replaceAll(' ', '-') },
+    values: { scalesWith: stats.join(', ') || null }, facets: { scalesWith: stats },
+  });
+  const abilities = [ability('Brutal Slice', ['Intellect']), ability('Fireball', ['Intellect', 'Healing Power']),
+    ability('Shield Bash', ['Strength']), ability('Blink', [])];
+  const selected = { ...emptyFilters(), facets: { scalesWith: ['Intellect'] } };
+  expect(abilities.filter((entry) => matchesFilters(entry, selected, abilityKind, [])).map((entry) => entry.ref.name))
+    .toEqual(['Brutal Slice', 'Fireball']);
+  expect(abilities.filter((entry) => matchesFilters(entry, { ...selected, facets: { scalesWith: ['Strength'] } }, abilityKind, [])).map((entry) => entry.ref.name))
+    .toEqual(['Shield Bash']);
+});
+
 test('filters survive a round trip through the URL', () => {
   expect(parseStatParam('Bonus: Fire Damage:5:')).toEqual({ key: 'Bonus: Fire Damage', min: '5', max: '' });
   expect(parseStatParam('Strength')).toEqual({ key: 'Strength', min: '', max: '' });

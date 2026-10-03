@@ -12,6 +12,8 @@
   import { mergeRows, planColumns, omitWhenShared, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import RulePhrase from '../sections/RulePhrase.svelte';
+  import ScalingFormula from '../sections/ScalingFormula.svelte';
+  import { hasScaling } from '../scaling-formula';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -57,6 +59,10 @@
   $: first = document.ranks[0];
   $: actions = first?.actions ?? [];
   $: impact = effectImpact(document);
+  $: scales = hasScaling(first?.scaling);
+  // Each distinct rank calculation becomes a column of the breakdown, so the Ranks table need not repeat it.
+  $: scalingRanks = document.ranks.flatMap((rank) => hasScaling(rank.scaling) ? [{ label: `Rank ${formatNumber(rank.rank + 1)}`, scaling: rank.scaling }] : [])
+    .filter((rank, index, all) => all.findIndex((other) => JSON.stringify(other.scaling) === JSON.stringify(rank.scaling)) === index);
   $: leadImpact = ['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type) || !actions.length ? impact : '';
   $: summon = document.type === 'Pet' ? actions.find((entry) => entry.label === 'Summons') : undefined;
   $: summonCount = actions.find((entry) => entry.label === 'Summon Count')?.amount;
@@ -65,6 +71,7 @@
     && !(entry.label === 'Restores' && actions.some((action) => action.label === 'Authored Healing')));
   $: hasRanks = document.ranks.length > 1 && document.ranks.some((rank) =>
     rankOutcome(document, rank) !== (first ? rankOutcome(document, first) : '')
+    || (!scales && JSON.stringify(rank.scaling) !== JSON.stringify(first?.scaling))
     || rank.requiredEffect?.key !== first?.requiredEffect?.key
     || rank.requiredEffectDamageModifier !== first?.requiredEffectDamageModifier);
   $: sourceRows = mergeRows(document.appliedBy, (row) => JSON.stringify([row.source.key, row.via, row.rank, row.chance, row.target]), (group) => group[0]!);
@@ -92,7 +99,14 @@
           <div class="impact"><RulePhrase rule={explanation.rule} {registry} self={document.ref.key} /></div>
         {/each}
       {:else if summon?.target}<p class="impact">Summons {summonCount && summonCount > 1 ? `${formatNumber(summonCount)} ` : ''}<EntityLink ref={summon.target} {registry} />{summonDuration ? ` for ${durationWords(summonDuration)}` : ''}.</p>
+      {:else if scales}{#if first?.scaling?.mainType && !first.scaling.healing}<p>{first.scaling.mainType} damage.</p>{/if}<ScalingFormula ranks={scalingRanks} {registry} label={`${document.ref.name} ${first?.scaling?.healing ? 'healing' : 'damage'}`} />
       {:else if leadImpact}<p class="impact">{leadImpact}</p>{/if}
+      {#if scales && (condition || document.explainedBy.length)}
+        <ScalingFormula ranks={scalingRanks} {registry} label={`${document.ref.name} ${first?.scaling?.healing ? 'healing' : 'damage'}`} />
+      {/if}
+      {#if (document.type === 'Damage Over Time' || document.type === 'Heal Over Time') && scales}
+        <p>Each pulse uses your stats at that moment.</p>
+      {/if}
       {#if document.description && document.description !== impact && !document.explainedBy.length}<p>{document.description}</p>{/if}
       {#if actions.length && !['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type)}
         <ul class="actions">{#each actions as entry}{@const text = actionWords(entry)}<li>{text.before}{#if entry.target}<EntityLink ref={entry.target} {registry} />{/if}{text.after}</li>{/each}</ul>
@@ -109,6 +123,9 @@
         {/each}
       {:else}
         <HowItWorks guide={combat} section="effects" label="How combat effects work" />
+      {/if}
+      {#if scales && !howLinks.some((row) => row.guide.key === combat.key && row.section === 'damage-and-defense')}
+        <HowItWorks guide={combat} section="damage-and-defense" label={first?.scaling?.healing ? 'How healing scales' : 'How damage scales'} />
       {/if}
     </AnswerCard></div>
     <svelte:fragment slot="side"><FactsCard {facts} title="At a Glance" /></svelte:fragment>
@@ -136,7 +153,7 @@
         </svelte:fragment></RelationTable>
       </Section>{/if}
       {#if hasRanks}<Section id="ranks" title="Ranks" count={document.ranks.length} line="How the outcome changes with rank.">
-        <table class="c-table c-table--compact" aria-label="Effect ranks"><thead><tr><th scope="col">Rank</th><th scope="col">Outcome</th></tr></thead><tbody>{#each document.ranks as rank}<tr><th scope="row">{formatNumber(rank.rank + 1)}</th><td>{rankOutcome(document, rank)}{#if rank.requiredEffect}{' '}· Damage changes with <EntityLink ref={rank.requiredEffect} {registry} />{/if}</td></tr>{/each}</tbody></table>
+        <table class="c-table c-table--compact" aria-label="Effect ranks"><thead><tr><th scope="col">Rank</th><th scope="col">Outcome</th></tr></thead><tbody>{#each document.ranks as rank}<tr><th scope="row">{formatNumber(rank.rank + 1)}</th><td>{rankOutcome(document, rank)}{#if rank.requiredEffect}{' '}Damage changes with <EntityLink ref={rank.requiredEffect} {registry} />.{/if}</td></tr>{/each}</tbody></table>
       </Section>{/if}
     </Sections>
   </DetailFrame>

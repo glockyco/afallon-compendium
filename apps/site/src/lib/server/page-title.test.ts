@@ -47,3 +47,19 @@ test('same-kind collisions do not repeat the kind and prefer a short true qualif
   expect((await pageTitle(effect, [...kinds, { kind: 'stats', label: 'Stat' } as PublicKindEntry], collisionIndex, collisionLoader)).title)
     .toBe('Fire Damage (Effect, 10 Fire Damage) | Afallon Wiki');
 });
+
+test('same-name effects use a real weapon contribution to distinguish damage outcomes', async () => {
+  const effect = (slug: string, amount: number, weaponPercent: number): StaticDocument => ({
+    kind: 'effects', document: {
+      ref: { key: `effects:${slug}`, kind: 'effects', name: 'Toxic Fang', slug },
+      type: 'Instant Damage', stackLimit: 1, ranks: [{ rank: 0, actions: amount ? [{ label: 'Authored Damage', amount }] : [],
+        scaling: { baseKind: 'flat', baseAmount: amount, healing: false, weaponPercent, weapons: ['main hand'], stats: [] } }],
+      appliedBy: [], worldSources: [],
+    },
+  }) as unknown as StaticDocument;
+  const pages = [effect('toxic-fang-398', 50, 0), effect('toxic-fang-399', 0, 150)];
+  const indexes = { entries: pages.map((page) => ({ ref: page.document.ref, document: { path: 'resource' } })) } as unknown as MapIndexes;
+  const loader = { loadPageForRef: async (ref: { key: string }) => pages.find((page) => page.document.ref.key === ref.key)! } as Pick<MapDataLoader, 'loadPageForRef'>;
+  expect((await pageTitle(pages[0]!, kinds, indexes, loader)).title).toBe('Toxic Fang (50 damage) | Afallon Wiki');
+  expect((await pageTitle(pages[1]!, kinds, indexes, loader)).title).toBe('Toxic Fang (150% weapon damage) | Afallon Wiki');
+});

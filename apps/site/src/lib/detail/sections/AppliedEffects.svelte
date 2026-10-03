@@ -20,10 +20,12 @@
     const hours = Math.floor(minutes / 60), remaining = minutes % 60;
     return `${seconds % 60 ? 'About ' : ''}${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'}${remaining ? ` ${remaining} ${remaining === 1 ? 'minute' : 'minutes'}` : ''}`;
   };
+  // Ranks only tell readers something when the ability applies effects at more than one rank.
+  $: ranked = new Set(rows.map((row) => row.rank ?? 0)).size > 1;
   const context = (row: AbilityAppliedEffect) => [
-    row.rank === undefined ? undefined : `Rank ${row.rank + 1}`,
+    ranked ? `At rank ${formatNumber((row.rank ?? 0) + 1)}` : undefined,
     row.chance === undefined ? undefined : `${formatNumber(row.chance)}% chance per hit`,
-    row.target === 'Target' ? 'on the target' : row.target === 'Caster' ? 'on the caster' : row.target ? `on ${row.target.toLocaleLowerCase()}` : undefined,
+    row.target === 'Target' ? 'On the target' : row.target === 'Caster' ? 'On the caster' : row.target ? `On ${row.target.toLocaleLowerCase()}` : undefined,
     row.endless ? 'Ongoing' : row.durationSeconds ? duration(row.durationSeconds) : undefined,
   ].filter(Boolean).join(' · ');
 </script>
@@ -31,11 +33,11 @@
 {#if visibleRows.length}
   <div class="applied-effects">
     {#if heading}<h3>Applies Effects</h3>{/if}
-    {#if visibleRows.some((row) => row.chance !== undefined)}<p class="chance-note">Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>{/if}
+    {#if visibleRows.some((row) => row.chance !== undefined)}<p class="chance-note">The chance applies to each hit, so hitting several enemies or hitting several times gives several chances.</p>{/if}
     <ul>
       {#each visibleRows.slice(0, shown) as row, index (index)}
         {@const details = context(row)}
-        <li><EntityLink ref={row.effect} {registry} />{#if details}<span>{details}</span>{/if}</li>
+        <li><span class="effect-link"><EntityLink ref={row.effect} {registry} /></span>{#if details}<span>{details}</span>{/if}</li>
       {/each}
     </ul>
     {#if shown < visibleRows.length}
@@ -58,6 +60,7 @@
   ul { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
   li { display: grid; gap: .12rem; min-width: 0; }
   .chance-note { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .effect-link { color: inherit; font-size: inherit; }
   li span { color: var(--c-text-dim); font-size: var(--c-text-small); }
   button { width: fit-content; }
 </style>
