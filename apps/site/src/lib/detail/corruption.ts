@@ -33,6 +33,13 @@ export function corruptionDisplay(facts: ItemFacts, level: number) {
     ? (minDamage + maxDamage) / 2 / facts.attackSpeed : undefined;
   return { stats, itemPower, minDamage, maxDamage, damagePerSecond };
 }
+export type EquipmentDisplay = {
+  stats: ItemFacts['stats'];
+  itemPower?: number;
+  minDamage?: number;
+  maxDamage?: number;
+  damagePerSecond?: number;
+};
 /** Heroic adds half of each template stat to the current value, not half of a rolled stat or a corruption bonus. */
 export function equipmentDisplay(facts: ItemFacts, corruptionLevel: number, heroic: boolean) {
   const corruption = corruptionLevel > 0 ? corruptionDisplay(facts, corruptionLevel) : undefined;

@@ -3,6 +3,8 @@
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
   import { spotOnMap } from '../../map-links';
+  import HeroicCreatureComparison from '../HeroicCreatureComparison.svelte';
+  import HeroicItemComparison from '../HeroicItemComparison.svelte';
   import CompareTable from '../CompareTable.svelte';
   import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -121,6 +123,11 @@
                   <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
                 {/each}
               </nav>
+            {/if}
+            {#if section.id === 'empowered-creatures'}
+              <HeroicCreatureComparison guide={document} {registry} />
+            {:else if section.id === 'heroic-gear'}
+              <HeroicItemComparison {registry} />
             {/if}
             {#if section.id === 'empowered-creatures' && strength.length}
               <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>
