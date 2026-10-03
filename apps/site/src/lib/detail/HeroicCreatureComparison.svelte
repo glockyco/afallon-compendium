@@ -64,14 +64,14 @@
   <p class="intro">Compare a creature at a place where Heroic Tier can be active. Empowerment and its rewards depend on the encounter.</p>
   {#if loading}<p role="status">Loading Creatures…</p>{:else if error}<p role="alert">{error}</p>{:else if chosen && progression && settings && strength}
     <div class="controls">
-      <label class="picker">Creature And Place
+      <label class="picker">Creature and Place
         <select value={selected} on:change={(event) => selectCreature(event.currentTarget.value)}>
           {#each choices as choice}
             <option value={choice.id}>{choice.entry.creature.name}, {choice.place.name}, level {npcLevelText({ ...choice.entry.level, scales: false })}</option>
           {/each}
         </select>
       </label>
-      <ReaderLevel id="heroic-character-level" readerId={CHARACTER_LEVEL} label="Your Character Level" min={1} max={progression.curve.cap} fallback={23} bind:level={characterLevel} />
+      <div class="character-control"><ReaderLevel id="heroic-character-level" readerId={CHARACTER_LEVEL} label="Your Character Level" min={1} max={progression.curve.cap} fallback={23} bind:level={characterLevel} /></div>
       {#if spawnLevels.length > 1}<label class="picker short">Creature Level
         <select value={creatureLevel} on:change={(event) => { creatureLevel = Number(event.currentTarget.value); }}>
           {#each spawnLevels as level}<option value={level}>{formatNumber(level)}</option>{/each}
@@ -103,7 +103,9 @@
   .picker { display: grid; align-content: start; gap: .35rem; color: var(--c-text-strong); font-weight: 600; min-width: 0; }
   .picker select { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: .4rem .6rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
   .short select { max-width: 8rem; }
-  .score { max-width: 28rem; min-width: 0; }
+  .character-control { min-width: 0; }
+  .character-control :global(.reader-level) { max-width: none; }
+  .score { min-width: 0; }
   .cards { display: grid; gap: 1rem; }
   .card { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface); }
   .changed { border-color: var(--c-frame); background: var(--c-surface-sunken); }

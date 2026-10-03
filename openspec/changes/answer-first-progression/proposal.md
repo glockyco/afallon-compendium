@@ -4,10 +4,10 @@ The full-width chart leads with a logarithmic scale rather than an answer about 
 
 ## What Changes
 
-- Lead with experience to the next level, conditional kills of a published creature, and an earned-experience journey bar beside a compact curve.
-- Keep the complete logarithmic chart and every published breakpoint in a named disclosure.
-- Use one visible remembered character-level control for both the curve and calculator. Keep optional kill modifiers and the calculation stages accessible without hiding the phone's immediate result.
-- Explain assumptions in player language and keep the selected creature and place visible.
+- Lead with experience to the next level and conditional kills of a published creature beside an earned-experience journey card.
+- Keep one complete logarithmic chart always visible below the two cards, and every published breakpoint in a named disclosure.
+- Use one visible remembered character-level control for the curve, calculator, and level-up talent example. Keep optional kill modifiers and calculation stages accessible without hiding the phone's immediate result.
+- Explain assumptions in player language, keep the selected creature and place visible, and align controls with their results across screen widths.
 
 ## Capabilities
 

@@ -48,7 +48,7 @@
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
     {#each document.sections as section (section.id)}
-      <GuideSection section={section.id === 'level-curve' ? { ...section, lead: '' } : section} {registry}>
+      <GuideSection section={section.id === 'level-curve' ? { ...section, title: 'Level Curve', lead: '' } : section} {registry}>
         <svelte:fragment slot="top">
           {#if section.id === 'level-curve'}
             <ProgressionAnswer guide={document} {registry} fallback={fallbackLevel} bind:level={characterLevel} />
@@ -85,7 +85,7 @@
         {/if}
       </GuideSection>
       {#if section.id === 'kill-experience'}
-        <Section id="try-it-on-a-creature" title="Try it on a creature">
+        <Section id="try-it-on-a-creature" title="Try It on a Creature">
           <KillCalculator guide={document} {registry} bind:characterLevel />
         </Section>
       {/if}

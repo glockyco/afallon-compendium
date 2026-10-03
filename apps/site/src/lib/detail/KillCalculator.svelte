@@ -55,12 +55,13 @@
       {/each}
     </select>
   </div>
-  <div class="body">
     <div class="result">
-      <h3>Experience per kill</h3>
-      <p class="selected-creature"><EntityLink ref={entry.creature} {registry} /> · {#if place.place}<EntityLink ref={place.place} {registry} />{:else}{place.name}{/if} · Level {formatNumber(creatureLevel)}</p>
+      <div class="result-heading">
+        <h3>Experience per Kill</h3>
+        <p class="selected-creature"><EntityLink ref={entry.creature} {registry} /> · {#if place.place}<EntityLink ref={place.place} {registry} />{:else}{place.name}{/if} · Level {formatNumber(creatureLevel)}</p>
+      </div>
       <div aria-live="polite" aria-atomic="true">
-        <p class="award">{range(result.award.low, result.award.high)}</p>
+        <p class="award">{toNext === undefined ? 'Level Cap' : `${range(result.award.low, result.award.high)} Experience`}</p>
         <p class="kills">
           {#if toNext === undefined}Level {formatNumber(characterLevel)} is the level cap, so kills give no more experience.
           {:else if kills === null}With these settings, a kill gives no experience.
@@ -68,7 +69,7 @@
         </p>
       </div>
       <p class="note">This leaves out world effects and some other game effects.{#if experienceBonus > 0}{' '}The game may round the final amount.{/if}</p>
-      <DetailsDisclosure title="How The Kill Award Adds Up" summary="Every calculation stage">
+      <DetailsDisclosure title="How the Kill Award Adds Up" summary="Every calculation stage">
         <table class="c-table c-table--calculator" aria-label="Experience calculation">
           <caption>How it adds up</caption>
           <thead><tr><th scope="col">Step</th><th scope="col" class="c-num">Experience</th></tr></thead>
@@ -76,42 +77,44 @@
         </table>
       </DetailsDisclosure>
     </div>
-    <div class="settings">
-      <DetailsDisclosure title="Adjust The Kill" summary="Creature level, followers, bonus, and Heroic status">
-        {#if levels.length > 1}
-          <label class="field">Creature level
-            <select bind:value={creatureLevel}>{#each levels as level}<option value={level}>{formatNumber(level)}</option>{/each}</select>
-          </label>
-        {/if}
-        <div class="numbers">
-          <label class="field">Living followers
-            <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} />
-          </label>
-          <label class="field">Experience Bonus
-            <span class="suffixed"><input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /><span>%</span></span>
-          </label>
-        </div>
-        {#if guide.killCalculator.heroicMultiplier !== undefined}
-          <label class="check"><input type="checkbox" bind:checked={heroic} /> If eligible and empowered in Heroic Tier <span class="dim">×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
-        {/if}
-      </DetailsDisclosure>
+  <div class="settings">
+    <h3>Adjust the Kill</h3>
+    <div class="setting-fields">
+      {#if levels.length > 1}
+        <label class="field">Creature Level
+          <select bind:value={creatureLevel}>{#each levels as level}<option value={level}>{formatNumber(level)}</option>{/each}</select>
+        </label>
+      {/if}
+      <div class="numbers">
+        <label class="field">Living Followers
+          <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} />
+        </label>
+        <label class="field">Experience Bonus
+          <span class="suffixed"><input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /><span>%</span></span>
+        </label>
+      </div>
+      {#if guide.killCalculator.heroicMultiplier !== undefined}
+        <label class="check"><input type="checkbox" bind:checked={heroic} /><span>Empowered in Heroic Tier</span><span class="dim">If eligible · ×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
+      {/if}
     </div>
   </div>
-  <DetailsDisclosure title="Creature Experience Details" summary="Base roll and level differences">
-    <dl class="facts">
-      <div><dt>Creature</dt><dd><EntityLink ref={entry.creature} {registry} /></dd></div>
-      <div><dt>Level</dt><dd>{npcLevelText(entry.level)}</dd></div>
-      <div><dt>Base roll</dt><dd>{range(entry.minExperience, entry.maxExperience)}</dd></div>
-      <div><dt>Experience per level</dt><dd>{entry.experiencePerLevel === 0 ? 'None' : `+${format(entry.experiencePerLevel)}`}</dd></div>
-      <div><dt>Creature above the player</dt><dd>{modifierText(entry.higherModifier)}</dd></div>
-      <div><dt>Creature below the player</dt><dd>{modifierText(entry.lowerModifier)}</dd></div>
-    </dl>
-  </DetailsDisclosure>
+  <div class="source-facts">
+    <DetailsDisclosure title="Creature Experience Details" summary="Base roll and level differences">
+      <dl class="facts">
+        <div><dt>Creature</dt><dd><EntityLink ref={entry.creature} {registry} /></dd></div>
+        <div><dt>Level</dt><dd>{npcLevelText(entry.level)}</dd></div>
+        <div><dt>Base roll</dt><dd>{range(entry.minExperience, entry.maxExperience)}</dd></div>
+        <div><dt>Experience per level</dt><dd>{entry.experiencePerLevel === 0 ? 'None' : `+${format(entry.experiencePerLevel)}`}</dd></div>
+        <div><dt>Creature above the player</dt><dd>{modifierText(entry.higherModifier)}</dd></div>
+        <div><dt>Creature below the player</dt><dd>{modifierText(entry.lowerModifier)}</dd></div>
+      </dl>
+    </DetailsDisclosure>
+  </div>
 </div>
 
 <style>
-  .calculator { container: kill-calculator / inline-size; min-width: 0; display: grid; gap: .9rem; }
-  .picker { display: grid; gap: .35rem; max-width: 30rem; }
+  .calculator { container: kill-calculator / inline-size; min-width: 0; display: grid; gap: 1rem; }
+  .picker { display: grid; align-content: start; gap: .35rem; min-width: 0; }
   .picker label, .field, .check { color: var(--c-text-strong); font-weight: 600; }
   select, input[type='number'] { box-sizing: border-box; min-height: 2.75rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
   .picker select { width: 100%; padding: .4rem .6rem; }
@@ -119,25 +122,27 @@
   .facts div { display: flex; align-items: baseline; gap: .45rem; }
   .facts dt { color: var(--c-text-dim); }
   .facts dd { margin: 0; color: var(--c-text); font-variant-numeric: tabular-nums; }
-  .body { display: grid; gap: 1.25rem; min-width: 0; }
-  .settings { display: grid; align-content: start; gap: 1rem; min-width: 0; }
+  .settings, .result { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
+  .setting-fields { display: grid; align-content: start; gap: 1rem; margin-top: .7rem; }
   .field { display: grid; justify-items: start; gap: .35rem; }
   /* The settings fields match the number box of the level slider above them. */
   .field select, .numbers input { width: 6rem; min-height: 2.3rem; padding: .35rem .5rem; }
   .numbers { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
   .suffixed { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text); font-weight: 400; }
-  .check { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 2.75rem; }
-  .check input { width: 1.3rem; height: 1.3rem; margin: 0; accent-color: var(--c-accent); }
-  .dim { color: var(--c-text-dim); font-weight: 400; }
-  .result { box-sizing: border-box; min-width: 0; padding: .8rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
-  h3 { margin: 0 0 .45rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .selected-creature { margin: 0 0 .5rem; color: var(--c-text-dim); }
-  .award { margin: 0; color: var(--c-text-strong); font: 700 1.75rem/1.2 var(--c-serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .check { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr); align-items: start; column-gap: .55rem; row-gap: .2rem; }
+  .check input { width: 1.3rem; height: 1.3rem; margin: .15rem 0 0; accent-color: var(--c-accent); }
+  .check .dim { grid-column: 2; color: var(--c-text-dim); font-weight: 400; }
+  .result { display: grid; align-content: start; gap: .7rem; }
+  h3 { margin: 0; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
+  .selected-creature { margin: .25rem 0 0; color: var(--c-text-dim); }
+  .award { margin: 0; color: var(--c-text-strong); font: 600 1.7rem/1.25 var(--c-serif); font-variant-numeric: tabular-nums; }
   .kills { margin: .35rem 0 0; line-height: 1.5; }
-  .note { margin: .75rem 0 0; color: var(--c-text-dim); font-size: .875rem; line-height: 1.5; }
-  @container kill-calculator (min-width: 46rem) {
-    .body { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1.5rem; }
-    .settings { grid-column: 1; grid-row: 1; }
-    .result { grid-column: 2; grid-row: 1; }
+  .note { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
+  @media (min-width: 900px) {
+    .calculator { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.5rem; }
+    .picker { grid-column: 1; grid-row: 1; }
+    .settings { grid-column: 1; grid-row: 2; }
+    .result { grid-column: 2; grid-row: 2; }
+    .source-facts { grid-column: 1 / -1; grid-row: 3; }
   }
 </style>
