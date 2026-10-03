@@ -87,10 +87,16 @@ export function matchesFilters(row: ListRow, state: ListFilterState, kind: Publi
     if (selected.length ? !selected.some((value) => values.includes(value)) : (facet.defaultHiddenValues ?? []).some((value) => values.includes(value))) return false;
   }
   for (const column of numericColumns) {
-    const value = row.values[column];
     const minimum = bound(state.minimums[column]), maximum = bound(state.maximums[column]);
-    if (minimum !== undefined && (typeof value !== 'number' || value < minimum)) return false;
-    if (maximum !== undefined && (typeof value !== 'number' || value > maximum)) return false;
+    if (minimum === undefined && maximum === undefined) continue;
+    // A row whose cell shows a range, such as a level range, matches when its range overlaps the bounds.
+    const range = row.ranges?.[column];
+    const value = row.values[column];
+    const low = range ? range.min : typeof value === 'number' ? value : undefined;
+    const high = range ? range.max ?? Infinity : low;
+    if (low === undefined || high === undefined) return false;
+    if (minimum !== undefined && high < minimum) return false;
+    if (maximum !== undefined && low > maximum) return false;
   }
   return state.stats.every((filter) => statMatches(row, filter));
 }

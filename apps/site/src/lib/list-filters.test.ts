@@ -104,3 +104,16 @@ test('hidden reveal count obeys other facets, inclusive bounds, and stat require
   expect(hiddenFacetOptions(entries, { ...narrowed, minimums: { levelRequirement: '21' } }, items, ['levelRequirement'])).toEqual([]);
   expect(hiddenFacetOptions(entries, { ...narrowed, facets: { slot: ['BOOTS'] } }, items, ['levelRequirement'])).toEqual([]);
 });
+
+test('a level shown as a range matches the level bounds it overlaps, and an open range has no upper end', () => {
+  const npcs: PublicKindEntry = { ...kind, kind: 'npcs', columns: [{ id: 'level', label: 'Level', sortable: true, numeric: true }], facets: [] };
+  const npc = (name: string, level: string, range: ListRow['ranges']): ListRow => ({ ref: { key: `npcs:${name}`, kind: 'npcs', name, slug: name }, values: { level }, facets: {}, ranges: range });
+  const roster = [npc('Bandit', '15–30', { level: { min: 15, max: 30 } }), npc('Wolf', '8', { level: { min: 8, max: 8 } }), npc('Shade', '40+', { level: { min: 40 } })];
+  const matching = (minimum: string, maximum: string) => roster.filter((candidate) => matchesFilters(candidate, { ...emptyFilters(), minimums: { level: minimum }, maximums: { level: maximum } }, npcs, ['level'])).map((candidate) => candidate.ref.name);
+  expect(matching('20', '')).toEqual(['Bandit', 'Shade']);
+  expect(matching('', '15')).toEqual(['Bandit', 'Wolf']);
+  expect(matching('31', '39')).toEqual([]);
+  expect(matching('100', '')).toEqual(['Shade']);
+  // A level shown only as text, with no published numbers, cannot satisfy a bound.
+  expect(matchesFilters(npc('Unknown', '?', undefined), { ...emptyFilters(), minimums: { level: '1' } }, npcs, ['level'])).toBe(false);
+});

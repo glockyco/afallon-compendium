@@ -74,3 +74,15 @@ test('boss role omits redundant enemy and an action unlock is a known ability us
     ['Shout', ['No Known Way'], 'No Known Use'], ['Summon Ally', ['Known Way'], 'Dialogue'],
   ]);
 });
+
+test('an NPC row carries the numbers behind its level text, so a Level filter can match it', () => {
+  const bandit = npc('Bandit');
+  bandit.facts.level = { min: 15, max: 30, scales: true };
+  const shade = npc('Shade');
+  shade.facts.level = { min: 40, scales: true };
+  const adventurer = { ...npc('Eldeth Goldvein'), adventurer: { class: { key: 'classes:6', kind: 'classes' as const, name: 'Druid', slug: 'druid' }, role: 'Tank' as const, startingLevel: 7, joinAfterHours: 0, priorityAbilities: [] } };
+  const list = rows([bandit, shade, adventurer, npc('Unknown')]).get('npcs')!;
+  expect(list.map((row) => [row.ref.name, row.values.level, row.ranges?.level])).toEqual([
+    ['Bandit', '15–30', { min: 15, max: 30 }], ['Shade', '40+', { min: 40 }], ['Eldeth Goldvein', '7', { min: 7, max: 7 }], ['Unknown', null, undefined],
+  ]);
+});

@@ -104,7 +104,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
     if (!entry?.list) throw new Error(`List for a kind without a list: ${kind}.`);
     for (const [part, reference] of references.entries()) {
       const value = values.get(reference.path);
-      if (value?.schemaVersion !== "compendium.static-kind-list.v7" || value.kind !== kind || value.part !== part) throw new Error(`Kind list part identity mismatch: ${reference.path}.`);
+      if (value?.schemaVersion !== "compendium.static-kind-list.v8" || value.kind !== kind || value.part !== part) throw new Error(`Kind list part identity mismatch: ${reference.path}.`);
     }
   }
   for (const entry of kinds.values()) if (entry.list && !root.lists[entry.kind]) throw new Error(`Listed kind has no list: ${entry.kind}.`);
@@ -148,7 +148,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
         .some((row) => value.document.sourceAvailabilities[row.availabilityIndex] === undefined))
         throw new Error(`Item source has an unpublished availability group in ${path}.`);
       if (value.kind === "places" && value.document.space && !root.maps.some((map) => map.mapSpaceId === value.document.space!.mapSpaceId)) throw new Error(`Place references an unpublished map space: ${value.document.space.mapSpaceId} in ${path}.`);
-    } else if (value.schemaVersion === "compendium.static-kind-list.v7") {
+    } else if (value.schemaVersion === "compendium.static-kind-list.v8") {
       for (const row of value.rows) {
         checkRef(row.ref, path);
         for (const refs of Object.values(row.relations ?? {})) for (const ref of refs) if (ref.key !== null) checkRef(ref, path);

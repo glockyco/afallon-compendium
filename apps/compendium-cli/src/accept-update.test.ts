@@ -100,7 +100,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v7" }] },
+    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v8" }] },
     search: [{ ...reference, schemaId: "compendium.static-search.v6" }],
     coverage: reference,
     exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },

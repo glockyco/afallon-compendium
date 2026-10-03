@@ -108,6 +108,9 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
 
 function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef>, referencedByOtherPage: ReadonlySet<string>): ListRow {
   const level = document.adventurer ? String(document.adventurer.startingLevel) : document.facts.level ? levelText(document.facts.level) : null;
+  // The cell reads as text, so a Level filter needs the numbers behind it.
+  const levelRange = document.adventurer ? { min: document.adventurer.startingLevel, max: document.adventurer.startingLevel }
+    : document.facts.level ? { min: document.facts.level.min, ...(document.facts.level.max === undefined ? {} : { max: document.facts.level.max }) } : null;
   const places = new Set(document.locations.map((location) => location.label));
   const place = places.size === 1 ? places.values().next().value! : places.size > 1 ? `${places.size} places` : null;
   const faction = refName(document.facts.faction);
@@ -122,7 +125,8 @@ function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef
       knownWay: [npcHasKnownWay(document, referencedByOtherPage) ? "Known Way" : "No Known Way"] },
     relations: { ...(place && places.size === 1 ? { place: namedRelation([place], placesByName) } : {}),
       ...(document.facts.faction ? { faction: [document.facts.faction] } : {}),
-      ...(document.adventurer ? { class: [document.adventurer.class] } : {}) } };
+      ...(document.adventurer ? { class: [document.adventurer.class] } : {}) },
+    ...(levelRange ? { ranges: { level: levelRange } } : {}) };
 }
 
 function questRow(document: PublicQuest, rewardTypes: readonly string[], placesByName: ReadonlyMap<string, EntityRef>): ListRow {
@@ -323,7 +327,7 @@ export function buildKindLists(
     if (!entry.list) continue;
     const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v7", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v8", ...identity, kind, part, rows,
     })));
   }
   return result;
