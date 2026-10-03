@@ -112,6 +112,12 @@
   $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
   $: hasSide = Boolean(adventurer || kill || combat && summaryFacts.length > 1 || facts.level?.scales || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
   $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level)}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
+  const statColumns: RelationColumn<NpcStatRow>[] = [
+    { id: 'stat', label: 'Stat', value: (row) => nameOf(row.stat) },
+    { id: 'start', label: 'Start', numeric: true, value: (row) => row.startingValue },
+    { id: 'bonus', label: 'Bonus', numeric: true, value: (row) => row.amount },
+    { id: 'perLevel', label: 'Per Level', numeric: true, value: (row) => row.perLevel },
+  ];
   const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type },
@@ -201,20 +207,22 @@
             <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={creatureLevelId} label="Creature level" min={statMin} max={statMax} fallback={spawnLevel !== undefined ? Math.min(statMax, Math.max(statMin, spawnLevel)) : statMin} compact slider={false} bind:level={statLevel} /></span>
           {/if}
         </svelte:fragment>
-        <dl class="combat-stats" style={`--stat-columns: ${Math.min(4, primaryStats.length)}`}>
+        <dl class="combat-stats" style={`--stat-columns: ${Math.min(4, primaryStats.length)}; --phone-columns: ${primaryStats.length === 4 ? 2 : primaryStats.length}`}>
           {#each primaryStats as stat}
             <div><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
           {/each}
         </dl>
-        <details class="stat-method">
+        <details class="stat-method c-disclosure">
           <summary>How these are calculated</summary>
-          <p class="stat-formula">Each stat starts at the same value for every creature. {document.ref.name} adds its own bonus to that, and gains more with each level.</p>
-          <div class="c-table-scroll"><table class="c-table c-table--calculator">
-            <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per Level</th></tr></thead>
-            <tbody>{#each primaryStats as stat}
-              <tr><th scope="row">{statLabel(stat)}</th><td class="c-num">{formatNumber(stat.startingValue!)}</td><td class="c-num">{npcStatAmount(stat.amount, stat.isPercent)}</td><td class="c-num">{npcStatAmount(stat.perLevel!, stat.isPercent)}</td></tr>
-            {/each}</tbody>
-          </table></div>
+          <p class="stat-formula">Each stat starts at a value that every creature shares. This creature adds its own bonus to that, and gains more with each level.</p>
+          <RelationTable columns={statColumns} rows={primaryStats} label="How combat stats are calculated" mobileLabelNumbers>
+            <svelte:fragment slot="cell" let:row let:column>
+              {#if column === 'stat'}{statLabel(row)}
+              {:else if column === 'start'}{formatNumber(row.startingValue ?? 0)}
+              {:else if column === 'bonus'}{npcStatAmount(row.amount, row.isPercent)}
+              {:else}{npcStatAmount(row.perLevel ?? 0, row.isPercent)}{/if}
+            </svelte:fragment>
+          </RelationTable>
         </details>
         {#if statGroups.other.length}<p class="stat-extra">It also has {listText(statGroups.other.map((stat) => `${npcStatAmount(stat.amount, stat.isPercent)} ${statLabel(stat)}`))}.</p>{/if}
       </Section>
@@ -276,26 +284,23 @@
   .combat-stats > div + div { border-left: 1px solid var(--c-line-soft); }
   .combat-stats dt { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; }
   .combat-stats dd { margin: 0; color: var(--c-text-strong); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .stat-formula, .stat-extra { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
-  .stat-method { font-size: var(--c-text-small); }
+  .stat-formula, .stat-extra { margin: 0; color: var(--c-text-dim); }
+  .stat-method .stat-formula { margin-bottom: .6rem; }
   .experience { display: grid; justify-items: start; gap: .65rem; }
   .experience p { margin: 0; }
   /* Both level controls share one label column, so their steppers line up. */
   .experience { grid-template-columns: max-content auto; align-items: center; column-gap: .6rem; }
   .experience :global(.level-control) { display: contents; }
   .experience > p, .experience > a { grid-column: 1 / -1; }
-  .stat-method summary { color: var(--c-accent); cursor: pointer; }
-  .stat-method .stat-formula { margin-top: .65rem; }
-  .stat-method .c-table-scroll { margin-top: .6rem; }
-  .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
-  .stat-method :global(.c-table th) { white-space: nowrap; overflow-wrap: normal; }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
   .mobile-combat { display: none; }
   @media (max-width: 640px) {
-    .combat-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .combat-stats > div:nth-child(odd) { border-left: 0; }
-    .combat-stats > div:nth-child(n + 3) { border-top: 1px solid var(--c-line-soft); }
+    /* Four stats make two rows of two; fewer stay on one row. */
+    .combat-stats { grid-template-columns: repeat(var(--phone-columns), minmax(0, 1fr)); }
+    .combat-stats > div { padding: .6rem .7rem; }
+    .combat-stats[style*='--phone-columns: 2'] > div:nth-child(odd) { border-left: 0; }
+    .combat-stats[style*='--phone-columns: 2'] > div:nth-child(n + 3) { border-top: 1px solid var(--c-line-soft); }
     .mobile-level-label { display: inline; }
     .combat-control :global(.level-control > label) { display: none; }
   }

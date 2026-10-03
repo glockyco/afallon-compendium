@@ -23,7 +23,7 @@
   {#each verified as rule (rule.id)}<div class="rule"><RulePhrase {rule} {registry} /></div>{/each}
   <slot />
   {#if unknown.length}
-    <details class="unknown"><summary>Unconfirmed Details</summary>
+    <details class="unknown c-disclosure"><summary>Unconfirmed Details</summary>
       {#each unknown as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
     </details>
   {/if}
@@ -34,6 +34,5 @@
   .rule-line { text-wrap: balance; }
   @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
   .unknown { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
-  .unknown summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
   .unknown .rule-line { margin: .6rem 0 0; }
 </style>

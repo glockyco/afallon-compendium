@@ -37,7 +37,7 @@
         {#if row.placements.length}
           <a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>{row.placements.length === 1 ? 'Show on Map' : 'Spot 1'}</a>
           {#if row.placements.length > 1}
-            <details class="more-spots"><summary>Show {formatNumber(row.placements.length - 1)} more</summary>
+            <details class="more-spots c-disclosure"><summary>Show {formatNumber(row.placements.length - 1)} more</summary>
               <div class="spot-list">{#each row.placements.slice(1) as spot, index}<a class="c-link" href={spotOnMap(spot.placementId)} aria-label={`Show Map Spot ${index + 2}`}>{index + 2}</a>{/each}</div>
             </details>
           {/if}
@@ -49,7 +49,6 @@
 
 <style>
   .more-spots { display: inline-block; margin-left: .5rem; font-size: var(--c-text-small); }
-  .more-spots summary { cursor: pointer; color: var(--c-accent); }
   .spot-list { display: flex; flex-wrap: wrap; gap: .35rem; padding-top: .3rem; }
   @media (min-width: 641px) { .source :global(.entity-link) { white-space: nowrap; } }
 </style>

@@ -149,7 +149,7 @@
             {/each}
           </FactList>
           {#if detailedEnchantStats}
-            <details class="enchant-stats"><summary>Stat Details</summary><FactList>
+            <details class="enchant-stats c-disclosure"><summary>Stat Details</summary><FactList>
               {#each facts.enchanting.tiers as tier}
                 <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} adds` : 'Adds'}>{#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</FactRow>
               {/each}
@@ -383,7 +383,6 @@
   .version:has(input:checked) { border-color: var(--c-accent); background: color-mix(in srgb, var(--c-accent) 16%, var(--c-surface-2)); color: var(--c-text-strong); }
   .version:has(input:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .enchant-stats { border-top: 1px solid var(--c-line-soft); padding-top: .55rem; }
-  .enchant-stats summary { cursor: pointer; color: var(--c-accent); font-weight: 600; }
   .enchant-stats :global(.fact-list) { margin-top: .6rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
   .adventurer-gear { display: grid; gap: .5rem; line-height: 1.55; }

@@ -46,7 +46,9 @@
   // A table with one row has nothing to order, so its headings are plain text.
   $: sortable = rows.length > 1;
   // By default a phone places up to two numeric values beside the name. Other fields become labeled detail lines.
-  $: besideName = columns.map((column, index) => index > 0 && index <= 2 && columns.slice(1, index + 1).every((entry) => entry.numeric));
+  // With labels, every numeric value can sit in its own labeled cell, so all of them stay beside one another.
+  $: besideName = columns.map((column, index) => index > 0 && (mobileLabelNumbers ? Boolean(column.numeric) : index <= 2 && columns.slice(1, index + 1).every((entry) => entry.numeric)));
+  $: numberCount = Math.max(1, columns.filter((column, index) => index > 0 && besideName[index]).length);
   // A quantity plus a chance leaves too little room for names. Give the name the full first row and put both values
   // beneath it, retaining their relationship with the chance heading.
   $: quantityUnderName = columns[1]?.id === 'quantity' && columns[1]?.numeric === true && columns[2]?.numeric === true && (columns[2]?.id === 'chance' || columns[2]?.id === 'rate');
@@ -104,7 +106,7 @@
   }
 </script>
 
-<div class="relation-table" class:labeled-numbers={mobileLabelNumbers} class:aligned-numbers={mobileAlignedNumbers || quantityUnderName} class:quantityUnderName>
+<div class="relation-table" style={`--numbers: ${numberCount}`} class:labeled-numbers={mobileLabelNumbers} class:aligned-numbers={mobileAlignedNumbers || quantityUnderName} class:quantityUnderName>
   <!-- A phone restyles the table as blocks, and some browsers then drop the table semantics. The explicit roles keep them. -->
   <!-- svelte-ignore a11y_no_redundant_roles -->
   <table role="table" aria-label={label}>
@@ -222,7 +224,7 @@
   }
   @media (max-width: 640px) {
     .labeled-numbers thead { display: none; }
-    .labeled-numbers tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .2rem .6rem; }
+    .labeled-numbers tbody tr { grid-template-columns: repeat(var(--numbers), minmax(0, 1fr)); gap: .2rem .6rem; }
     .labeled-numbers tbody td.name { grid-column: 1 / -1; }
     .labeled-numbers tbody td.num { display: grid; align-content: start; gap: .15rem; text-align: left; white-space: normal; }
     .labeled-numbers tbody td.num .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }

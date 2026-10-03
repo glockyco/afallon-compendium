@@ -56,7 +56,7 @@
         </svelte:fragment>
         {#if section.id === 'tokens' && document.affixes?.length}
           <p>New tokens never roll {document.affixes.filter((affix) => !affix.available).length} of these affixes.</p>
-          <details class="affix-details"><summary>Show all dungeon affixes</summary>
+          <details class="affix-details c-disclosure"><summary>Show all dungeon affixes</summary>
             <ul>{#each document.affixes as affix}<li><strong>{affix.name}</strong>{affix.available ? '' : ' (Not on new tokens)'}: {affix.description.replaceAll(' — ', ', ')}</li>{/each}</ul>
           </details>
         {:else if section.id === 'timed-dungeons' && document.dungeons.length}
@@ -70,7 +70,7 @@
               {:else if column === 'loot'}{row.maxLootItems === undefined ? 'Unavailable' : format(row.maxLootItems)}{/if}
             </svelte:fragment>
           </RelationTable>
-          <details class="dungeon-associations"><summary>Bosses</summary>
+          <details class="dungeon-associations c-disclosure"><summary>Bosses</summary>
             {#if document.dungeons.every((dungeon) => dungeon.rewardsFromBossDrops)}
               <p>The reward bag's extra loot comes from the same tables as the bosses' own drops, so each boss page lists its chances.</p>
             {/if}
@@ -98,6 +98,5 @@
   details { line-height: 1.55; }
   /* A disclosure is not a layout container, so its summary and content keep their space with margins. */
   details[open] > * + * { margin-top: .65rem; }
-  summary { cursor: pointer; min-height: 24px; }
   .dungeon-associations li + li { margin-top: .65rem; }
 </style>

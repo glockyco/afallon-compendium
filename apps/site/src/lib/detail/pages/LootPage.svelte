@@ -36,7 +36,7 @@
         ? rule.id === 'creature-loot-table-gate' || rule.status === 'unknown'
         : !detailRules.length || !pickDetails.has(rule.id))}>
         {#if creatureDetails}
-          <details class="rule-details">
+          <details class="rule-details c-disclosure">
             <summary>More about creature drops</summary>
             {#each creatureGroups as group (group.title)}
               {@const rules = section.rules.filter((rule) => rule.status === 'verified' && group.ids.includes(rule.id))}
@@ -63,7 +63,7 @@
           {/if}
         {/if}
         {#if detailRules.length}
-          <details class="pick-details"><summary>How supply pack picks work</summary>
+          <details class="pick-details c-disclosure"><summary>How supply pack picks work</summary>
             {#each detailRules as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
           </details>
         {/if}
@@ -74,7 +74,6 @@
 
 <style>
   .pick-details, .rule-details { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
-  .pick-details summary, .rule-details summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
   .pick-details .rule-line, .rule-details .rule-line { margin: .6rem 0 0; line-height: 1.55; }
   .rule-group { margin-top: 1rem; }
   .rule-group h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }

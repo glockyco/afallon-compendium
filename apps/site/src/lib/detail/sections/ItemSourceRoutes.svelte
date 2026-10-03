@@ -51,7 +51,7 @@
           {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>The recipe is known by default.</p>{/if}
           {#if firstRank?.bands.length}
             <p>Base experience: {formatNumber(firstRank.baseExperience)} per craft before skill modifiers.</p>
-            <details class="experience"><summary>Experience by Skill Level</summary><CraftExperience rank={firstRank} skill={craft.skill} id="crafting-level" />{#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}</details>
+            <details class="experience c-disclosure"><summary>Experience by Skill Level</summary><CraftExperience rank={firstRank} skill={craft.skill} id="crafting-level" />{#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}</details>
           {:else if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label="How crafting works" />{/if}
         {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
           {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
@@ -113,7 +113,6 @@
   .materials { display: grid; gap: .25rem; }
   .materials > span { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .experience { border-top: 1px solid var(--c-line-soft); padding-top: .55rem; }
-  .experience summary { cursor: pointer; color: var(--c-accent); font-weight: 600; }
   .experience :global(.craft-experience) { margin-top: .75rem; }
   .route-more { justify-self: start; font-size: var(--c-text-small); min-height: 1.5rem; }
   .route p { line-height: 1.5; }

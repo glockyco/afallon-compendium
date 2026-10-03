@@ -65,7 +65,7 @@
   {:else if !locations.length}<p class="empty">{emptyText}</p>{#if emptyGuide}<HowItWorks guide={emptyGuide.guide} section={emptyGuide.section} label={emptyGuide.label} />{/if}{/if}
   {#if unknown.length}<p class="unknown">{unknown.length} {unknown.length === 1 ? 'location has' : 'locations have'} no identified place. Their spot details are below.</p>{/if}
   {#if detailsRows.length}
-    <details bind:open={expanded}>
+    <details class="c-disclosure" bind:open={expanded}>
       <summary>Show spot details and conditions</summary>
       <div class="placements">
         {#each detailsRows as location}
@@ -91,7 +91,6 @@
 
 <style>
   .empty, .unknown { color: var(--c-text-dim); }
-  summary { min-height: 1.5rem; color: var(--c-accent); cursor: pointer; }
   .placements { display: grid; gap: .75rem; margin-top: .75rem; }
   .placement { position: relative; display: grid; gap: .35rem; padding: .9rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   h3 { font-size: 1rem; }

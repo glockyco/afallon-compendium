@@ -293,6 +293,11 @@ body { font-size: 1rem; line-height: 1.5; }
 
 .c-link { color: var(--c-accent); text-underline-offset: .18em; }
 .c-link:hover { color: var(--c-accent-strong); }
+/* An inline disclosure: a text control that opens more detail below it, the same size as the text around it. */
+.c-disclosure > summary { width: fit-content; min-height: 1.5rem; color: var(--c-accent); font-size: var(--c-text-body); font-weight: 500; cursor: pointer; }
+.c-disclosure > summary:hover { color: var(--c-accent-strong); }
+.c-disclosure > summary:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+.c-disclosure[open] > summary { margin-bottom: .6rem; }
 
 /* Detail help links and hint buttons use the same baseline-seated round mark. */
 .c-help-mark { display: inline-grid; place-items: center; flex: none; width: 1.3em; height: 1.3em; border: 1px solid currentColor; border-radius: 50%; font-size: var(--c-text-small); font-weight: 700; line-height: 1; }

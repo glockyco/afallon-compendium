@@ -86,7 +86,7 @@
             <a class="c-link" href={`${base}/effects/?type=Teleport`}>Teleports</a>
           </nav>
           {#if section.rules.some(persistenceRule)}
-            <details class="rule-details"><summary>Character Persistence</summary>
+            <details class="rule-details c-disclosure"><summary>Character Persistence</summary>
               {#each section.rules.filter(persistenceRule) as rule (rule.id)}<div class="rule-line"><RulePhrase {rule} {registry} /></div>{/each}
             </details>
           {/if}
@@ -105,7 +105,6 @@
   .effect-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); }
   .effect-links h3 { width: 100%; }
   .rule-details { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }
-  .rule-details summary { color: var(--c-accent); cursor: pointer; font-weight: 600; }
   .rule-details .rule-line { margin: .6rem 0 0; line-height: 1.55; }
   .rule-line { text-wrap: balance; }
   @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
