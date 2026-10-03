@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 
 // SvelteKit resolves its generated SSR modules from the site root. Keep the server in a
 // separate process so the repository-wide test run does not change another test's cwd.
+// Starting that server alone takes about four seconds, so the test allows more than the default five.
+const VITE_SERVER_TIMEOUT_MS = 30_000;
 test('Getting there describes new character starts even without an entrance', async () => {
   const script = `
     import { createServer } from 'vite';
@@ -38,4 +40,4 @@ test('Getting there describes new character starts even without an entrance', as
   expect(cards.all).toContain('New characters start here.');
   expect(cards.one).toContain('New Orc characters start here.');
   expect(cards.two).toContain('New Human and Orc characters start here.');
-});
+}, VITE_SERVER_TIMEOUT_MS);
