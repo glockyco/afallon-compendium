@@ -417,10 +417,11 @@
   .clear { min-height: 1.75rem; padding: .2rem .6rem; border: 0; background: transparent; color: var(--c-accent); font-size: var(--c-text-small); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
   .clear:disabled { color: var(--c-text-mute); cursor: default; }
   /* Hidden entries matter to few readers, so the reveal is a quiet text link at the end of the bar rather than a control. */
-  .reveal-wrap { position: relative; display: inline-flex; align-items: center; gap: .3rem; max-width: 100%; margin-left: auto; }
+  /* Baseline alignment puts the "?" on the same baseline as the link text, so the mark centres on the letters rather than on the line box. */
+  .reveal-wrap { position: relative; display: inline-flex; align-items: baseline; gap: .35rem; max-width: 100%; margin-left: auto; }
   .reveal { min-height: 1.75rem; padding: .2rem 0; border: 0; background: transparent; color: var(--c-text-mute); cursor: pointer; font-size: var(--c-text-small); text-align: left; text-decoration: underline dotted; text-underline-offset: .2em; }
   .reveal:hover { color: var(--c-text-dim); }
-  .reveal-help { width: 1.15rem; height: 1.15rem; flex: none; padding: 0; border: 1px solid var(--c-line-strong); border-radius: 50%; background: transparent; color: var(--c-text-mute); cursor: pointer; font-size: .6875rem; line-height: 1; }
+  .reveal-help { display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; flex: none; padding: 0; border: 1px solid var(--c-line-strong); border-radius: 50%; background: transparent; color: var(--c-text-mute); cursor: pointer; font-size: var(--c-text-small); font-weight: 700; line-height: 1; }
   .reveal-help:hover { color: var(--c-text-dim); }
   .reveal-explanation { display: none; position: absolute; z-index: 5; top: calc(100% + .35rem); right: 0; width: min(19rem, 80vw); padding: .6rem .75rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); box-shadow: 0 .3rem .8rem rgb(0 0 0 / .18); font-size: var(--c-text-small); line-height: 1.4; pointer-events: none; }
   .reveal-wrap:hover .reveal-explanation, .reveal-wrap:focus-within .reveal-explanation, .reveal-wrap.open .reveal-explanation { display: block; }
