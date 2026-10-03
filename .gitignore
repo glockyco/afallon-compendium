@@ -8,6 +8,9 @@
 /apps/*/node_modules/
 /packages/*/node_modules/
 /apps/site/.svelte-kit/
+/apps/site/.svelte-kit-check/
+/apps/site/.svelte-kit-build/
+/apps/site/.svelte-kit-test/
 /apps/site/.stage/
 /apps/site/.wrangler/
 /apps/site/build/

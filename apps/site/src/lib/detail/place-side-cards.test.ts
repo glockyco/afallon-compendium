@@ -2,13 +2,17 @@ import { expect, test } from 'bun:test';
 import { fileURLToPath } from 'node:url';
 
 // SvelteKit resolves its generated SSR modules from the site root. Keep the server in a
-// separate process so the repository-wide test run does not change another test's cwd.
+// separate process so the repository-wide test run does not change another test's cwd. The server
+// generates its SvelteKit files in `.svelte-kit-test` and keeps its dependency cache in
+// `node_modules/.vite-test`. Sharing `.svelte-kit` would reorder the route modules under a running
+// dev server and leave its pages blank, and sharing `node_modules/.vite` would make it answer 500.
 // Starting that server alone takes about four seconds, so the test allows more than the default five.
 const VITE_SERVER_TIMEOUT_MS = 30_000;
+const SITE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 test('Getting there describes new character starts even without an entrance', async () => {
   const script = `
     import { createServer } from 'vite';
-    const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+    const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', cacheDir: 'node_modules/.vite-test' });
     try {
       const { render } = await server.ssrLoadModule('svelte/server');
       const { default: Card } = await server.ssrLoadModule('/src/lib/detail/sections/PlaceSideCards.svelte');
@@ -28,7 +32,8 @@ test('Getting there describes new character starts even without an entrance', as
     } finally { await server.close(); }
   `;
   const child = Bun.spawn(['bun', '-e', script], {
-    cwd: fileURLToPath(new URL('../../../', import.meta.url)), stdout: 'pipe', stderr: 'pipe',
+    cwd: SITE_ROOT, stdout: 'pipe', stderr: 'pipe',
+    env: { ...process.env, SVELTE_KIT_OUT_DIR: '.svelte-kit-test' },
   });
   const [stdout, stderr, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
   expect(exit, stderr).toBe(0);

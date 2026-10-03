@@ -90,7 +90,7 @@ bun run dev
 
 Staging verifies the candidate against the accepted publication that the second argument names (or `PUBLICATION_BASELINE_ROOT`), and refuses one that drops placements, maps, imagery, offsets, or search records that its exclusion list does not name. It writes into the `apps/site` of the checkout that runs it, so each checkout and worktree needs its own stage. After a public schema change, stage a publication built from the current commit, or the development server reports that a resource does not match its schema.
 
-Production builds need `SITE_STAGE=production`: `bun run build:production`.
+Production builds need `SITE_STAGE=production`: `bun run build:production`. The development server uses `apps/site/.svelte-kit`, while the site's type check writes to `.svelte-kit-check`, builds and `bun run preview` use `.svelte-kit-build`, and tests that start Vite use `.svelte-kit-test`, so checking, building, or testing never disturbs a running development server. `bun install` creates `apps/site/.svelte-kit` when it is missing, because the site's `tsconfig.json` and the tests read the files SvelteKit generates there.
 
 ## Data pipeline
 

@@ -18,5 +18,14 @@ function reloadContracts(): Plugin {
 
 export default defineConfig({
   plugins: [reloadContracts(), sveltekit()],
-  server: { fs: { allow: [searchForWorkspaceRoot(process.cwd())] } },
+  server: {
+    fs: { allow: [searchForWorkspaceRoot(process.cwd())] },
+    // The dev server serves only the staged data under `.stage/production/static`. A production build writes thousands
+    // of pages to `.stage/production/output` and to its own SvelteKit folder, accepting an update keeps a rollback copy
+    // beside the stage, and the type check and tests write their own generated files. Watching those folders only
+    // floods the server with page reloads.
+    watch: {
+      ignored: ['**/.stage/production/output/**', '**/.stage/production.rollback-*/**', '**/.svelte-kit-check/**', '**/.svelte-kit-build/**', '**/.svelte-kit-test/**'],
+    },
+  },
 });
