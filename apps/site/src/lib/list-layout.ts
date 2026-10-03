@@ -46,7 +46,8 @@ export function visibleListColumns(rows: readonly ListRow[], kind: PublicKindEnt
     if (column.id === 'damage' && !rows.every((row) => (row.facets.weapon ?? []).length > 0)) return false;
     // The race's starting place and class choices matter even when every race has the same value.
     if (kind.kind === 'races' && (column.id === 'start' || column.id === 'classes')) return rows.some((row) => row.values[column.id] != null);
-    // A recipe or station already bearing its skill's name needs no second identical fact.
+    // A Skill column that would only repeat each row's station name is left out. When any row differs, every row shows
+    // its skill, so a blank cell never stands for a known skill.
     if (column.id === 'skill' && (kind.kind === 'recipes' || kind.kind === 'craftingStations')
       && !rows.some((row) => row.values.skill != null && row.values.skill !== (kind.kind === 'recipes' ? row.values.station : row.ref.name))) return false;
     if ((column.id === 'class' || column.id === 'partyRole') && kind.kind === 'npcs'

@@ -306,10 +306,6 @@
     const values = row.facets[id];
     return values && values.length > 0 ? values : [String(row.values[id])];
   }
-  function redundantCell(row: ListRow, id: string): boolean {
-    return id === 'skill' && (kind.kind === 'recipes' && row.values.skill === row.values.station
-      || kind.kind === 'craftingStations' && row.values.skill === row.ref.name);
-  }
 
   // One delegated listener handles plain cut text, including rows added after the first render.
   function titleIfCut(event: PointerEvent): void {
@@ -330,12 +326,10 @@
     {#each visibleColumns as column, index}
       {@const currency = row.relations?.[`${column.id}Currency`]?.[0]}
       <td data-label={column.label} class:c-num={column.numeric} class:wide-fact={kind.kind === 'mechanics' && column.id === 'description' || kind.kind === 'races' && column.id === 'start'} class:race-start={kind.kind === 'races' && column.id === 'start'} class:description-fact={kind.kind === 'mechanics' && column.id === 'description'}
-        class:blank={(row.values[column.id] === null || row.values[column.id] === undefined) && !(kind.kind === 'factions' && column.id === 'members') || redundantCell(row, column.id)}>
+        class:blank={(row.values[column.id] === null || row.values[column.id] === undefined) && !(kind.kind === 'factions' && column.id === 'members')}>
         <span class={`cell ${shapes[index + 1]}`}>
         {#if kind.kind === 'factions' && column.id === 'members' && row.values.members == null}
           Count unavailable
-        {:else if redundantCell(row, column.id)}
-          <!-- The station or recipe already names this skill. -->
         {:else if row.values[column.id] === null || row.values[column.id] === undefined}
           <!-- A list cell without a value states nothing: the entity has no such fact. -->
         {:else if column.id === 'rarity'}
