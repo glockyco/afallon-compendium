@@ -13,7 +13,6 @@
   import AbilityReferencesSection from '../sections/AbilityReferencesSection.svelte';
   import AbilityVersionsSection from '../sections/AbilityVersionsSection.svelte';
   import LearnedBySection from '../sections/LearnedBySection.svelte';
-  import { shownRowCount } from '../relation-table';
   import { rankStatNote } from '../scaling-formula';
   import SideCard from '../SideCard.svelte';
   import Section from '../Section.svelte';
@@ -51,8 +50,8 @@
         <Section id="learners-and-users" title={grantOnly ? 'How it is granted' : 'Who learns and uses it'}>
           <div class="sources">
             <LearnedBySection versions={document.versions} {registry} />
-            <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by'} onShowAll={() => (showAllUsers = true)} />
-            <AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by-items'} onShowAll={() => (showAllUsers = true)} />
+            <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact onShowAll={() => (showAllUsers = true)} />
+            <AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} compact onShowAll={() => (showAllUsers = true)} />
             {#each main.unlockedByActions as action}
               <p>{#if action.label === 'Dialogue'}A dialogue grants this ability.{:else}{action.label} grants this ability{/if}{#if action.owner}{' '}in <EntityLink ref={action.owner} {registry} />{/if}{action.label === 'Dialogue' ? '' : '.'}</p>
             {/each}
@@ -60,8 +59,6 @@
         </Section>
       {/if}
       <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} icon={document.art.icon ?? document.ref.icon} />
-      {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedBy.length, false) < document.versions[0]!.usedBy.length}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
-      {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedByItems.length, false) < document.versions[0]!.usedByItems.length}<AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} />{/if}
     </Sections>
   </DetailFrame>
 </article>
