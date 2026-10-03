@@ -5,7 +5,7 @@
   import { spotOnMap } from '../../map-links';
   import HeroicCreatureComparison from '../HeroicCreatureComparison.svelte';
   import HeroicItemComparison from '../HeroicItemComparison.svelte';
-  import type { HeroicItemOption } from '../heroic-item-options';
+  import type { ItemPickerOption } from '../item-picker-options';
   import CompareTable from '../CompareTable.svelte';
   import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -17,7 +17,7 @@
 
   export let document: HeroicTier;
   export let registry: PublicKindEntry[];
-  export let heroicItems: HeroicItemOption[] = [];
+  export let heroicItems: ItemPickerOption[] = [];
 
   // The page answers three questions in order: how to turn the tier on, what changes, and what it gives. The opening
   // states each answer in one sentence from the rules' values, and the parts below hold the rules in full.

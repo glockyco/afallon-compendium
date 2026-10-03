@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { PublicItem } from '@afallon/contracts/public';
-import { heroicItemOption, sortHeroicItemOptions } from './heroic-item-options';
+import { heroicItemOption, sortHeroicItemOptions } from './item-picker-options';
 
 function gear(name: string, slot: string, eligible: boolean): PublicItem {
   return {

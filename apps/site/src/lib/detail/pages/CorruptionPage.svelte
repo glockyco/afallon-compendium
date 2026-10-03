@@ -3,6 +3,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import { listText } from '../../format';
   import CorruptionTryIt from '../CorruptionTryIt.svelte';
+  import type { ItemPickerOption } from '../item-picker-options';
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
   import Section from '../Section.svelte';
@@ -14,6 +15,7 @@
   export let document: CorruptionGuide;
   export let registry: PublicKindEntry[];
   export let inlineItem: PublicItem | undefined = undefined;
+  export let corruptionItems: ItemPickerOption[] = [];
   const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
   $: lootLimit = Math.max(0, ...document.dungeons.map((dungeon) => dungeon.maxLootItems ?? 0));
   $: underglow = document.dungeons.find((dungeon) => dungeon.place.name === 'The Underglow');
@@ -80,7 +82,7 @@
       </GuideSection>
       {#if section.id === 'gear'}
         <Section id="try-it" title="Try it on an item">
-          <CorruptionTryIt guide={document} {inlineItem} {registry} />
+          <CorruptionTryIt guide={document} {inlineItem} {registry} options={corruptionItems} />
         </Section>
       {/if}
     {/each}

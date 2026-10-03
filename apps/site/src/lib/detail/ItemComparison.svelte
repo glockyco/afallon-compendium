@@ -39,8 +39,13 @@
 
 <style>
   .comparison-wrap { container: comparison / inline-size; min-width: 0; }
-  .comparison { display: grid; gap: 1rem; min-width: 0; }
+  .comparison { display: grid; gap: 1rem; min-width: 0; grid-template-areas: "from" "to" "fromTip" "toTip" "summary"; }
   .from-control, .to-control, .from-tip, .to-tip, .summary { min-width: 0; }
+  .from-control { grid-area: from; }
+  .to-control { grid-area: to; }
+  .from-tip { grid-area: fromTip; }
+  .to-tip { grid-area: toTip; }
+  .summary { grid-area: summary; }
   .tooltip-frame { box-sizing: border-box; }
   .tooltip-frame.empty { min-height: 16rem; }
   .summary { box-sizing: border-box; padding: .8rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
@@ -48,11 +53,6 @@
   .summary p { margin: .45rem 0 0; }
   @container comparison (min-width: 45rem) {
     .comparison { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "from to" "summary summary" "fromTip toTip"; align-items: stretch; }
-    .from-control { grid-area: from; }
-    .to-control { grid-area: to; }
-    .summary { grid-area: summary; }
-    .from-tip { grid-area: fromTip; }
-    .to-tip { grid-area: toTip; }
     .tooltip-frame { height: 100%; }
   }
   @container comparison (min-width: 61rem) {

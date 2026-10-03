@@ -8,6 +8,7 @@ The Heroic gear comparison offers four arbitrary examples and explains a selecte
 - Provide searchable, keyboard-accessible item selection with icons, rarity colors, and a compact label directly above the control.
 - Explain the selected item's Heroic creature-drop condition independently and link its item page for drop sources.
 - Align both Heroic and Corruption comparison cards and full table-row dividers, keep wrapped metadata separators off new lines, and preserve the corruption drop lead-in's sentence case.
+- Reuse the searchable control on Corruption, show an icon and rarity-colored name when closed, place the changes card after item cards on phones, and avoid empty drop-source icon frames.
 
 ## Capabilities
 

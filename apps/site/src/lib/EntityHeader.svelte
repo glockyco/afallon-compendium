@@ -64,7 +64,7 @@
   .coloured { color: var(--c-rarity); }
   .facts { display: flex; flex-wrap: wrap; gap: .2rem 0; margin: .45rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
-  .facts li:not(:last-child)::after { content: '·'; margin: 0 .2rem; color: var(--c-text-mute); }
+  .facts li:not(:last-child)::after { content: '·'; margin: 0 .45rem 0 .1rem; color: var(--c-text-mute); }
   .label { flex: none; color: var(--c-text-dim); white-space: nowrap; }
   .value { color: var(--c-text-strong); }
   .description { max-width: 62ch; margin: .6rem 0 0; color: var(--c-text-soft); font-size: var(--c-text-prose); line-height: 1.6; white-space: pre-line; }
@@ -76,7 +76,7 @@
   .compact .art.icon, .compact .art.portrait { width: 3rem; }
   .compact .art.artwork { width: 5.3rem; }
   .compact .facts { margin-top: .3rem; font-size: var(--c-text-small); }
-  .compact .facts li:not(:last-child)::after { margin: 0 .4rem; }
+  .compact .facts li:not(:last-child)::after { margin: 0 .4rem 0 .05rem; }
   .fact-list { grid-column: 1 / -1; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .25rem .9rem; margin: 0; font-size: var(--c-text-small); line-height: 1.45; }
   .fact-list dt { color: var(--c-text-dim); }
   .fact-list dd { margin: 0; color: var(--c-text-strong); }

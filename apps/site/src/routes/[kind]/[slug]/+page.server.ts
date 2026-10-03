@@ -3,7 +3,7 @@ import type { EntryGenerator, PageServerLoad } from './$types';
 import { entityPageEntries } from '$lib/server/page-entries';
 import { serverMapLoader } from '$lib/server/publication';
 import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
-import { heroicItemOption, sortHeroicItemOptions } from '$lib/detail/heroic-item-options';
+import { heroicItemOption, sortHeroicItemOptions, type ItemPickerOption } from '$lib/detail/item-picker-options';
 
 export const entries: EntryGenerator = entityPageEntries;
 
@@ -49,5 +49,24 @@ export const load: PageServerLoad = async ({ params }) => {
       return sortHeroicItemOptions(choices);
     })()
     : undefined;
-  return { kind, page, inlineItem, heroicItems, documentPath: entry.document.path };
+  const corruptionGuide = page.kind === 'mechanics' && page.document.topic === 'corruption' ? page.document : undefined;
+  const corruptionItems = corruptionGuide
+    ? await (async () => {
+      const byKey = new Map<string, ItemPickerOption>();
+      for (const group of corruptionGuide.tryIt.groups) {
+        const documents = await Promise.all(group.items.map((entry) => loader.loadPageForRef(entry.item)));
+        for (const document of documents) {
+          if (document.kind !== 'items') continue;
+          const existing = byKey.get(document.document.ref.key);
+          if (existing) {
+            if (existing.slot !== group.place.name) existing.slot = 'Multiple Dungeons';
+          } else byKey.set(document.document.ref.key, {
+            ref: document.document.ref, slot: group.place.name, rarity: document.document.facts.rarity,
+          });
+        }
+      }
+      return [...byKey.values()].sort((a, b) => a.slot.localeCompare(b.slot, 'en') || a.ref.name.localeCompare(b.ref.name, 'en'));
+    })()
+    : undefined;
+  return { kind, page, inlineItem, heroicItems, corruptionItems, documentPath: entry.document.path };
 };
