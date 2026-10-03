@@ -79,7 +79,7 @@
   <header class="bar">
     <div class="bar-inner">
       <a class="brand" href={`${base}/`}>
-        <img src={`${base}/logo.webp`} width="36" height="36" alt="" />
+        <img src={`${base}/logo.webp`} width="40" height="40" alt="" />
         <span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span>
       </a>
       <nav class="site-nav" aria-label="Site">
@@ -158,7 +158,7 @@
   .bar::after { content: ''; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-accent-line) 45%, transparent) 50%, transparent); pointer-events: none; }
   .bar-inner { position: relative; display: flex; align-items: stretch; gap: 1.5rem; width: min(72rem, 100%); margin: 0 auto; padding: 0 1.5rem; min-height: 4rem; }
   .brand { display: inline-flex; align-self: center; align-items: center; gap: .65rem; color: var(--c-text); text-decoration: none; }
-  .brand img { width: 36px; height: 36px; flex: none; object-fit: contain; }
+  .brand img { width: 40px; height: 40px; flex: none; object-fit: contain; }
   .brand-copy { display: grid; gap: .2rem; line-height: 1; }
   .brand-copy strong { color: var(--c-text-strong); font: 700 1.25rem/1 var(--c-serif); letter-spacing: .01em; }
   .brand-copy span { color: var(--c-accent); font-size: .6875rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }

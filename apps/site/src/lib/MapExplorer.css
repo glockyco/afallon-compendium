@@ -18,12 +18,12 @@ button, select { cursor: pointer; }
   .details-empty { display: grid; gap: .45rem; align-content: center; min-height: 100%; color: var(--c-text-dim); }
   .details-empty p { margin: 0; font-size: var(--c-text-small); }
   .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid var(--c-line); background: var(--c-surface-2); }
-  .home-link { display: inline-flex; min-width: 0; align-items: center; gap: .55rem; color: var(--c-text-strong); text-decoration: none; }
-  .home-link img { width: 32px; height: 32px; flex: none; object-fit: contain; }
-  .brand-copy { display: grid; min-width: 0; line-height: 1; }
-  .brand-copy strong { font-size: 1rem; }
-  .brand-copy span { margin-top: .15rem; color: var(--c-accent); font-size: .875rem; font-weight: 600; }
-  .home-link:hover strong { color: var(--c-accent); }
+  .home-link { display: inline-flex; min-width: 0; align-items: center; gap: .65rem; color: var(--c-text); text-decoration: none; }
+  .home-link img { width: 40px; height: 40px; flex: none; object-fit: contain; }
+  .brand-copy { display: grid; gap: .2rem; min-width: 0; line-height: 1; }
+  .brand-copy strong { color: var(--c-text-strong); font: 700 1.25rem/1 var(--c-serif); letter-spacing: .01em; }
+  .brand-copy span { color: var(--c-accent); font-size: .6875rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+  .home-link:hover strong { color: var(--c-accent-strong); }
   .panel-toggle { min-width: 28px; min-height: 28px; border: 1px solid var(--c-line-strong); background: transparent; color: var(--c-accent); font-size: 1.05rem; line-height: 1; }
   .panel-body { padding: .85rem .75rem; }
   .panel-rail { padding: .45rem 0; }
