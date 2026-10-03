@@ -24,9 +24,14 @@
 {#if rows.length}
   <RelationTable {columns} {rows} {label}>
     <svelte:fragment slot="cell" let:row let:column>
-      {#if column === 'part'}{row.part.label}{#if row.part.ref}<EntityLink ref={row.part.ref} {registry} />{/if}
+      {#if column === 'part'}{#if row.part.ref}<span class="part">{#if row.part.label.trim()}<span>{row.part.label.trim()}</span>{/if}<EntityLink ref={row.part.ref} {registry} /></span>{:else}{row.part.label}{/if}
       {:else}{row.amounts[Number(column.slice(5))] || '–'}{/if}
     </svelte:fragment>
   </RelationTable>
 {/if}
 {#each notes as note}<p>{note}</p>{/each}
+
+<style>
+  /* A stat link sits on the same baseline as the words before it. */
+  .part { display: inline-flex; align-items: baseline; gap: .3em; }
+</style>
