@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ListRow, PublicKindEntry, StaticKindList } from '@afallon/contracts/public';
-  import { formatNumber, intervalText } from './format';
+  import { formatNumber } from './format';
+  import ListSearchCount from './ListSearchCount.svelte';
   import OverviewTile from './OverviewTile.svelte';
 
   export let list: StaticKindList;
@@ -31,8 +32,7 @@
     : [{ label: '', rows }];
 </script>
 
-<div class="search-row"><input type="search" aria-label={`Filter ${kind.plural} by Name`} placeholder={`Filter ${kind.plural} by Name`} bind:value={query} /></div>
-<p class="count" aria-live="polite"><strong>{formatNumber(rows.length)}</strong>{#if rows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if} {rows.length === 1 ? kind.label : kind.plural}</p>
+<ListSearchCount {kind} {query} count={rows.length} total={list.rows.length} onQuery={(value) => (query = value)} />
 {#each groups as group}
   <section class="group" aria-label={group.label || kind.plural}>
     {#if group.label}<h2>{group.label}</h2>{/if}
@@ -52,11 +52,6 @@
 {#if rows.length === 0}<p class="c-empty">No {kind.plural.toLocaleLowerCase()} match this name.</p>{/if}
 
 <style>
-  .search-row { margin-bottom: .75rem; }
-  input { width: 100%; min-height: 2.35rem; padding: .4rem .6rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); }
-  input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-  .count { margin: 0 0 1rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .count strong { color: var(--c-text); font-variant-numeric: tabular-nums; }
   .group + .group { margin-top: 2rem; }
   h2 { margin: 0 0 .85rem; color: var(--c-text-strong); font: 600 1.3rem/1.3 var(--c-serif); }
   ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; list-style: none; padding: 0; margin: 0; }

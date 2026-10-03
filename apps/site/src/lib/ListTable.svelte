@@ -6,6 +6,7 @@
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
   import ListFilterPanel from './ListFilterPanel.svelte';
+  import ListSearchCount from './ListSearchCount.svelte';
   import { formatNumber, nameOf, rarityTone, readerNoun } from './format';
   import { growingCount } from './growing-count';
   import {
@@ -345,14 +346,10 @@
   {/if}
 
   <div class="results">
-    <div class="toolbar">
-      <input class="search" type="search" aria-label={`Filter ${readerNoun(kind.plural)} by name`} placeholder={`Filter ${readerNoun(kind.plural)} by name`}
-        value={filters.q} on:input={(event) => update({ ...filters, q: event.currentTarget.value }, 'replace')} />
-      {#if hasPanel}<button type="button" class="filters-button" on:click={openSheet}>Filters{#if activeCount}{` (${formatNumber(activeCount)})`}{/if}</button>{/if}
-    </div>
-
-    <div class="result-bar" class:visibility-list={hasPotentialHidden} bind:offsetHeight={barHeight}>
-      <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong>{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if} {list.rows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</p>
+    <ListSearchCount {kind} query={filters.q} count={filteredRows.length} total={list.rows.length} reserveReveal={hasPotentialHidden}
+      onQuery={(value) => update({ ...filters, q: value }, 'replace')} bind:barHeight>
+      <svelte:fragment slot="filter">{#if hasPanel}<button type="button" class="filters-button" on:click={openSheet}>Filters{#if activeCount}{` (${formatNumber(activeCount)})`}{/if}</button>{/if}</svelte:fragment>
+      <svelte:fragment slot="count">
       {#if chips.length}
         <ul class="chips" aria-label="Active filters">
           {#each chips as chip}<li><button type="button" class="chip" aria-label={`Remove filter ${chip.label}`} on:click={chip.remove}>{chip.label}<span aria-hidden="true">×</span></button></li>{/each}
@@ -366,7 +363,8 @@
           <span class="reveal-explanation" id="hidden-explanation" role="tooltip">{HIDDEN_EXPLANATION}</span>
         </span>
       {/each}
-    </div>
+      </svelte:fragment>
+    </ListSearchCount>
 
     <div class="list" style={`--bar-height: ${barHeight}px`} bind:this={listElement}>
       <DataTable {columns} {widths} {sort} sticky {flowWide} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
@@ -407,19 +405,12 @@
      itself scrolled, and the chips above the results keep the active filters in view. */
   .sidebar { padding-right: .5rem; }
   .results { min-width: 0; }
-  .toolbar { display: flex; gap: .6rem; margin-bottom: .75rem; }
-  .search { flex: 1 1 auto; min-width: 0; min-height: 2.35rem; padding: .4rem .6rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); }
   .filters-button { display: none; flex: none; min-height: 2.35rem; padding: .4rem .8rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); font-weight: 600; cursor: pointer; }
 
   /* The count and the active filter chips stay in view while the list scrolls, and the table header sticks below them. */
-  .result-bar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; margin-bottom: .6rem; padding: .4rem 0; background: var(--c-surface-0); }
-  /* Reserve room for a counted reveal even when a search temporarily finds none, so typing cannot move the rows. */
-  .result-bar.visibility-list { min-height: 2.75rem; }
   /* A table that flows sticks its header below the result bar. A table that scrolls inside its card sticks it at the
      card's top, because the card is then its scrollport. */
   .list :global(.c-table-scroll--flow-wide .c-table--sticky thead th) { top: var(--bar-height, 0px); }
-  .result-bar p { margin: 0 .25rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .result-bar strong { color: var(--c-text); font-variant-numeric: tabular-nums; }
   .chips { display: contents; list-style: none; }
   .chip { display: inline-flex; align-items: center; gap: .4rem; min-height: 1.75rem; padding: .2rem .55rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); background: transparent; color: var(--c-text); font-size: var(--c-text-small); cursor: pointer; }
   .chip span { color: var(--c-text-mute); }
@@ -435,7 +426,7 @@
   .reveal-help:hover { color: var(--c-text-dim); }
   .reveal-explanation { display: none; position: absolute; z-index: 5; top: calc(100% + .35rem); right: 0; width: min(19rem, 80vw); padding: .6rem .75rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); box-shadow: 0 .3rem .8rem rgb(0 0 0 / .18); font-size: var(--c-text-small); line-height: 1.4; pointer-events: none; }
   .reveal-wrap:hover .reveal-explanation, .reveal-wrap:focus-within .reveal-explanation, .reveal-wrap.open .reveal-explanation { display: block; }
-  .search:focus-visible, .filters-button:focus-visible, .chip:focus-visible, .clear:focus-visible, .reveal:focus-visible, .reveal-help:focus-visible, .close:focus-visible, .show:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .filters-button:focus-visible, .chip:focus-visible, .clear:focus-visible, .reveal:focus-visible, .reveal-help:focus-visible, .close:focus-visible, .show:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
@@ -473,7 +464,6 @@
   }
 
   @media (max-width: 640px) {
-    .result-bar.visibility-list { min-height: 5rem; }
     .list { padding: 0; border: 0; background: none; }
     .list :global(.c-table-scroll) { overflow: visible; }
     .list :global(table), .list :global(tbody), .list :global(tr), .list :global(td) { display: block; min-width: 0; }
