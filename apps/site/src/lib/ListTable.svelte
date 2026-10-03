@@ -198,23 +198,33 @@
     void tick().then(() => { measure(); measuredFor = [filteredRows, columns, wide, natural]; });
   });
 
+  // A sort without a direction in the address uses the column's first-click order: A to Z for text, high to low for numbers.
+  function naturalDir(id: string): SortState['dir'] {
+    if (id.startsWith(STAT_COLUMN)) return 'desc';
+    return kind.columns.find((column) => column.id === id)?.numeric ? 'desc' : 'asc';
+  }
+
   function readUrl(url: URL): void {
     filters = readFilters(url.searchParams, kind, rangeIds);
     const defaultSort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
     const requested = url.searchParams.get('sort') ?? defaultSort.id;
     const known = requested === 'name' || kind.columns.some((column) => column.id === requested)
       || (requested.startsWith(STAT_COLUMN) && filters.stats.some((filter) => filter.key === requested.slice(STAT_COLUMN.length)));
-    sort = { id: known ? requested : defaultSort.id, dir: url.searchParams.get('dir') === 'desc' ? 'desc' : url.searchParams.has('dir') ? 'asc' : defaultSort.dir };
+    const id = known ? requested : defaultSort.id;
+    const dir = url.searchParams.get('dir');
+    sort = { id, dir: dir === 'desc' || dir === 'asc' ? dir : id === defaultSort.id ? defaultSort.dir : naturalDir(id) };
   }
 
   function writeUrl(history: 'push' | 'replace'): void {
     const url = new URL(window.location.href);
     writeFilters(url.searchParams, filters, kind, rangeIds);
+    const defaultSort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
     // A sort by a stat column ends with its stat filter.
-    if (sort.id.startsWith(STAT_COLUMN) && !filters.stats.some((filter) => filter.key === sort.id.slice(STAT_COLUMN.length))) sort = kind.defaultSort ?? { id: 'name', dir: 'asc' };
+    if (sort.id.startsWith(STAT_COLUMN) && !filters.stats.some((filter) => filter.key === sort.id.slice(STAT_COLUMN.length))) sort = defaultSort;
     const write = (key: string, value: string) => value ? url.searchParams.set(key, value) : url.searchParams.delete(key);
-    write('sort', sort.id === 'name' ? '' : sort.id);
-    write('dir', sort.dir === 'asc' ? '' : sort.dir);
+    // The address omits what a reader of it would assume: the list's default sort, and a column's first-click order.
+    write('sort', sort.id === defaultSort.id ? '' : sort.id);
+    write('dir', sort.dir === (sort.id === defaultSort.id ? defaultSort.dir : naturalDir(sort.id)) ? '' : sort.dir);
     if (history === 'push') pushState(url, {}); else replaceState(url, {});
   }
 

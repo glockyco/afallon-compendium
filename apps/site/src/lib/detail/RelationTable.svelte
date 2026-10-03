@@ -146,7 +146,7 @@
   tbody tr:hover { background: var(--c-tint-hover); }
   tbody td { border-top: 1px solid var(--c-line-soft); overflow-wrap: break-word; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  th.num :global(.c-sort) { justify-content: flex-end; width: 100%; }
+  th.num :global(.c-sort) { flex-direction: row-reverse; justify-content: flex-start; width: 100%; }
   td :global(small) { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: var(--c-text-small); white-space: normal; }
   .cell-label { display: none; }
   .anchor { scroll-margin-top: 6rem; }

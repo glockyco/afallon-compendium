@@ -234,7 +234,9 @@ body { font-size: 1rem; line-height: 1.5; }
 .c-table tbody tr:hover { background: var(--c-tint-hover); }
 .c-table tbody td { border-top: 1px solid var(--c-line-soft); }
 .c-table .c-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.c-table th.c-num .c-sort { justify-content: flex-end; width: 100%; }
+/* A numeric heading keeps its arrow on the left, so the label's right edge lines up with the numbers below it even
+   while an idle arrow is invisible but still takes room. */
+.c-table th.c-num .c-sort { flex-direction: row-reverse; justify-content: flex-start; width: 100%; }
 
 /* Reference and calculator tables share the catalog's cells without imposing its wide-list minimum. */
 .c-table--reference { min-width: 0; font-variant-numeric: tabular-nums; }

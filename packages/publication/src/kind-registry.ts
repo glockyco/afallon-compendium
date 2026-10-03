@@ -59,6 +59,7 @@ const kindEntries = [
     columns: [column("start", "Starting place"), column("classes", "Classes", true), column("adventurers", "Adventurers", true)], facets: [] },
   { kind: "enchantments", label: "Enchantment", plural: "Enchantments", route: "enchantments", icon: "enchantment", pages: false, list: false, searchable: false, columns: [], facets: [] },
   { kind: "effects", label: "Effect", plural: "Effects", route: "effects", icon: "effect", pages: true, list: true, searchable: true,
+    defaultSort: { id: "appliedBy", dir: "desc" },
     columns: [column("type", "Type"), column("appliedBy", "Applied By", true), column("checkedBy", "Checked By", true)],
     facets: [facet("type", "Type")] },
   { kind: "species", label: "Species", plural: "Species", route: "species", icon: "species", pages: false, list: false, searchable: false, columns: [], facets: [] },
