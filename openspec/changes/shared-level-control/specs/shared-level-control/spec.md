@@ -6,10 +6,10 @@ Let readers adjust comparable numeric values directly without relying on small b
 
 ### Requirement: Numeric comparison controls share one interaction
 
-Character, creature, skill, corruption, and gear-score adjustments SHALL use a labelled number field between decrement and increment buttons. A slider SHALL accompany the stepper wherever the layout has room and on mechanics pages. On phones, both buttons SHALL offer at least 44-pixel tap targets. Holding either button SHALL repeat after a short delay. Native spinner arrows SHALL not appear. Controls SHALL use the site's border, radius, surface, and accent colors without lifting on hover.
+Character, skill, corruption, and gear-score adjustments, and creature levels in the kill calculator, SHALL use a labelled number field between decrement and increment buttons. The Heroic creature-level picker MAY remain a select alongside the creature-and-place picker. A slider SHALL accompany the stepper wherever the layout has room and on mechanics pages. On phones, both buttons SHALL offer at least 44-pixel tap targets. Holding either button SHALL repeat after a short delay. Native spinner arrows SHALL not appear. Controls SHALL use the site's border, radius, surface, and accent colors without lifting on hover.
 
 #### Scenario: Stepping and holding
-- **WHEN** a reader clicks Raise Level once, then holds Lower Level
+- **WHEN** a reader clicks Raise level once, then holds Lower level
 - **THEN** the value rises by one, then falls repeatedly after a short delay until the button is released or the minimum is reached
 
 #### Scenario: Bounds and typed values

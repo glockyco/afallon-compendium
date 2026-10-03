@@ -10,9 +10,9 @@
 
 ## Decisions
 
-- `LevelControl.svelte` accepts `id`, `label`, `min`, `max`, `level`, and optional `readerId`, `fallback`, `slider`, `sliderMax`, `optional`, `allowFraction`, `valueText`, and `onSelect`. Bound `level` supplies computed pages, while `readerId` reads and writes the existing store. The separate gear-score store uses `onSelect`.
+- `LevelControl.svelte` accepts `id`, `label`, `min`, `max`, `level`, and optional `readerId`, `fallback`, `slider`, `sliderMax`, `optional`, `allowFraction`, `suffix`, `valueText`, and `onSelect`. Bound `level` supplies computed pages, while `readerId` reads and writes the existing store. The separate gear-score store uses `onSelect`. A suffix such as `%` keeps a unit beside the editable number.
 - Buttons step on pointer down and start an interval after 380 ms, canceled on release, cancellation, exit, or destruction. Keyboard-generated clicks use the ordinary click path. Number and slider share one key handler, and blur or Enter normalizes typed values.
-- Places and the home hub omit the redundant slider to protect toolbar width. Mechanics pages and detail sections include it. Optional values support the existing Any setting, with empty input clearing the saved level.
+- Places and the home hub omit the redundant slider to protect toolbar width. Mechanics pages and detail sections include it. The Heroic comparison retains its two creature selectors alongside the shared character-level and gear-score controls. Optional values support the existing Any setting, with empty input clearing the saved level.
 - The axis drag surface calculates an integer level from the pointer's position within its own track. Its keyboard focus uses slider semantics. The marker line and arrow use the true level point, while only the fixed-width label is clamped inward near edges.
 
 ## Risks / Trade-offs

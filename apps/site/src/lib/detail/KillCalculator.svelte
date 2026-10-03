@@ -119,6 +119,7 @@
   .settings, .result { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
   .settings, .setting-fields { display: grid; align-content: start; gap: .7rem; }
   .numbers { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
+  .numbers :global(.level-control) { flex: 1 1 12rem; }
   .check { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr); align-items: start; column-gap: .55rem; row-gap: .2rem; }
   .check input { width: 1.3rem; height: 1.3rem; margin: .15rem 0 0; accent-color: var(--c-accent); }
   .check .dim { grid-column: 2; color: var(--c-text-dim); font-weight: 400; }
