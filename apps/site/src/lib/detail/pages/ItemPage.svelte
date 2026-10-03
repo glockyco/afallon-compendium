@@ -15,6 +15,7 @@
   import { itemSourceLines, levelRangeText, packBandText } from '../item-sources';
   import { omitAlways, planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
+  import LinkGrid from '../LinkGrid.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import CraftingSection from '../sections/CraftingSection.svelte';
   import SupplyPackBands from '../sections/SupplyPackBands.svelte';
@@ -318,10 +319,8 @@
     {#if document.dungeonFinder}
       <Section id="dungeon-finder" title="Dungeon Finder">
         <div class="c-stack">
-          <p>Each successful Random run of the Dungeon Finder gives one {document.ref.name}. The Dungeon Finder can send a Random run to these dungeons:</p>
-          <ul class="dungeon-list">
-            {#each document.dungeonFinder.dungeons as dungeon}<li><EntityLink ref={dungeon} {registry} /></li>{/each}
-          </ul>
+          <p>Each successful Random run of the Dungeon Finder gives one {document.ref.name}. A Random run goes to one of these dungeons.</p>
+          <LinkGrid refs={document.dungeonFinder.dungeons} {registry} />
           {#if finderGuide}<HowItWorks guide={finderGuide.guide} section={finderGuide.section} label="How Dungeon Finder rewards work" />{/if}
         </div>
       </Section>
