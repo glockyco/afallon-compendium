@@ -83,7 +83,7 @@ test("no two markers share a glyph", () => {
   expect(new Set(glyphs).size).toBe(markers.length);
 });
 
-test("every registered marker reaches the rendered icon layer and icon sheet", () => {
+test("every registered marker reaches the rendered icon layer and checked-in sheet", async () => {
   const placements: PublicPlacement[] = MARKER_IDS.map((category, index) => ({
     placementId: `placement-${category}`,
     mapSpaceId: "fixture-map",
@@ -103,6 +103,10 @@ test("every registered marker reaches the rendered icon layer and icon sheet", (
   const renderedIds = (layer.props.data as readonly { markerId: string }[]).map((marker) => marker.markerId);
   expect(renderedIds.sort()).toEqual([...MARKER_IDS].sort());
   expect(Object.keys(layer.props.iconMapping ?? {}).sort()).toEqual([...MARKER_IDS].sort());
+  const pixels = new DataView(await Bun.file(new URL("../../../static/map-marker-icons.png", import.meta.url)).arrayBuffer());
+  expect(pixels.getUint32(16)).toBe(MARKER_IDS.length * 64);
+  expect(pixels.getUint32(20)).toBe(64);
+  expect(MARKER_IDS.map((id) => iconSheet.mapping[id]?.x)).toEqual(MARKER_IDS.map((_, index) => index * 64));
   expect(layer.id).toBe(MARKER_LAYER_ID);
 });
 

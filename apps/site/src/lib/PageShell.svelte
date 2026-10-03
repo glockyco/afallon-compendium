@@ -69,7 +69,7 @@
   <header class="bar">
     <div class="bar-inner">
       <a class="brand" href={`${base}/`}>
-        <img src={`${base}/logo.png`} width="36" height="36" alt="" />
+        <img src={`${base}/logo.webp`} width="36" height="36" alt="" />
         <span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span>
       </a>
       <nav class="site-nav" aria-label="Site">

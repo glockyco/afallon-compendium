@@ -92,6 +92,9 @@ Staging verifies the candidate against the accepted publication that the second 
 
 Production builds need `SITE_STAGE=production`: `bun run build:production`. The development server uses `apps/site/.svelte-kit`, while the site's type check writes to `.svelte-kit-check`, builds and `bun run preview` use `.svelte-kit-build`, and tests that start Vite use `.svelte-kit-test`, so checking, building, or testing never disturbs a running development server. `bun install` creates `apps/site/.svelte-kit` when it is missing, because the site's `tsconfig.json` and the tests read the files SvelteKit generates there.
 
+Marker glyphs use the checked-in `apps/site/static/map-marker-icons.png` sprite and its mapping. After changing a marker icon, color, or category, run `bun --cwd apps/site scripts/generate-map-icons.ts` with Playwright Chromium installed (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pointing to a Chromium binary), then commit both generated files.
+
+
 ## Data pipeline
 
 Runtime steps need a local copy of Afallon with the HotRepl host loaded. [`config.example.json`](config.example.json) lists the paths and connection settings. Every command runs from the project root:

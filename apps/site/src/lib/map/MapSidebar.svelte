@@ -58,7 +58,7 @@
 
 <aside class:collapsed class="control-panel" aria-label="Map controls">
   <div class="panel-header">
-    {#if !collapsed}<a class="home-link" href="{logoBase}/" aria-label="Afallon Compendium home"><img src="{logoBase}/logo.png" alt="" /><span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span></a>{/if}
+    {#if !collapsed}<a class="home-link" href="{logoBase}/" aria-label="Afallon Compendium home"><img src="{logoBase}/logo.webp" alt="" /><span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span></a>{/if}
     <button class="panel-toggle" type="button" on:click={onToggle} aria-label={collapsed ? 'Expand map controls' : 'Collapse map controls'} title="⌘/Ctrl+B" aria-expanded={!collapsed}>{collapsed ? '»' : '«'}</button>
   </div>
   {#if collapsed}
