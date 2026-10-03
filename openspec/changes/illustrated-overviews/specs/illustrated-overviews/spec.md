@@ -14,7 +14,7 @@ The Classes, Skills, Races, Factions, and Properties lists SHALL show linked til
 
 #### Scenario: Aligning Class Choices
 - **WHEN** classes with different-length descriptions share a row
-- **THEN** their artwork and names begin at the same vertical position
+- **THEN** their artwork and names begin at the same vertical position, their facts align at the bottom of the row, and hyphenated description words remain together
 
 #### Scenario: Browsing Skill Groups
 - **WHEN** a reader opens Skills

@@ -12,6 +12,8 @@
   export let variant: 'class' | 'compact' | 'editorial' | 'property' = 'compact';
   export let home = false;
   $: glyph = kindGlyphSvg(registry.find((entry) => entry.kind === ref.kind)?.icon) ?? '';
+  // Keep compound words together when a description wraps inside a narrow tile.
+  $: descriptionText = description?.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011') ?? null;
 </script>
 
 <div class="tile" class:portrait={variant === 'class'} class:editorial={variant === 'editorial'} class:compact={variant === 'compact'} class:home>
@@ -21,7 +23,7 @@
   {/if}
   <span class="copy">
     <span class="name"><EntityLink {ref} {registry} tooltip={false} plain /></span>
-    {#if description}<span class="description">{description}</span>{/if}
+    {#if descriptionText}<span class="description">{descriptionText}</span>{/if}
     {#if facts.length}<span class="facts">{#each facts as fact, index}{#if index}<span class="separator" aria-hidden="true">{' · '}</span>{/if}<span class="fact">{fact}</span>{/each}</span>{/if}
     {#if metrics.length}<span class="metrics">{#each metrics as metric}<span class="metric"><span class="metric-label">{metric.label}</span><span class="metric-value" class:c-price={metric.value !== null}>{metric.value ?? 'Unknown'}</span>{#if metric.detail}<span class="metric-detail">{metric.detail}</span>{/if}</span>{/each}</span>{/if}
   </span>
@@ -46,6 +48,9 @@
   .portrait { flex-direction: column; justify-content: flex-start; gap: .8rem; padding: 1.25rem .85rem 1rem; background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); text-align: center; }
   .portrait .art { width: 4.5rem; height: 4.5rem; border-radius: 14px; box-shadow: 0 8px 20px var(--c-shadow); }
   .portrait .copy { flex: 0 1 auto; align-content: start; justify-items: center; }
+  .portrait:not(.home) .copy { display: flex; flex-direction: column; align-items: center; flex: 1 1 auto; width: 100%; }
+  .portrait:not(.home) .description { max-width: 100%; }
+  .portrait:not(.home) .facts { margin-top: auto; }
   .compact:not(.home) { align-items: flex-start; }
   .compact:not(.home) .copy { align-content: start; }
   .editorial { align-items: flex-start; padding: 1rem 1.1rem; }

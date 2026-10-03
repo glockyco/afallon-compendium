@@ -12,3 +12,4 @@
 - [x] 3.1 Check six routes plus home at 1440, 1100, and 390 pixels in Firefox and Chromium, save and inspect screenshots, and check horizontal overflow.
 - [x] 3.2 Validate the OpenSpec change and commit after scoped verification.
 - [x] 3.3 Confirm aligned class artwork and names, the Loot topic summary, and nonbreaking facts in all six galleries at 1440, 1100, and 390 pixels in Firefox and Chromium, then validate and commit.
+- [x] 3.4 Confirm class facts align at the bottom and hyphenated playstyle words stay together; compare race, faction, and property rows at 1440, 1100, and 390 pixels in Firefox and Chromium, then validate and commit.
