@@ -95,7 +95,7 @@
           <li>
             <a class="item-group" href={`${listHref('items')}?${new URLSearchParams({ itemType: group.type })}`}>
               {#if group.icon}<img src={artUrl(group.icon)} width="56" height="56" alt="" loading="lazy" decoding="async" data-rarity={rarityTone(group.rarity ?? undefined)} />{:else}<span class="item-art fallback" aria-hidden="true">{@html kindGlyph('items')}</span>{/if}
-              <span class="skill-copy"><span class="tile-name">{group.label}</span><span class="tile-meta">{countText(group.count, 'item', 'items')}</span></span>
+              <span class="item-copy"><span class="tile-name">{group.label}</span><span class="tile-meta">{countText(group.count, 'item', 'items')}</span></span>
             </a>
           </li>
         {/each}
@@ -287,6 +287,9 @@
   .item-group:hover { border-color: var(--c-frame-hover); }
   .item-group img, .item-art { flex: none; width: 3.25rem; height: 3.25rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); box-shadow: 0 6px 16px var(--c-shadow); }
   .item-group img[data-rarity] { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
+  .item-copy { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
+  .item-art.fallback { display: grid; place-items: center; color: var(--c-text-mute); }
+  .item-art.fallback :global(svg) { width: 45%; height: 45%; }
   .item-group .tile-name { font-size: var(--c-text-lead); }
   /* Place tiles share the look of the dungeon tiles: artwork with its level range, then the name and what is there. */
   .places { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
