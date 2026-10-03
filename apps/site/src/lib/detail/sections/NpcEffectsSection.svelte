@@ -35,7 +35,7 @@
 {#if abilities.length}
   <Section id="applied-effects" title="Effects they apply" count={abilities.length}>
     {#if sharedTarget && sharedTarget !== 'Target'}<p>{sharedTarget === 'Caster' ? 'These effects affect the NPC.' : `These effects target ${sharedTarget.toLowerCase()}.`}</p>{/if}
-    <p>Each chance is rolled every time the ability hits a target. An ability that hits several targets, or pulses several times, rolls again for each hit.</p>
+    {#if abilities.some((row) => row.chance !== undefined)}<p>The chance applies to each hit, so an ability that hits several targets or hits several times gives several chances.</p>{/if}
     <RelationTable columns={planned.columns} rows={abilities} label={`Effects applied by ${name}`}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />

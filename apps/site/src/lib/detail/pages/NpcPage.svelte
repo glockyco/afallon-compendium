@@ -96,7 +96,12 @@
   // range, and the level difference changes the roll. Followers, Heroic, and bonuses are left to the kill calculator.
   let characterLevel = 1;
   $: kill = combat && document.locations.length && facts.experience?.levelDifference && facts.experience.levelCap && facts.level && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? facts.experience : undefined;
-  $: creatureLevel = kill && facts.level ? nearestCreatureLevel(facts.level, characterLevel, kill.levelCap!) : undefined;
+  // A creature whose level varies gets one creature-level choice, shared by its combat stats and its experience. Its
+  // first value is the level that the creature spawns at for the reader's level.
+  $: spawnLevel = kill && facts.level ? nearestCreatureLevel(facts.level, characterLevel, kill.levelCap!) : undefined;
+  $: levelVaries = Boolean(facts.level && facts.level.max !== undefined && facts.level.max > facts.level.min);
+  $: creatureLevel = levelVaries && facts.level ? Math.min(facts.level.max ?? statLevel, Math.max(facts.level.min, statLevel)) : spawnLevel;
+  $: creatureLevelId = `npc-level:${document.ref.key}`;
   $: award = kill && creatureLevel !== undefined ? calculateKillAward({ minExperience: kill.min, maxExperience: kill.max, experiencePerLevel: kill.perLevel,
     higherModifier: kill.levelDifference!.higher, lowerModifier: kill.levelDifference!.lower }, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
   $: gear = document.adventurerGear;
@@ -105,7 +110,7 @@
   $: rosterGuide = document.placedRules.find((rule) => rule.target === 'adventurer');
   // Lead with the NPC's actual service or loot. Empty drops and absent placements are not primary answers.
   $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
-  $: hasSide = Boolean(adventurer || combat && summaryFacts.length > 1 || facts.level?.scales || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
+  $: hasSide = Boolean(adventurer || kill || combat && summaryFacts.length > 1 || facts.level?.scales || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
   $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level)}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
   const kitColumns: RelationColumn<NonNullable<PublicNpc['adventurerGear']>['kit'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
@@ -167,6 +172,16 @@
       </FactsCard>
       </div>
     {/if}
+    {#if kill && award && creatureLevel !== undefined}
+      <SideCard title="Experience per kill">
+        <div class="experience">
+          <LevelControl id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" min={1} max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} compact slider={false} bind:level={characterLevel} />
+          {#if levelVaries && facts.level}<LevelControl id="npc-experience-creature-level" readerId={creatureLevelId} label="Creature level" min={facts.level.min} max={facts.level.max ?? facts.level.min} fallback={spawnLevel ?? facts.level.min} compact slider={false} bind:level={statLevel} />{/if}
+          <p><strong>{rangeText(award.low, award.high)}</strong> experience</p>
+          {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Kill calculator</a>{/if}
+        </div>
+      </SideCard>
+    {/if}
     {#if adventurer}
       <SideCard title="Arrival">
         <FactList>
@@ -183,18 +198,17 @@
       <Section id="combat-stats" title="Combat Stats" line={statSource?.level ? `In ${statSource.label}, level ${npcLevelText({ ...statSource.level, scales: false })}` : undefined} actionVisible={Boolean(variableStatLevel)}>
         <svelte:fragment slot="action">
           {#if variableStatLevel && statSource}
-            <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={`npc-level:${document.ref.key}:${statSource.label}`} label="Creature level" min={statMin} max={statMax} fallback={statMin} compact slider={false} bind:level={statLevel} /></span>
+            <span class="combat-control"><span class="mobile-level-label" aria-hidden="true">Level</span><LevelControl id="npc-creature-level" readerId={creatureLevelId} label="Creature level" min={statMin} max={statMax} fallback={spawnLevel !== undefined ? Math.min(statMax, Math.max(statMin, spawnLevel)) : statMin} compact slider={false} bind:level={statLevel} /></span>
           {/if}
         </svelte:fragment>
-        <dl class="combat-tiles" style={`--stat-columns: ${Math.min(4, primaryStats.length)}`}>
+        <dl class="combat-stats" style={`--stat-columns: ${Math.min(4, primaryStats.length)}`}>
           {#each primaryStats as stat}
-            <div class="combat-tile"><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
+            <div><dt>{statLabel(stat)}</dt><dd>{npcStatDisplay(stat, statLevel)}</dd></div>
           {/each}
         </dl>
         <details class="stat-method">
           <summary>How these are calculated</summary>
-          <p class="stat-formula">Shown values use a shared starting value plus this creature's bonus and a gain per level.</p>
-          {#if statGroups.other.length}<p class="stat-extra">Other known bonuses, not complete stats: {#each statGroups.other as stat, index}{index ? ', ' : ''}{statLabel(stat)} {npcStatAmount(stat.amount, stat.isPercent)}{/each}.</p>{/if}
+          <p class="stat-formula">Each stat starts at the same value for every creature. {document.ref.name} adds its own bonus to that, and gains more with each level.</p>
           <div class="c-table-scroll"><table class="c-table c-table--calculator">
             <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num">Start</th><th scope="col" class="c-num">Bonus</th><th scope="col" class="c-num">Per Level</th></tr></thead>
             <tbody>{#each primaryStats as stat}
@@ -202,18 +216,7 @@
             {/each}</tbody>
           </table></div>
         </details>
-        {#if primaryStats.some((stat) => nameOf(stat.stat) === 'Strength')}
-          <p class="stat-attack">A physical move that uses Strength adds it to that move's damage before defenses. The actual hit depends on the move and its target.</p>
-        {/if}
-      </Section>
-    {/if}
-    {#if kill && award && creatureLevel !== undefined}
-      <Section id="experience-per-kill" title="Experience per kill">
-        <div class="experience-details">
-          <LevelControl id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" min={1} max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} bind:level={characterLevel} />
-          <p><strong>{rangeText(award.low, award.high)}</strong> experience for a level {formatNumber(creatureLevel)} {document.ref.name}.</p>
-          {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and bonuses in the kill calculator</a>{/if}
-        </div>
+        {#if statGroups.other.length}<p class="stat-extra">It also has {listText(statGroups.other.map((stat) => `${npcStatAmount(stat.amount, stat.isPercent)} ${statLabel(stat)}`))}.</p>{/if}
       </Section>
     {/if}
     {#if !answer && !document.summonedBy.length && !document.spawnedBy.length && !document.recruitedByActions.length && !document.appliedEffects.length && !document.sells.length && !document.quests.length && !document.usedInQuests.length && !document.abilityPhases.some((phase) => phase.abilities.length) && !document.locations.length && !adventurer && !variantTable}
@@ -267,16 +270,22 @@
   .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   .combat-control { display: inline-flex; align-items: center; gap: .35rem; }
   .mobile-level-label { display: none; color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .combat-tiles { display: grid; grid-template-columns: repeat(var(--stat-columns), minmax(0, 1fr)); gap: .65rem; margin: 0; }
-  .combat-tile { display: flex; flex-direction: column-reverse; gap: .25rem; min-width: 0; padding: .85rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
-  .combat-tile dt { color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .combat-tile dd { margin: 0; color: var(--c-text-strong); font: 700 clamp(1.35rem, 2vw, 1.7rem)/1.15 var(--c-serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .stat-formula, .stat-extra, .stat-attack { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
+  /* One bordered strip, like the other tables: a label above each value, with dividers between the stats. */
+  .combat-stats { display: grid; grid-template-columns: repeat(var(--stat-columns), minmax(0, 1fr)); margin: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  .combat-stats > div { display: flex; flex-direction: column; gap: .2rem; min-width: 0; padding: .65rem .9rem; }
+  .combat-stats > div + div { border-left: 1px solid var(--c-line-soft); }
+  .combat-stats dt { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; }
+  .combat-stats dd { margin: 0; color: var(--c-text-strong); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stat-formula, .stat-extra { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.5; }
   .stat-method { font-size: var(--c-text-small); }
-  .experience-details { display: grid; justify-items: start; gap: .75rem; }
-  .experience-details p { margin: 0; }
+  .experience { display: grid; justify-items: start; gap: .65rem; }
+  .experience p { margin: 0; }
+  /* Both level controls share one label column, so their steppers line up. */
+  .experience { grid-template-columns: max-content auto; align-items: center; column-gap: .6rem; }
+  .experience :global(.level-control) { display: contents; }
+  .experience > p, .experience > a { grid-column: 1 / -1; }
   .stat-method summary { color: var(--c-accent); cursor: pointer; }
-  .stat-method .stat-formula, .stat-method .stat-extra { margin-top: .65rem; }
+  .stat-method .stat-formula { margin-top: .65rem; }
   .stat-method .c-table-scroll { margin-top: .6rem; }
   .stat-method :global(.c-table) { width: 100%; font-size: var(--c-text-small); }
   .stat-method :global(.c-table th) { white-space: nowrap; overflow-wrap: normal; }
@@ -284,7 +293,9 @@
   .empty { color: var(--c-text-dim); }
   .mobile-combat { display: none; }
   @media (max-width: 640px) {
-    .combat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .combat-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .combat-stats > div:nth-child(odd) { border-left: 0; }
+    .combat-stats > div:nth-child(n + 3) { border-top: 1px solid var(--c-line-soft); }
     .mobile-level-label { display: inline; }
     .combat-control :global(.level-control > label) { display: none; }
   }
