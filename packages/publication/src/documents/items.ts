@@ -1,7 +1,7 @@
 import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogClothDrops, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogProgressionFact, type CatalogQuestPickup } from "@afallon/contracts/catalog";
 import { categoryLabel, type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type Enchanting, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
-import { recipeRank } from "../crafting";
+import { recipeRank, verifiedRule } from "../crafting";
 import { requiredLevel } from "../gathering";
 import { chancePercent } from "../levels";
 import { placedRules, topicRef } from "../placed-rules";
@@ -39,6 +39,30 @@ function worldLootInput(input: DocumentProjectionInput): { tables: WorldLootTabl
   }
   const result = { tables, items };
   worldLootByInput.set(input, result);
+  return result;
+}
+
+const heroicPlacesByInput = new WeakMap<DocumentProjectionInput, HeroicPlaces>();
+interface HeroicPlaces {
+  /** The name of each scene where the Heroic tier pauses, by scene key. */
+  paused: ReadonlyMap<string, string>;
+  sceneOf: ReadonlyMap<string, string>;
+}
+
+/**
+ * The scenes where the Heroic tier pauses, and the scene of each placement. The tier pauses in the places that the
+ * verified exclusion rule names and in every timed dungeon, whose timer or corruption pauses it as well. A creature drop
+ * becomes Heroic only while the tier is live where the creature dies.
+ */
+function heroicPlaces(input: DocumentProjectionInput): HeroicPlaces {
+  const cached = heroicPlacesByInput.get(input);
+  if (cached) return cached;
+  const paused = new Map<string, string>();
+  for (const link of verifiedRule(input.facts, "heroic-tier-excluded-areas").links) if (link.entityKey) paused.set(link.entityKey, link.label);
+  // Every timed dungeon has a published place page, so the reference resolves to its page name, not this label.
+  for (const { scene } of input.facts.corruption?.dungeons ?? []) if (scene.entityKey && !paused.has(scene.entityKey)) paused.set(scene.entityKey, scene.label ?? "");
+  const result = { paused, sceneOf: new Map(input.relations.placements.map((placement) => [placement.placementId, placement.sceneKey])) };
+  heroicPlacesByInput.set(input, result);
   return result;
 }
 
@@ -344,12 +368,27 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const teaches = taughtRecipe === undefined ? undefined : projectCraft(taughtRecipe, input, indexes);
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
   const isWeapon = fact?.itemType === "WEAPON";
-  // Only creature-drop generation marks new equipment Heroic. Quest rewards, crafting, and chests take other paths.
+  // Only creature-drop generation marks new equipment Heroic, and only while the tier is live where the creature dies.
+  // Quest rewards, crafting, and chests take other paths. World loot and a creature without a recorded place could drop
+  // the item anywhere, so they keep the preview. Gear that only creatures in places where the tier pauses drop never
+  // becomes Heroic, and its page names those places.
   const heroicSettings = input.facts.progression.facts.find((row) => row.entityKey === HEROIC_TIER_KEY);
-  const canDropHeroic = droppedBy.length > 0 && (fact?.itemType === "ARMOR" || fact?.itemType === "WEAPON"
-    || (fact?.itemType === "Trinket" && fact.armorSlot === "Trinket"));
-  const heroic = canDropHeroic && heroicSettings?.kind === "heroicTier"
+  const heroicGear = fact?.itemType === "ARMOR" || fact?.itemType === "WEAPON" || (fact?.itemType === "Trinket" && fact.armorSlot === "Trinket");
+  let liveDrop = false;
+  const pausedScenes = new Map<string, string>();
+  if (heroicGear && heroicSettings?.kind === "heroicTier") {
+    const places = heroicPlaces(input);
+    for (const row of indexes.dropsByItem.get(entity.entityKey) ?? []) {
+      const scenes = row.context === "world" || row.owner.entityKey === null ? [] : [...new Set(row.placementIds.flatMap((id) => places.sceneOf.get(id) ?? []))];
+      if (scenes.length === 0 || scenes.some((scene) => !places.paused.has(scene))) liveDrop = true;
+      else for (const scene of scenes) pausedScenes.set(scene, places.paused.get(scene)!);
+    }
+  }
+  const heroic = liveDrop && heroicSettings?.kind === "heroicTier"
     ? { statBonusPercent: heroicSettings.details.heroicGearStatBonusPercent } : undefined;
+  const heroicPausedIn = !liveDrop && pausedScenes.size > 0
+    ? [...pausedScenes].map(([entityKey, label]) => input.resolve({ entityKey, label })).sort((left, right) => refLabel(left).localeCompare(refLabel(right), "en"))
+    : undefined;
   const settings = input.facts.corruption;
   const dungeonRewards = input.corruptionRewards?.byItem.get(entity.entityKey);
   const corruption = dungeonRewards?.some((reward) => !reward.guaranteed) && isCorruptibleEquipment(fact)
@@ -385,7 +424,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       ...(damageLabel === undefined ? {} : { weaponDamageLabel: damageLabel }),
       ...(itemPower === undefined ? {} : { itemPower }), ...(damagePerSecond === undefined ? {} : { damagePerSecond }),
       ...(corruption === undefined ? {} : { corruption }), ...(dungeonRewards?.length ? { dungeonRewards } : {}),
-      ...(heroic ? { heroic } : {}),
+      ...(heroic ? { heroic } : {}), ...(heroicPausedIn ? { heroicPausedIn } : {}),
       ...(tokenInfo === undefined ? {} : { tokenInfo }),
       stats: (fact?.stats ?? []).filter((row) => row.stat.entityKey !== "stats:53")
         .map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
@@ -420,7 +459,8 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
       .filter((rule) => rule.target !== "adventurers" || adventurers.length > 0)
       .concat(enchanting ? [{ target: "enchants", guide: topicRef("crafting-and-gathering"), section: "enchanting" }] : [])
-      .concat(heroic ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "heroic-gear" }] : [])
+      .concat(heroic ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "heroic-gear" }]
+        : heroicPausedIn ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "entering" }] : [])
       .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), section: "gear" }] : [])
       .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), section: "tokens" }] : [])
       .concat(dungeonRewards?.length ? [{ target: "dungeon-rewards", guide: topicRef("corruption"), section: "timed-dungeons" }] : []),

@@ -37,9 +37,21 @@
 
   let showAllRecipes = false;
   $: shownRecipes = shownRowCount(document.usedInRecipes.length, showAllRecipes);
-  let corruptionLevel = 0;
-  let heroic = false;
   $: facts = document.facts;
+  // The tooltip shows one version of the item at a time: as it usually drops, as Heroic gear, or corrupted. Corrupted gear
+  // comes from the reward bags of timed dungeons, where the Heroic tier pauses, so no single item is both.
+  type GearVersion = 'normal' | 'heroic' | 'corrupted';
+  const GEAR_VERSIONS: ReadonlyArray<{ id: GearVersion; label: string }> = [
+    { id: 'normal', label: 'Normal' }, { id: 'heroic', label: 'Heroic' }, { id: 'corrupted', label: 'Corrupted' },
+  ];
+  let version: GearVersion = 'normal';
+  let corruptedLevel = 1;
+  $: versions = GEAR_VERSIONS.filter((option) => option.id === 'normal' || (option.id === 'heroic' ? Boolean(facts.heroic) : Boolean(facts.corruption)));
+  // Another item starts again as it usually drops, and a corrupted version starts at the highest corruption level.
+  $: document, version = 'normal';
+  $: corruptedLevel = facts.corruption?.maxLevel ?? 1;
+  $: heroic = version === 'heroic';
+  $: corruptionLevel = version === 'corrupted' ? corruptedLevel : 0;
   $: tone = rarityTone(facts.rarity);
   $: enchantingGuide = document.placedRules.find((rule) => rule.target === 'enchants');
   $: detailedEnchantStats = Boolean(document.description && facts.enchanting?.tiers.some((tier) => tier.stats.some((stat) => nameOf(stat.stat).length > 36)));
@@ -142,23 +154,25 @@
           {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
         </SideCard>
       {/if}
-      {#if facts.heroic || facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON' || facts.corruption}
+      {#if versions.length > 1 || facts.heroicPausedIn?.length || facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
         <SideCard title="Gear options">
-          {#if facts.heroic}
-            <div class="heroic-control">
-              <button type="button" class="c-action" aria-pressed={heroic} on:click={() => (heroic = !heroic)}>{heroic ? 'Showing Heroic gear' : 'Show Heroic gear'}</button>
-              <p>Creature drops can be Heroic while the Heroic tier is live. Random stat rolls keep their rolled values.</p>
-              {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
+          {#if versions.length > 1}
+            <div class="versions" role="radiogroup" aria-label="Version shown in the tooltip" id={facts.corruption ? 'corruption' : undefined}>
+              {#each versions as option (option.id)}
+                <label class="c-action version"><input type="radio" name="gear-version" value={option.id} bind:group={version} />{option.label}</label>
+              {/each}
             </div>
           {/if}
-          {#if facts.corruption}
-            <div id="corruption" class="corruption-control">
-              <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
-              {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
-              {#if facts.dungeonRewards?.length}<p>Can appear with corruption in the reward bags from {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
-              {#if corruptionLevel > 0 && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
-            </div>
+          {#if version === 'heroic'}
+            <p>Creatures drop it as Heroic gear while the Heroic tier is live, with {formatNumber(facts.heroic?.statBonusPercent ?? 0)}% higher fixed stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}.</p>
+            {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
+          {:else if version === 'corrupted' && facts.corruption}
+            <LevelSlider id="corruption-level" label="Corruption level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} readout={(level) => `+${level}`} valueText={(level) => `+${level}`} />
+            {#if facts.dungeonRewards?.length}<p>From the reward bags of {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
+            {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
           {/if}
+          {#if version !== 'normal' && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
+          {#if facts.heroicPausedIn?.length}<p>Never drops as Heroic gear. It drops only in {#each facts.heroicPausedIn as place, index}{index ? (index === facts.heroicPausedIn.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={place} {registry} />{/each}, where the Heroic tier pauses.</p>{/if}
           {#if facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
             <p>Can be enchanted. <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>See enchanting items</a></p>
           {/if}
@@ -329,8 +343,13 @@
 </article>
 
 <style>
-  .corruption-control { display: grid; gap: .6rem; scroll-margin-top: 1rem; }
-  .heroic-control { display: grid; justify-items: start; gap: .5rem; }
+  /* The versions are actions in one row; the chosen one takes the accent frame. Each radio stays in the tab order and the
+     arrow keys move between them, while the label is what a reader sees and clicks. */
+  .versions { display: flex; flex-wrap: wrap; gap: .35rem; scroll-margin-top: 1rem; }
+  .version { position: relative; cursor: pointer; }
+  .version input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+  .version:has(input:checked) { border-color: var(--c-accent); background: color-mix(in srgb, var(--c-accent) 16%, var(--c-surface-2)); color: var(--c-text-strong); }
+  .version:has(input:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .enchant-stats { border-top: 1px solid var(--c-line-soft); padding-top: .55rem; }
   .enchant-stats summary { cursor: pointer; color: var(--c-accent); font-weight: 600; }
   .enchant-stats :global(.fact-list) { margin-top: .6rem; }

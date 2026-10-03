@@ -43,8 +43,10 @@
       <p>Speed {attackSpeed.toFixed(2)}</p>
       {#if facts.damagePerSecond !== undefined}<p class="dim">({(calculated?.damagePerSecond ?? facts.damagePerSecond).toFixed(1)} damage per second)</p>{/if}
     {/if}
+    <!-- The game tags a Heroic item with the one word "Heroic" in its own green, above the corruption line, and shows the
+         bonus only in the values below. -->
+    {#if heroic && facts.heroic}<p class="heroic">Heroic</p>{/if}
     {#if corruptionLevel > 0 && calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
-    {#if heroic && facts.heroic}<p class="good">Heroic · +{formatNumber(facts.heroic.statBonusPercent)}% base stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}</p>{/if}
 
     {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot></p>{/each}
     {#if facts.randomStats.length}
@@ -90,6 +92,8 @@
   strong { color: var(--c-text-strong); font-weight: 650; }
   .item-power { color: var(--c-currency); }
   .good { color: var(--c-positive); }
+  /* `ItemTooltip.Show` writes the Heroic tag as `<color=#7CFC00>`. */
+  .heroic { color: #7cfc00; }
   .dim { color: var(--c-text-dim); }
   .group { display: grid; gap: .2rem; }
   .plain { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }

@@ -404,6 +404,8 @@ export const ItemFactsSchema = Type.Object({
   // speed and the damage per second below it. A corruption preview changes only the range.
   itemPower: optional(number), damagePerSecond: optional(number),
   corruption: optional(CorruptionPreviewSchema), heroic: optional(Type.Object({ statBonusPercent: number }, { additionalProperties: false })),
+  // Gear that only creatures in these places drop, where the Heroic tier pauses, so it never becomes Heroic.
+  heroicPausedIn: optional(Type.Array(RefSchema, { minItems: 1 })),
   dungeonRewards: optional(Type.Array(DungeonRewardSchema, { minItems: 1 })), tokenInfo: optional(CorruptionTokenInfoSchema),
   stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),

@@ -158,9 +158,13 @@ test("an enchantment's authored requirements and tiers live on its item, with it
   expect(searchAliases(item)).toContain("Health Enchantment");
 });
 
-test("only equipment with a creature-drop route receives the captured Heroic preview", () => {
+test("Heroic gear needs a creature drop where the tier can be live", () => {
   const chestOnly = { ...entities[0]!, entityKey: "items:89", nativeId: 89, name: "Chest Sword" };
-  const sourceEntities = [...entities, chestOnly];
+  const vaultOnly = { ...entities[0]!, entityKey: "items:90", nativeId: 90, name: "Vault Sword" };
+  const worldDrop = { ...entities[0]!, entityKey: "items:91", nativeId: 91, name: "World Sword" };
+  const vault = { ...entities.find((row) => row.entityKey === "scenes:10")!, entityKey: "scenes:46", nativeId: 46, name: "Barrowdeep" };
+  const warden = { ...entities.find((row) => row.entityKey === "npcs:2")!, entityKey: "npcs:7", nativeId: 7, name: "Warden" };
+  const sourceEntities = [...entities, chestOnly, vaultOnly, worldDrop, vault, warden];
   const heroic = { entityKey: "heroicTier:settings", name: "Heroic Tier", kind: "heroicTier" as const, details: {
     asset: "Heroic Tier", killExperienceMultiplier: 5, essenceTreePoint: null, essenceBaseAmount: 1, essencePerAffix: 1,
     essenceEliteMultiplier: 1, essenceRareMultiplier: 1, essenceBossMultiplier: 1, essenceHealthBaseline: 1,
@@ -168,15 +172,32 @@ test("only equipment with a creature-drop route receives the captured Heroic pre
     gearScoreCoefficient: 0, maxGearBonus: 0, affixChance: 0, extraAffixChance: 0, maxAffixes: 0,
     rareGuaranteedAffixes: 0, affixLootDropMultiplier: 1, heroicGearStatBonusPercent: 50,
   } };
+  // The tier pauses in Barrowdeep, where the Warden stands. The Guardian stands in the Crypt, where it stays live.
+  const pauses: CatalogMechanicsRule = { ruleId: "heroic-tier-excluded-areas", topic: "heroic-tier", section: "entering", ordinal: 0,
+    status: "verified", phrase: "The tier pauses in {#0}.", operands: {}, links: [{ entityKey: "scenes:46", label: "Barrowdeep" }], sources: [], placements: [] };
   const sourceFacts: CatalogFacts = { ...facts, entities: sourceEntities,
-    progression: { ...facts.progression, facts: [heroic] },
-    items: [...facts.items, { ...facts.items[0]!, entityKey: chestOnly.entityKey }] };
-  const sourceRelations: CatalogRelations = { ...relations, containers: [...relations.containers, {
-    ...relations.containers[0]!, item: { entityKey: chestOnly.entityKey, label: chestOnly.name },
-  }] };
+    progression: { ...facts.progression, facts: [heroic], mechanicsRules: [pauses] },
+    items: [...facts.items, ...[chestOnly, vaultOnly, worldDrop].map((row) => ({ ...facts.items[0]!, entityKey: row.entityKey }))],
+    npcs: [...facts.npcs, { ...facts.npcs[0]!, entityKey: warden.entityKey }],
+    places: [...facts.places, { ...facts.places[0]!, entityKey: vault.entityKey }] };
+  const drop = relations.drops[0]!;
+  const sourceRelations: CatalogRelations = { ...relations,
+    containers: [...relations.containers, { ...relations.containers[0]!, item: { entityKey: chestOnly.entityKey, label: chestOnly.name } }],
+    drops: [...relations.drops,
+      { ...drop, owner: { entityKey: warden.entityKey, label: warden.name! }, item: { entityKey: vaultOnly.entityKey, label: vaultOnly.name! }, placementIds: ["p9"] },
+      { ...drop, context: "world", owner: { entityKey: null, label: "Any creature" }, item: { entityKey: worldDrop.entityKey, label: worldDrop.name! }, placementIds: [] }],
+    placements: [...relations.placements, { ...relations.placements[0]!, placementId: "p9", sceneNativeId: 46, sceneKey: "scenes:46", label: "Warden",
+      roles: [{ role: "boss", npcEntityKey: warden.entityKey, scope: "authored" }] }] };
   const { documents } = project(sourceEntities, sourceFacts, sourceRelations);
-  expect((documents.get("items:1") as PublicItem).facts.heroic).toEqual({ statBonusPercent: 50 });
-  expect((documents.get(chestOnly.entityKey) as PublicItem).facts.heroic).toBeUndefined();
+  const item = (key: string) => documents.get(key) as PublicItem;
+  expect(item("items:1").facts.heroic).toEqual({ statBonusPercent: 50 });
+  expect(item(worldDrop.entityKey).facts.heroic).toEqual({ statBonusPercent: 50 });
+  expect(item(chestOnly.entityKey).facts).not.toHaveProperty("heroic");
+  expect(item(chestOnly.entityKey).facts).not.toHaveProperty("heroicPausedIn");
+  // A drop only where the tier pauses never becomes Heroic: the page names the place and explains where the tier pauses.
+  expect(item(vaultOnly.entityKey).facts).not.toHaveProperty("heroic");
+  expect(item(vaultOnly.entityKey).facts.heroicPausedIn).toMatchObject([{ key: "scenes:46", name: "Barrowdeep" }]);
+  expect(item(vaultOnly.entityKey).placedRules).toContainEqual({ target: "heroic-gear", guide: expect.objectContaining({ key: "mechanics:heroic-tier" }), section: "entering" });
 });
 
 
