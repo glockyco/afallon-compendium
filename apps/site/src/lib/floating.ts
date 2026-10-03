@@ -65,8 +65,14 @@ export class FloatingController {
  * Places `panel` right of `anchor`, or left when the right side lacks room, so it never covers the rows above or below
  * its anchor. Only horizontal room decides the side, and a vertical shift keeps the panel inside the viewport. The
  * position follows scrolling, resizing, and content changes until the returned function stops it.
+ *
+ * The panel moves to the end of the page while it is open. Left beside its anchor inside a line of text, it would split
+ * the text around it, and Firefox then shapes that text without the kerning across the split, so opening a hover card
+ * could widen a link and push the line's last word to the next line. The panel also stops inheriting the font and
+ * spacing of the cell or sentence it describes.
  */
 export function placeBeside(anchor: ReferenceElement, panel: HTMLElement): () => void {
+  document.body.append(panel);
   let active = true;
   const stop = autoUpdate(anchor, panel, () => {
     // `size` writes a max height. Clearing it first lets `flip` measure the natural height, so a panel that grows when
@@ -93,5 +99,5 @@ export function placeBeside(anchor: ReferenceElement, panel: HTMLElement): () =>
       panel.style.visibility = 'visible';
     });
   });
-  return () => { active = false; stop(); };
+  return () => { active = false; stop(); panel.remove(); };
 }
