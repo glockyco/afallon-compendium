@@ -48,7 +48,7 @@
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
     {#each document.sections as section (section.id)}
-      <GuideSection {section} {registry} line={section.id === 'level-curve' ? `Character level cap: ${formatNumber(cap)}.` : undefined}>
+      <GuideSection section={section.id === 'level-curve' ? { ...section, lead: '' } : section} {registry}>
         <svelte:fragment slot="top">
           {#if section.id === 'level-curve'}
             <ProgressionAnswer guide={document} {registry} fallback={fallbackLevel} bind:level={characterLevel} />

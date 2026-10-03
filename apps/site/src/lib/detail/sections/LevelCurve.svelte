@@ -23,8 +23,8 @@
   $: plotWidth = width - left - right;
   $: plotHeight = height - top - bottom;
   const format = (value: number) => value.toLocaleString('en-US');
-  const shortTick = (value: number) => value >= 1_000_000 ? `${format(value / 1_000_000)}m`
-    : value >= 1_000 ? `${format(value / 1_000)}k` : format(value);
+  const shortTick = (value: number) => value >= 1_000_000 ? `${format(value / 1_000_000)}M`
+    : value >= 1_000 ? `${format(value / 1_000)}K` : format(value);
 
   $: cumulative = cumulativeExperience(curve);
   $: total = cumulative[curve.cap] ?? 0;
