@@ -28,11 +28,23 @@ Character, skill, corruption, and gear-score adjustments, and creature levels in
 
 #### Scenario: Short follower range
 - **WHEN** the reader adjusts the number of living followers between zero and ten
-- **THEN** the stepper remains available without an additional slider
+- **THEN** the stepper remains available without an additional slider, with a label and stepper aligned in size and position with neighbouring calculator settings
 
 #### Scenario: Remembered character and skill values
 - **WHEN** a reader chooses a character or skill level and visits another page or reloads
 - **THEN** both the stepper and dependent results show the remembered level, limited to each page's available bounds without changing the stored value
+
+### Requirement: Heroic comparison controls share grid rows
+
+On wide screens, the Creature and place select and Character level stepper SHALL share the first row, while the Creature level select and Equipped gear score stepper SHALL share the second. Each pair SHALL align its labels and its select or stepper inputs at the top with matching input heights, with a reserved slider row below each select opposite the slider. On phones the controls SHALL stack in one column.
+
+#### Scenario: Four Heroic controls on desktop
+- **WHEN** the selected creature has more than one possible spawn level on a wide screen
+- **THEN** the four controls form a two-column, two-row grid whose paired labels and inputs line up
+
+#### Scenario: Heroic controls on a phone
+- **WHEN** the same comparison opens on a narrow screen
+- **THEN** the four controls stack vertically, with the selects and steppers the same height
 
 ### Requirement: Progression marker tracks the selected level
 

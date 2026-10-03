@@ -125,7 +125,7 @@
       <div class="section-head">
         <h2 id="hub-places">Places by Level</h2>
         <div class="section-links">
-          <LevelControl id="hub-your-level" label="Your level" min={1} max={data.levelScale} level={yourLevel} readerId={CHARACTER_LEVEL} optional slider={false} />
+          <LevelControl id="hub-your-level" label="Your level" min={1} max={data.levelScale} level={yourLevel} readerId={CHARACTER_LEVEL} optional compact slider={false} />
           {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'Place', 'Places')}</a>{/if}
         </div>
       </div>

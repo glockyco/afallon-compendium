@@ -10,6 +10,7 @@
   export let fallback: number | undefined = undefined;
   export let readerId: string | undefined = undefined;
   export let slider = true;
+  export let compact = false;
   export let sliderMax: number | undefined = undefined;
   export let optional = false;
   export let allowFraction = false;
@@ -100,7 +101,7 @@
   onDestroy(stopRepeat);
 </script>
 
-<div class="level-control" class:compact={!slider}>
+<div class="level-control" class:compact>
   <label for={id}>{label}</label>
   <div class="stepper">
     <button type="button" aria-label={`Lower ${buttonNoun}`} disabled={shown !== undefined && shown <= min} on:pointerdown={(event) => press(event, -1)} on:pointerup={stopRepeat} on:pointercancel={stopRepeat} on:pointerleave={stopRepeat} on:click={() => { if (!pointerHandled) select((shown ?? max + 1) - 1); pointerHandled = false; }}>−</button>

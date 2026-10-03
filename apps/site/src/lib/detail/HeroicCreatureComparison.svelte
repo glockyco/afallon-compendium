@@ -112,6 +112,16 @@
   .comparison-card :global(.c-table td.c-num) { white-space: normal; }
   .no-break { white-space: nowrap; }
   .comparison-card p { margin: .8rem 0 0; line-height: 1.5; font-size: var(--c-text-small); }
-  @media (min-width: 700px) { .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 699px) { .heroic-creature.loading { min-height: 45rem; } }
+  @media (min-width: 700px) {
+    .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1.5rem 2.75rem 2rem; gap: .35rem 1rem; }
+    .picker, .character-control, .score { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: .35rem; }
+    .picker::after { content: ''; grid-row: 3; }
+    .picker select { grid-row: 2; height: 2.75rem; }
+    .character-control :global(.level-control), .score :global(.level-control) { grid-row: span 3; grid-template-rows: subgrid; gap: .35rem; }
+    .controls :global(.level-control .stepper button) { min-height: 2.75rem; }
+  }
+  @media (max-width: 699px) {
+    .heroic-creature.loading { min-height: 45rem; }
+    .picker select { min-height: 2.875rem; }
+  }
 </style>

@@ -66,7 +66,7 @@
 <div class="progression">
   <div class="intro">
     <p>{description}</p>
-    <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={axisEnd} level={selectedLevel} readerId={levelId} optional slider={false} />
+    <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={axisEnd} level={selectedLevel} readerId={levelId} optional compact slider={false} />
   </div>
   {#if groups.length}
     {#each groups as group, index (group.label)}
