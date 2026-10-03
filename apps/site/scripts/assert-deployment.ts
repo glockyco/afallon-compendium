@@ -4,6 +4,7 @@ import { hashFile, listFiles, parseJson } from "./deployment-files";
 import { deploymentPaths } from "../deployment-paths.mjs";
 import { verifyPublicationGraph } from "./publication-graph";
 import type { DeploymentMetadata } from "./stage-publication.ts";
+import { assertPageHeads } from "./page-heads";
 
 const FREE_ASSET_LIMIT = 20_000;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
@@ -44,6 +45,7 @@ if (metadata.buildId !== publication.buildId || metadata.catalogId !== publicati
 if (metadata.publicationSha256 !== hashFile(publicationPath)) throw new Error("The staged publication hash changed during the build.");
 if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
 if (publication.mode === "preview" && publication.complete) throw new Error("A preview publication cannot report complete coverage.");
+assertPageHeads(outputDir, files);
 
 process.stdout.write(`${JSON.stringify({
   publicationId: metadata.publicationId,

@@ -3,7 +3,7 @@
   import DetailPage from '$lib/detail/DetailPage.svelte';
   import PageShell from '$lib/PageShell.svelte';
   import SeoHead from '$lib/SeoHead.svelte';
-  import { entityDescription } from '$lib/seo';
+  import { entityDescription, entitySocialArt } from '$lib/seo';
   import type { PageData } from './$types';
   export let data: PageData;
 
@@ -16,7 +16,7 @@
   ];
 </script>
 
-<SeoHead title={`${document.ref.name} · Afallon Wiki`} description={summary} type="article" />
+<SeoHead title={`${document.ref.name} · Afallon Wiki`} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} />

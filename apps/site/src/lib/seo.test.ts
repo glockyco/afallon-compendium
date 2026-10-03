@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import type { StaticDocument } from '@afallon/contracts/public';
-import { absolutePageUrl, briefDescription, entityDescription, jsonLdScript } from './seo';
+import type { ArtRef, StaticDocument } from '@afallon/contracts/public';
+import { absolutePageUrl, briefDescription, entityDescription, entitySocialArt, jsonLdScript } from './seo';
 
 const item = (overrides: Record<string, unknown> = {}): StaticDocument => ({
   kind: 'items', document: {
@@ -57,4 +57,13 @@ test('structured names remain valid JSON without closing their script', () => {
   const script = jsonLdScript({ '@type': 'BreadcrumbList', name: '<script>alert(1)</script>' });
   expect(script.match(/<\/script>/g)).toHaveLength(1);
   expect(JSON.parse(script.slice(script.indexOf('>') + 1, -9)).name).toBe('<script>alert(1)</script>');
+});
+
+test('sharing art prefers usable artwork and does not upscale small icons', () => {
+  const art = (width: number, height: number): ArtRef => ({ url: `art/${'a'.repeat(64)}.webp`, width, height, sha256: 'a'.repeat(64), bytes: 100 });
+  const page = (artwork?: ArtRef, portrait?: ArtRef, icon?: ArtRef) =>
+    ({ kind: 'places', document: { ref: { name: 'Oakenvale' }, art: { artwork, portrait, icon } } }) as unknown as StaticDocument;
+  expect(entitySocialArt(page(art(1200, 700), art(500, 500)))).toEqual(art(1200, 700));
+  expect(entitySocialArt(page(art(150, 600), art(400, 400)))).toEqual(art(400, 400));
+  expect(entitySocialArt(page(undefined, undefined, art(64, 64)))).toBeUndefined();
 });

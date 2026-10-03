@@ -1,4 +1,4 @@
-import type { StaticDocument } from '@afallon/contracts/public';
+import type { ArtRef, StaticDocument } from '@afallon/contracts/public';
 import { levelText } from './format';
 
 export const SITE_ORIGIN = 'https://afallon.compendiums.org';
@@ -23,6 +23,19 @@ export function briefDescription(text: string, limit = 155): string {
   if (clean[limit] === ' ') return short;
   const end = short.lastIndexOf(' ');
   return end > 0 ? `${short.slice(0, end).replace(/[\s,;:.]+$/, '')}…` : 'Explore Afallon in the compendium.';
+}
+
+const largeEnoughForSharing = (image: ArtRef | undefined): image is ArtRef =>
+  Boolean(image && image.width >= 200 && image.height >= 200);
+
+/** Use an entity's own shareable art rather than stretching its smaller UI icons. */
+export function entitySocialArt(page: StaticDocument): ArtRef | undefined {
+  const { art, ref } = page.document;
+  if (largeEnoughForSharing(art.artwork)) return art.artwork;
+  if (largeEnoughForSharing(art.portrait)) return art.portrait;
+  if (largeEnoughForSharing(ref.portrait)) return ref.portrait;
+  if (largeEnoughForSharing(art.icon)) return art.icon;
+  return largeEnoughForSharing(ref.icon) ? ref.icon : undefined;
 }
 
 export function entityDescription(page: StaticDocument): string {
