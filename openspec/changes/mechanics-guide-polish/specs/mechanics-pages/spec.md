@@ -23,6 +23,7 @@ Rewards SHALL show the Heroic kill experience multiplier and SHALL distinguish k
 - **THEN** the opening leads with the rewards before a short invitation to turn it on
 - **AND** Getting started names Coalway Woods, Coalway Swamp, and Chillwind Heights as console places and links them
 - **AND** Getting started states the recommended level 25 as advice and says that a console or a right-click on the Heroic World Tier buff turns the tier off
+- **AND** the detailed opening explains confirmation only once and keeps the console choice distinct from the buff's behavior after death
 
 #### Scenario: Where the tier pauses
 - **WHEN** the rules name five excluded places and the dungeon timer and corruption states
@@ -45,6 +46,7 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **WHEN** a reader opens `/mechanics/loot`
 - **THEN** it shows one section each for items that open a chest, supply packs, cloth from kills, world objects, quest items, and the Dungeon Finder
 - **AND** no section is numbered or titled as a step
+- **AND** Items that open a chest gives the specific bags and their item amounts without repeating the lead's instruction to open a bag
 
 #### Scenario: Guide on a phone
 - **WHEN** a reader opens any mechanics page at 390 px

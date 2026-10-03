@@ -100,7 +100,7 @@
     {#if health !== undefined && damage !== undefined}
       <div>
         <h2>What changes</h2>
-        <p>Heroic creatures have {formatNumber(health)}× health and deal {formatNumber(damage)}× damage. Your gear raises both.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
+        <p>Heroic creatures have at least {formatNumber(health)}× health and deal {formatNumber(damage)}× damage. Higher gear scores raise both.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
         <a class="c-link more" href="#empowered-creatures">Heroic creatures</a>
       </div>
     {/if}

@@ -13,7 +13,7 @@
   const creatureGroups = [
     { title: 'How tables choose items', ids: ['creature-loot-entry-rolls', 'creature-loot-minimum'] },
     { title: 'World Loot and level limits', ids: ['creature-world-loot-gates', 'creature-loot-level-band'] },
-    { title: 'Loot bonuses and who gets drops', ids: ['creature-loot-chance-inversion', 'creature-loot-player-reward'] },
+    { title: 'Loot bonuses and party size', ids: ['creature-loot-chance-inversion', 'creature-loot-player-reward'] },
   ];
   const groupedCreatureRules = new Set(creatureGroups.flatMap((group) => group.ids));
 </script>

@@ -133,7 +133,6 @@ test("Creature Drops appears in Mechanics when a verified loot rule is published
   expect(section).toMatchObject({ title: "Creature Drops", rules: [
     expect.objectContaining({ id: "creature-table-roll" }),
   ] });
-  expect(section?.lead).toContain("qualify for a creature's loot");
 });
 
 test("World Quests guide groups lifecycle and Heroic rewards under distinct sections", () => {

@@ -13,7 +13,7 @@ See proposal.md. Publication keeps guide introductions and section leads in `gui
 - Reorder only the Heroic Tier opening answers, not its three detailed parts. The detailed Getting started part owns the full console list and level advice.
 - Change guide introductions and redundant leads in publication's single text source, rather than hiding rendered paragraphs in the page component.
 - Keep the first Creature Drops rule visible. Render the remaining six verified rules inside one native disclosure with three headed groups, while preserving unknown rules in the existing disclosure.
-- Reword the first rule through a new fragment merged over the latest candidate with the existing `reword-rules.py` tool. Keep evidence and operands unchanged.
+- Reword redundant Heroic, chest, and Creature Drops rule phrases in new fragments merged over the latest candidate with `reword-rules.py`. Keep evidence and operands unchanged.
 
 ## Risks / Trade-offs
 

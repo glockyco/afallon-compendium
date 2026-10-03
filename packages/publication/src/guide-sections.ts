@@ -25,7 +25,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "heroic-tier": {
     overview: "The Heroic tier makes the open world harder for a character who turns it on.",
     sections: [
-      { id: "entering", title: "Turning it on and off", lead: "A Heroic Console opens a panel that explains the tier and asks you to confirm.", how: "How the Heroic Tier turns on and off" },
+      { id: "entering", title: "Turning it on and off", lead: "", how: "How the Heroic Tier turns on and off" },
       { id: "empowered-creatures", title: "Heroic creatures", lead: "Heroic creatures are much tougher than usual, and they keep pace with your gear." },
       { id: "affixes", title: "Affixes", lead: "A Heroic creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful.", how: "How Heroic affixes work" },
       { id: "kill-experience", title: "Kill experience", lead: "A Heroic kill gives more experience. Quest experience does not change." },
@@ -60,7 +60,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   loot: {
     overview: "Loot comes from creatures, quests, vendors, crafting, containers, and other objects in the world. See an item's page for its rewards and sources.",
     sections: [
-      { id: "creature-drops", title: "Creature Drops", lead: "When you qualify for a creature's loot, its own loot and eligible World Loot can both give you items." },
+      { id: "creature-drops", title: "Creature Drops", lead: "Only a player or party that earns a creature's kill rewards can get items from its own tables and eligible World Loot tables." },
       { id: "chests", title: "Items that open a chest", lead: "Use a bag to open its chest of possible loot. The item's page shows what can be inside." },
       { id: "supply-packs", title: "Supply packs", lead: "Open a supply pack to get items from the table for your class and level. The pack's page shows what you can get and how to obtain the pack. The details of each pick are below." },
       { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows base rates before loot bonuses by creature level." },
