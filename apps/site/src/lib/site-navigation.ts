@@ -38,8 +38,8 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   races: 'Starting place and classes',
   skills: 'Levels and training',
   abilities: 'What each ability does',
-  stats: 'Combat stats and how to get them',
-  effects: 'Buffs, attacks, summons, and other effects',
+  stats: 'How to raise each stat',
+  effects: 'What each effect does',
 };
 
 /** The mechanics pages in alphabetical order. The hub lists all of them; the Browse panel names the featured ones. */

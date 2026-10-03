@@ -175,7 +175,7 @@
           {#if version !== 'normal' && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
           {#if facts.heroicPausedIn?.length}<p>Never drops as Heroic gear. It drops only in {#each facts.heroicPausedIn as place, index}{index ? (index === facts.heroicPausedIn.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={place} {registry} />{/each}, where the Heroic tier pauses.</p>{/if}
           {#if facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
-            <p>Can be enchanted. <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>See enchanting items</a></p>
+            <p>Can be <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>enchanted</a>.</p>
           {/if}
         </SideCard>
       {/if}
