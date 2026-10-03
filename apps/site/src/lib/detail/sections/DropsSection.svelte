@@ -6,7 +6,7 @@
   import HowItWorks from '../HowItWorks.svelte';
   import Hint from '../../Hint.svelte';
   import VariantLinks from '../../VariantLinks.svelte';
-  import { dropGroupText, dropRateLabel, dropRateText, LISTED_RATE_HINT, nameOf, rangeText } from '../../format';
+  import { dropGroupText, dropRateText, KILL_CHANCE_HINT, LISTED_RATE_HINT, nameOf, rangeText } from '../../format';
   import { mergeRows, omitWhenShared, planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -34,7 +34,7 @@
     const rate = columns.map((column) => {
       if (column.id !== 'rate') return column;
       return { ...column, label: known === group.length ? 'Chance per Kill' : known ? 'Rate' : 'Listed Rate',
-        hint: known === group.length ? undefined : LISTED_RATE_HINT };
+        hint: known === group.length ? KILL_CHANCE_HINT : LISTED_RATE_HINT };
     });
     return planColumns(rate, group).columns;
   }
@@ -44,13 +44,24 @@
   {#if groups.length}
     <div class="groups">
       {#each groups as group, index}
+        {@const mixedRates = group.some((row) => row.killChance !== undefined) && group.some((row) => row.killChance === undefined)}
         <div class="group">
           {#if group[0]}<p class="group-line">{#if groups.length > 1}<strong>Drop Group {index + 1}</strong>{/if}{dropGroupText(group[0], group.length, group.some((row) => row.killChance === undefined))}</p>{/if}
           <RelationTable columns={groupColumns(group)} rows={group} label={groups.length > 1 ? `Drop Group ${index + 1}` : 'Drops'} sort={{ id: 'rate', dir: 'desc' }}>
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
               {:else if column === 'quantity'}{#if row.min !== undefined || row.max !== undefined}{rangeText(row.min, row.max)}{:else}<MissingValue explanation={nameOf(row.counterpart) === 'Gold' ? 'The game gives no valid gold amount for this drop' : 'Drop quantity unknown'} />{/if}
-              {:else if column === 'rate'}{#if dropRateText(row) === undefined}<MissingValue explanation="Listed rate unknown" />{:else}{#if group.length === 1 || group.some((item) => item.killChance !== undefined) && group.some((item) => item.killChance === undefined)}{#if row.killChance === undefined}<Hint text={LISTED_RATE_HINT}>Listed Rate</Hint>{:else}{dropRateLabel(row)}{/if}{': '}{/if}{dropRateText(row)}{/if}
+              {:else if column === 'rate'}
+                {@const value = dropRateText(row)}
+                {#if value === undefined}<MissingValue explanation={row.oddsUnavailable ?? 'Listed rate unknown'} />
+                {:else}
+                  {#if group.length === 1 || mixedRates}
+                    <span class:single-rate-label={group.length === 1}>
+                      {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed Rate:</Hint>
+                      {:else}<Hint text={KILL_CHANCE_HINT}>Chance per Kill:</Hint>{/if}{' '}
+                    </span>
+                  {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}
+                {/if}
               {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />
               {:else if column === 'variant'}{#if row.variants}<VariantLinks anchors={row.variants} {variants} />{:else}All{/if}{/if}
             </svelte:fragment>
@@ -75,5 +86,7 @@
   .group { min-width: 0; }
   .group-line { margin: 0 0 .5rem; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.5; }
   .group-line strong { display: block; color: var(--c-text-strong); font-weight: 600; }
+  .single-rate-label { display: none; }
+  @media (max-width: 640px) { .single-rate-label { display: inline; } }
   .empty { margin: 0; color: var(--c-text-dim); }
 </style>

@@ -1,5 +1,5 @@
 import { categoryLabel, type ContainerRow, type Craft, type DropRow, type EntityRef, type FromItemRow, type GatherRow, type Price, type PublicItem, type PublicKindEntry, type Ref, type VendorRow } from '@afallon/contracts/public';
-import { creatureLevelText, dropsPerKillText, formatNumber, nameOf } from '../format';
+import { creatureLevelText, formatNumber, nameOf, worldLootRollText } from '../format';
 import { sortRows, type SortValue } from '../table';
 import { itemQuestSourceRows } from './quest-rows';
 
@@ -18,7 +18,7 @@ export interface SummaryLine {
   spotCount?: number;
   detail?: string;
   /** A creature item's rate, kept separate from the loot list roll. */
-  drop?: Pick<DropRow, 'chance' | 'killChance'>;
+  drop?: Pick<DropRow, 'chance' | 'killChance' | 'chanceLevel' | 'oddsUnavailable'>;
   /** The text of the link to the full source section, when "See full <label> sources" reads badly. */
   linkText?: string;
 }
@@ -52,12 +52,12 @@ function worldLootLine(rows: readonly DropRow[]): SummaryLine | undefined {
   const rank = nameOf(world[0]!.counterpart);
   const restriction = levels.includes('Any') ? '' : `${rank && rank !== 'Any creature' ? ' at levels ' : ' of level '}${levels.join(' or ').replaceAll('–', ' to ')}`;
   const subject = rank && rank !== 'Any creature' ? rank : 'Creatures';
-  const text = `${subject}${restriction || (subject === 'Creatures' ? ' of any level' : '')} can drop it as world loot.`;
+  const text = `${subject}${restriction || (subject === 'Creatures' ? ' of any level' : '')} can drop it as World Loot.`;
   const first = world[0]!;
   const sameRoll = world.every((row) => row.tableChance === first.tableChance && row.tableMinimum === first.tableMinimum && row.tableLimit === first.tableLimit);
-  const sameRate = world.every((row) => row.chance === first.chance && row.killChance === first.killChance);
+  const sameRate = world.every((row) => row.chance === first.chance && row.killChance === first.killChance && row.chanceLevel === first.chanceLevel && row.oddsUnavailable === first.oddsUnavailable);
   return { id: 'dropped-by', label: 'World Loot', names: [], more: 0, text,
-    ...(sameRoll ? { detail: dropsPerKillText(first) } : {}),
+    ...(sameRoll ? { detail: worldLootRollText(first) } : {}),
     ...(sameRate ? { drop: first } : {}) };
 }
 function startingGearLine(item: PublicItem): SummaryLine | undefined {
@@ -106,7 +106,7 @@ export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[
 export function itemSourceLines(item: PublicItem): SummaryLine[] {
   const creatureDrops = item.droppedBy.filter((row) => !row.creatureLevel);
   const firstDrop = byChance(creatureDrops)[0];
-  const commonDropRate = firstDrop && creatureDrops.every((row) => row.chance === firstDrop.chance && row.killChance === firstDrop.killChance) ? firstDrop : undefined;
+  const commonDropRate = firstDrop && creatureDrops.every((row) => row.chance === firstDrop.chance && row.killChance === firstDrop.killChance && row.oddsUnavailable === firstDrop.oddsUnavailable) ? firstDrop : undefined;
   const firstGather = byChance(item.gatheredFrom)[0];
   const vendors = sortRows(item.soldBy, (row): SortValue => row.price.amount, { id: 'price', dir: 'asc' });
   const quests = itemQuestSourceRows(item.rewardedBy, item.givenBy);

@@ -3,7 +3,7 @@
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Hint from '../../Hint.svelte';
-  import { dropRateLabel, dropRateText, formatNumber, LISTED_RATE_HINT } from '../../format';
+  import { dropRateText, formatNumber, KILL_CHANCE_HINT, LISTED_RATE_HINT } from '../../format';
   import CraftExperience from '../CraftExperience.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { itemSourceLines, lineHref, type SummaryLine } from '../item-sources';
@@ -66,7 +66,9 @@
             {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} />{/if}
             {#if entry.id === 'dropped-by' && (rate || entry.detail)}{entry.text?.endsWith('.') ? ' ' : '. '}{/if}
             {#if rate && entry.drop}
-              {#if entry.drop.killChance === undefined}<Hint text={LISTED_RATE_HINT}>Listed Rate</Hint>{:else}{dropRateLabel(entry.drop)}{/if}{': '}{rate}.
+              {#if entry.drop.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>Listed Rate:</Hint>
+              {:else}<Hint text={KILL_CHANCE_HINT}>Chance per Kill:</Hint>{/if}
+              {' '}{rate}{#if entry.drop.killChance !== undefined}{entry.drop.chanceLevel !== undefined ? ` at creature level ${formatNumber(entry.drop.chanceLevel)} with 0 Loot Chance` : ' with 0 Loot Chance'}{/if}.
             {/if}
             {#if entry.detail}
               {#if entry.id === 'dropped-by'}{rate ? ' ' : ''}

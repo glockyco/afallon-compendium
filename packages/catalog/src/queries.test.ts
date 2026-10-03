@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { openNormalizedDatabase, recordCoverageIssue } from "./database";
-import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows, queryQuestRewardTypes, queryQuestRows, queryInteractionRows, queryContainment, queryGatedSources, queryCatalogFacts } from "./queries";
+import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows, queryQuestRewardTypes, queryQuestRows, queryInteractionRows, queryContainment, queryGatedSources, queryCatalogFacts, queryWorldLootTables } from "./queries";
 import { relationRows } from "./relations";
 import { containerTypeFromHierarchyPath } from "./world";
 
@@ -52,15 +52,18 @@ test("world loot reaches the creature levels of its binding and of the item's le
     db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
     db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("f".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
     for (const id of [1, 2, 3]) db.query("INSERT INTO canonical_entities (build_id, kind, native_id, entity_key, name, internal_name, description, source_key, details_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "items", id, `items:${id}`, `Item ${id}`, null, null, null, "{}", "[]");
+    db.query("INSERT INTO canonical_entities (build_id, kind, native_id, entity_key, name, internal_name, description, source_key, details_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "items", 815, "items:815", "Footman's Bulwark", null, null, null, "{}", "[]");
+    db.query("INSERT INTO item_facts(entity_key, random_stats_max, stack_limit, quest_drop_only, corruption_token, level_requirement, action_abilities_json, use_lines_json, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("items:815", 0, 1, 0, 0, 10, "[]", "[]", "[]", "[]");
     // Table 5 gives any item. Table 6 is a level-band table with a limit of two items and a minimum of one.
     db.query("INSERT INTO loot_tables VALUES (?, ?, ?, ?), (?, ?, ?, ?)").run("build", 5, 0, "{}", "build", 6, 1, JSON.stringify({ limitDroppedItems: true, maxDroppedItems: 2, hasMinimumDrops: true, minDroppedItems: 1 }));
+    db.query("INSERT INTO loot_tables VALUES (?, ?, ?, ?)").run("build", 142, 1, JSON.stringify({ hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true, maxDroppedItems: 2 }));
     const bind = (index: number, table: number, rate: number, min: number, max: number) => db.query("INSERT INTO loot_bindings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(`world-${index}`, "build", "world", null, table, index, rate, "authored", null, JSON.stringify({ minimumNPCLevel: min, maximumNPCLevel: max }));
     bind(0, 5, 30, 0, 0); bind(1, 6, 5, 7, 20); bind(2, 6, 5, 20, 0);
     db.query("INSERT INTO loot_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
       "build", 5, 0, "items:1", 1, 1, 0.8, "authored", "{}", "build", 6, 0, "items:2", 1, 1, 2.5, "authored", "{}",
       "build", 6, 1, "items:3", 1, 1, 2.5, "authored", "{}", "build", 6, 2, "items:1", 1, 1, 2.5, "authored", "{}",
     );
-    const eligibility = (requiredLevel: number) => JSON.stringify({ worldLootSettings: { minimumNPCRank: 0, minimumNPCRankName: "MOB" }, levelEligibility: { requiredLevel, levelBand: { range: 4 } } });
+    const eligibility = (requiredLevel: number) => JSON.stringify({ worldLootSettings: { minimumNPCRank: 0, minimumNPCRankName: "MOB", maximumItemsPerNPC: 2 }, levelEligibility: { requiredLevel, levelBand: { range: 4 } } });
     const source = (item: string, key: string, requiredLevel: number) => db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run(item, "world-loot", key, "[]", "[]", eligibility(requiredLevel), "null");
     source("items:1", "0:0", 0); source("items:2", "1:0", 8); source("items:3", "1:1", 26); source("items:1", "1:2", 0);
     source("items:2", "2:0", 8); source("items:3", "2:1", 26); source("items:1", "2:2", 0);
@@ -73,6 +76,17 @@ test("world loot reaches the creature levels of its binding and of the item's le
       ["items:3", 6, { min: 22, max: 30 }, "Any creature", 5, 1, 2],
       ["items:1", 6, { min: 20, max: null }, "Any creature", 5, 1, 2],
     ]);
+    expect(queryDropRows(db).records.map((row) => row.worldReferenceLevel)).toEqual([undefined, 8, undefined, 26, undefined]);
+    expect(queryWorldLootTables(db).records.map(({ lootTableId, tableRate, worldLimit, minimumRank, entries }) =>
+      ({ lootTableId, tableRate, worldLimit, minimumRank, entries: entries.map(({ itemKey }) => itemKey) }))).toEqual([
+      { lootTableId: 5, tableRate: 30, worldLimit: 2, minimumRank: 0, entries: ["items:1"] },
+      { lootTableId: 6, tableRate: 5, worldLimit: 2, minimumRank: 0, entries: ["items:2", "items:3", "items:1"] },
+      { lootTableId: 6, tableRate: 5, worldLimit: 2, minimumRank: 0, entries: ["items:2", "items:3", "items:1"] },
+    ]);
+    const facts = queryCatalogFacts(db).records;
+    expect(facts.items.find((item) => item.entityKey === "items:815")?.levelRequirement).toBe(10);
+    expect(facts.itemLootTables.find((table) => table.id === 142)?.levelBandGear).toBe(true);
+    expect(queryWorldLootTables(db).records[0]?.levelBandRange).toBe(4);
   } finally { db.close(); }
 });
 
@@ -319,14 +333,14 @@ test("joins world offers, object starts, objective completions, availability, in
     association.run("start", "build", "interaction-quest", null, "quests:1", null, null, "object", JSON.stringify({ payload: { objectName: "Purse" } }));
     association.run("objective", "build", "quest-objective", null, "quests:1", "tasks:3", null, null, JSON.stringify({ objectiveIndex: 0 }));
     association.run("complete", "build", "interaction-task", null, null, "tasks:3", null, "object", JSON.stringify({ payload: { objectName: "Purse" } }));
-    db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:4", "interaction", "output", "[\"object-place\"]", "[]", JSON.stringify({ sourceId: "object", objectName: "Purse", min: 1, max: 2, rawRate: 50 }), "null");
+    db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:4", "interaction", "output", "[\"object-place\"]", "[]", JSON.stringify({ sourceId: "object", objectName: "Purse", lootTableId: 142, min: 1, max: 2, rawRate: 50 }), "null");
 
     expect(queryCatalogFacts(db).records.quests[0]?.worldQuest).toEqual({ availableSeconds: 600, cooldownAfterCompletionSeconds: 900, cooldownAfterExpirySeconds: 300, cooldownJitterSeconds: 60, initialRollSeconds: 30 });
     const questRows = queryQuestRows(db).records;
     expect(questRows.find((row) => row.kind === "objectStart")).toMatchObject({ sourceId: "object", label: "Purse", placementIds: ["object-place"] });
     expect(questRows.find((row) => row.kind === "objective")).toMatchObject({ counterpart: { entityKey: "items:4", label: "Egg" }, completions: [{ sourceId: "object", label: "Purse", placementIds: ["object-place"] }] });
     expect(questRows.find((row) => row.kind === "worldOffer")).toMatchObject({ sourceId: "zone", worldOffer: { zoneDelaySeconds: 20, pool: [{ entityKey: "quests:1" }, { entityKey: "quests:2" }] }, availability: [{ effect: "requires", conditionId: "night" }], placementIds: ["zone-place"] });
-    expect(queryInteractionRows(db).records).toMatchObject([{ objectName: "Purse", item: { entityKey: "items:4" }, min: 1, max: 2, rawRate: 50, placementIds: ["object-place"] }]);
+    expect(queryInteractionRows(db).records).toMatchObject([{ objectName: "Purse", item: { entityKey: "items:4" }, lootTableId: 142, min: 1, max: 2, rawRate: 50, placementIds: ["object-place"] }]);
     expect(queryGatedSources(db).records).toMatchObject([{ sourceId: "zone", family: "worldQuestZone", placementIds: ["zone-place"], availability: [{ conditionId: "night" }] }]);
     expect(queryContainment(db).records.map((row) => row.area)).toEqual(["Camp", "Camp"]);
   } finally { db.close(); }

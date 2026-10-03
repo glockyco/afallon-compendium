@@ -5,7 +5,7 @@
   import Hint from '../../Hint.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import Requirements from '../../Requirements.svelte';
-  import { creatureLevelText, dropRateLabel, dropRateText, dropsPerKillText, LISTED_RATE_HINT, itemDropText, nameOf, rangeText } from '../../format';
+  import { creatureLevelText, dropRateText, dropsPerKillText, KILL_CHANCE_HINT, LISTED_RATE_HINT, itemDropText, nameOf, rangeText } from '../../format';
   import { omitWhenShared, planColumns, stateInHeading, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -31,7 +31,7 @@
   $: known = rows.filter((row) => row.killChance !== undefined).length;
   $: plan = planColumns(columns.map((column) => column.id === 'rate'
     ? { ...column, label: known === rows.length ? 'Chance per Kill' : known ? 'Rate' : 'Listed Rate',
-      hint: known === rows.length ? undefined : LISTED_RATE_HINT }
+      hint: known === rows.length ? KILL_CHANCE_HINT : LISTED_RATE_HINT }
     : column), rows);
   $: line = plan.shared.some((shared) => shared.column.id === 'perKill') && rows[0] ? itemDropText({ ...rows[0], killChance: known === rows.length ? rows[0].killChance : undefined }) : undefined;
 </script>
@@ -43,7 +43,17 @@
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
         {:else if column === 'level'}{#if row.creatureLevel}{creatureLevelText(row.creatureLevel)}{/if}
         {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
-        {:else if column === 'rate'}{#if dropRateText(row) === undefined}<MissingValue explanation="Listed rate unknown" />{:else}{#if rows.length === 1 || known && known < rows.length}{#if row.killChance === undefined}<Hint text={LISTED_RATE_HINT}>Listed Rate</Hint>{:else}{dropRateLabel(row)}{/if}{': '}{/if}{dropRateText(row)}{/if}
+        {:else if column === 'rate'}
+          {@const value = dropRateText(row)}
+          {#if value === undefined}<MissingValue explanation={row.oddsUnavailable ?? 'Listed rate unknown'} />
+          {:else}
+            {#if rows.length === 1 || known > 0 && known < rows.length}
+              <span class:single-rate-label={rows.length === 1}>
+                {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed Rate:</Hint>
+                {:else}<Hint text={KILL_CHANCE_HINT}>Chance per Kill:</Hint>{/if}{' '}
+              </span>
+            {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}{#if row.killChance !== undefined && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel}, with 0 Loot Chance</small>{/if}
+          {/if}
         {:else if column === 'perKill'}{dropsPerKillText(row)}
         {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
       </svelte:fragment>
@@ -51,3 +61,8 @@
     {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label="How creature drops work" />{/if}
   </Section>
 {/if}
+
+<style>
+  .single-rate-label { display: none; }
+  @media (max-width: 640px) { .single-rate-label { display: inline; } }
+</style>

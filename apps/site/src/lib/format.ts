@@ -97,17 +97,18 @@ export function creatureLevelText(level: CreatureLevel): string {
 
 type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'> & Partial<Pick<DropRow, 'killChance'>>;
 
-export const LISTED_RATE_HINT = 'The rate the game lists for this item. Higher rates drop more often. It is not your chance per kill.';
+export const LISTED_RATE_HINT = 'The game lists this rate before loot-list limits and minimum picks. It is not your chance per kill.';
+export const KILL_CHANCE_HINT = 'Shown with 0 Loot Chance, neutral loot bonuses, no active drop modifiers, and a qualifying kill after your first gear drop. Luck raises Loot Chance, which makes ordinary item rolls rarer in this version, though minimum drops can still include the item.';
+export const OPEN_CHANCE_HINT = 'Shown for a qualifying open after your first gear drop, at the player level shown when levels affect the loot list. Object loot does not use Luck.';
+const precisePercent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
-export function dropRateLabel(row: Pick<DropRow, 'killChance'>): string {
-  return row.killChance === undefined ? 'Listed Rate' : 'Chance per Kill';
+export function eventChanceText(percent: number, event: 'kill' | 'open'): string {
+  if (percent === 0) return '0%';
+  return percent < 1 ? `About 1 in ${formatNumber(Math.round(100 / percent))} ${event === 'kill' ? 'kills' : 'opens'}` : `${precisePercent.format(percent)}%`;
 }
 
 export function dropRateText(row: Pick<DropRow, 'chance' | 'killChance'>): string | undefined {
-  if (row.killChance !== undefined) {
-    if (row.killChance === 0) return '0% (no kills)';
-    return `${formatNumber(row.killChance)}% (${row.killChance === 100 ? 'every kill' : `about 1 in ${formatNumber(Math.round(100 / row.killChance))} kills`})`;
-  }
+  if (row.killChance !== undefined) return eventChanceText(row.killChance, 'kill');
   return row.chance === undefined ? undefined : `${formatNumber(row.chance)}%`;
 }
 
@@ -134,6 +135,15 @@ export function dropsPerKillText(roll: LootRoll): string {
     : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
 }
 
+/** World Loot's table roll is separate from the item's own per-kill probability. */
+export function worldLootRollText(roll: LootRoll): string {
+  const count = itemCountText(roll);
+  const items = count ? ` and gives ${count}` : '';
+  return roll.tableChance === undefined || roll.tableChance === 100
+    ? `Every eligible kill rolls this World Loot list${items}.`
+    : `The World Loot list rolls on ${formatNumber(roll.tableChance)}% of eligible kills${items}.`;
+}
+
 /** The sentence above one NPC loot list, with the number of its actual published rows. */
 export function dropGroupText(roll: LootRoll, items: number, hasListedRates = true): string {
   const count = itemCount(roll);
@@ -145,7 +155,8 @@ export function dropGroupText(roll: LootRoll, items: number, hasListedRates = tr
   const first = roll.tableChance === undefined || roll.tableChance === 100
     ? `Each kill can ${action}.`
     : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
-  return guaranteed || items === 1 || !hasListedRates ? first : `${first} Higher listed rates are picked more often.`;
+  if (guaranteed || items === 1 || !hasListedRates) return first;
+  return `${first} ${roll.tableMinimum !== undefined ? 'Items roll in order before a minimum fills missing drops.' : 'Each item rolls separately.'}`;
 }
 
 /** The shared loot-list rule above an item's creature sources. */
@@ -158,7 +169,7 @@ export function itemDropText(roll: LootRoll): string {
     ? `Each kill can ${action}.`
     : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
   if (roll.killChance !== undefined) return first;
-  return `${first} ${roll.tableMinimum === undefined ? 'The listed rate is not a chance per kill.' : 'Higher listed rates are picked more often.'}`;
+  return `${first} ${roll.tableMinimum === undefined ? 'The listed rate is not a chance per kill.' : 'A minimum may add items after their ordinary rolls.'}`;
 }
 
 /** A random spawn: "One of 3 random spots, 66.7% chance". A certain choice leaves out the chance. */

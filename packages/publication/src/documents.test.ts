@@ -109,7 +109,7 @@ test("starter inventory, direct item gain and loot-table membership keep unbound
   const item = (entityKey: string, gameActions: CatalogFacts["items"][number]["gameActions"]) =>
     ({ ...facts.items[0]!, entityKey, gameActions, gearSet: null, conditionIds: [], equipmentRequirements: [] });
   const table = (id: number, name: string, key: string): CatalogFacts["itemLootTables"][number] => ({
-    id, name, includeWorldLoot: false, worldLootShare: 0, bonusDropChance: 0, hasMinimumDrops: false,
+    id, name, levelBandGear: false, includeWorldLoot: false, worldLootShare: 0, bonusDropChance: 0, hasMinimumDrops: false,
     minDroppedItems: 0, limitDroppedItems: false, maxDroppedItems: 0, worldLootStats: null, worldLootArmorType: null,
     entries: [{ item: { entityKey: key, label: key }, min: 1, max: 1, rate: 25 }],
   });
@@ -366,6 +366,34 @@ test("currency purchases merge identical prices across merchants but preserve di
   ]);
   expect(item.buys).toContainEqual({ item: { key: null, label: "Ogre Mercenary Contract" }, price: { amount: 100, currency: currencyRef }, soldBy: [expect.objectContaining({ key: "npcs:2" })] });
   expect((documents.get("items:7") as PublicItem).buys).toEqual([]);
+});
+
+test("published loot odds distinguish a truncated creature gate from a qualifying object open", () => {
+  const second: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Other Drop" };
+  const sourceFacts: CatalogFacts = { ...facts, items: [...facts.items, { ...facts.items[0]!, entityKey: second.entityKey }],
+    itemLootTables: [{ id: 4, name: "Guardian Drops", levelBandGear: false, includeWorldLoot: false,
+      worldLootShare: 0, bonusDropChance: 0, hasMinimumDrops: true, minDroppedItems: 1,
+      limitDroppedItems: true, maxDroppedItems: 1, worldLootStats: null, worldLootArmorType: null,
+      entries: [{ item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rate: 3 },
+        { item: { entityKey: second.entityKey, label: second.name }, min: 1, max: 1, rate: 100 }] }] };
+  const sourceRelations: CatalogRelations = { ...relations, drops: [{ ...relations.drops[0]!, rawRate: 3, displayedChance: 3,
+    tableRate: 5, tableMinimum: 1, tableLimit: 1 }], interactions: [{
+    objectName: "Supply Chest", sourceId: "source-chest", place: null, item: { entityKey: "items:1", label: "Blade" },
+    min: 1, max: 1, rawRate: 3, lootTableId: 4, actionChance: 20, gameActionChance: 100,
+    availability: [], placementIds: [],
+  }] };
+  const published = project([...entities, second], sourceFacts, sourceRelations).documents;
+  const npc = published.get("npcs:2") as PublicNpc, item = published.get("items:1") as PublicItem;
+  expect(npc.drops[0]).toMatchObject({ chance: 3, tableChance: 6 });
+  expect(npc.drops[0]?.killChance).toBeCloseTo(0.18, 12);
+  expect(item.droppedBy[0]?.killChance).toBeCloseTo(0.18, 12);
+  expect(item.collectedFrom[0]?.openChance).toBeCloseTo(0.6, 12);
+  const unknown = project([...entities, second], { ...sourceFacts,
+    itemLootTables: sourceFacts.itemLootTables.map((table) => ({ ...table, hasMinimumDrops: false })) }, sourceRelations).documents;
+  expect((unknown.get("items:1") as PublicItem).collectedFrom[0]).toMatchObject({
+    chance: 3, oddsUnavailable: "Whether this object guarantees an item is unavailable.",
+  });
+  expect((unknown.get("items:1") as PublicItem).collectedFrom[0]?.openChance).toBeUndefined();
 });
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
@@ -1358,7 +1386,7 @@ test("used bags publish independent chest rows and supply packs keep their gated
         ] }],
       },
     ] },
-  ], itemLootTables: [{ id: 147, name: "Supply Pack Plate lvl 1-5", includeWorldLoot: true,
+  ], itemLootTables: [{ id: 147, name: "Supply Pack Plate lvl 1-5", levelBandGear: false, includeWorldLoot: true,
     worldLootShare: 50, bonusDropChance: 20, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true,
     maxDroppedItems: 2, worldLootStats: [27], worldLootArmorType: { nativeId: -1, name: "PLATE" },
     entries: [{ item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rate: 0 }] }],
@@ -1405,15 +1433,15 @@ test("a linked When used rule appears on its item and not on unrelated items", (
 });
 
 test("creature drop mechanics link both source and item pages only when drops exist", () => {
-  const rule: CatalogMechanicsRule = { ...ruleRow("creature-list-roll", "chests", {}), topic: "loot",
+  const rule: CatalogMechanicsRule = { ...ruleRow("creature-list-roll", "creature-drops", {}), topic: "loot",
     placements: [{ page: "npcs", target: "drops", scope: "all" }, { page: "items", target: "dropped-by", scope: "all" }] };
   const source: CatalogFacts = { ...facts, progression: { ...facts.progression, mechanicsRules: [rule] } };
   const withLoot = project(entities, source, relations).documents;
   expect((withLoot.get("npcs:2") as PublicNpc).placedRules).toContainEqual({
-    target: "drops", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "chests",
+    target: "drops", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "creature-drops",
   });
   expect((withLoot.get("items:1") as PublicItem).placedRules).toContainEqual({
-    target: "dropped-by", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "chests",
+    target: "dropped-by", guide: expect.objectContaining({ key: "mechanics:loot", slug: "loot" }), section: "creature-drops",
   });
   const empty = project(entities, source, { ...relations, drops: [] }).documents;
   expect((empty.get("npcs:2") as PublicNpc).placedRules.some((entry) => entry.target === "drops")).toBe(false);

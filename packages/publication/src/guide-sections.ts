@@ -60,9 +60,10 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   loot: {
     overview: "Items can come from bags, supply packs, cloth drops, objects in the world, quest pickups, and the Dungeon Finder, as well as creatures, vendors, quests, and crafting. See each item's page for its rewards and sources.",
     sections: [
+      { id: "creature-drops", title: "Creature Drops", lead: "When you qualify for a creature's loot, its drop tables and any eligible World Loot tables can give you items. Item pages show what each source can give." },
       { id: "chests", title: "Items that open a chest", lead: "Use a bag to open its chest of possible loot. The item's page shows what can be inside." },
       { id: "supply-packs", title: "Supply packs", lead: "Open a supply pack to get items from the table for your class and level. The pack's page shows what you can get and how to obtain the pack. The details of each pick are below." },
-      { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows its chance per kill by creature level." },
+      { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows base rates before loot bonuses by creature level." },
       { id: "world-objects", title: "World objects", lead: "Some objects in the world hold loot, such as graves and sacrificial altars." },
       { id: "quest-items", title: "Quest items", lead: "Some items only drop or appear while a quest needs them." },
       { id: "dungeon-finder", title: "Dungeon Finder", lead: "The Dungeon Finder sends you to a dungeon that you choose, or to a random one when you queue for a Random run." },
@@ -131,7 +132,7 @@ export function guideSections(topic: MechanicsTopic, rules: readonly { section: 
   for (const { section, rule } of rules) {
     if (!guideHasSection(topic, section)) throw new Error(`Rule ${rule.id} names section ${section}, which guide ${topic} does not define.`);
   }
-  return GUIDES[topic].sections.map(({ id, title, lead }) => ({
+  return GUIDES[topic].sections.filter(({ id }) => id !== "creature-drops" || rules.some((entry) => entry.section === id)).map(({ id, title, lead }) => ({
     id, title, lead,
     rules: rules.filter((entry) => entry.section === id).map((entry) => entry.rule),
   }));

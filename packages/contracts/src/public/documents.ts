@@ -133,11 +133,13 @@ export type Price = Static<typeof PriceSchema>;
 // Relation rows are shared by both endpoints: an NPC's `drops` and an item's `droppedBy` use the
 // same `DropRow` with `counterpart` pointing across.
 //
-// A drop row describes one item of a loot table. `chance` is the authored entry rate shown in the Adventure Guide,
-// not the item's chance per kill. A separately verified `killChance` can be supplied when the full roll is known.
-// `tableChance` is the chance that a kill rolls the table, present only below 100. `tableMinimum` and `tableLimit`
-// bound the item count of that roll. World loot has no creature of its own: `creatureLevel` gives the eligible
-// creature levels, while the counterpart label can restrict their rank. An absent `max` leaves the range open.
+// A drop row describes one item of a loot table. `chance` is the authored entry rate shown in the Adventure Guide.
+// `killChance` is an exact per-kill baseline conditional on a player-rewarded kill, zero Luck, neutral loot
+// multipliers, no active game modifiers, and the published eligibility. `chanceLevel` specifies the creature level
+// used for a level-dependent result. `tableChance` is the baseline probability that one kill rolls the table, present
+// only below 100; unlike a world binding, a creature-specific binding truncates the random gate before comparing.
+// `tableMinimum` and `tableLimit` bound its item count. `oddsUnavailable` explains a missing input when a full
+// probability cannot be calculated. World loot's `creatureLevel` gives eligible levels; its counterpart can restrict rank.
 //
 // A row never carries placement ids. Each document already lists its own `locations`, and the
 // counterpart's locations belong to the counterpart's document, so repeating them per row would
@@ -150,6 +152,7 @@ export const CreatureLevelSchema = Type.Object({ min: count, max: optional(count
 export type CreatureLevel = Static<typeof CreatureLevelSchema>;
 const dropRowFields = {
   counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent), killChance: optional(percent),
+  chanceLevel: optional(count), oddsUnavailable: optional(text),
   tableChance: optional(percent), tableMinimum: optional(itemCount), tableLimit: optional(itemCount),
   creatureLevel: optional(CreatureLevelSchema), requirements,
 };
@@ -187,7 +190,7 @@ export type GatherRow = Static<typeof GatherRowSchema>;
 export const ContainerRowSchema = Type.Object({
   counterpart: optional(RefSchema), label: text, min: optional(count), max: optional(count), chance: optional(percent), prefabChoices: optional(count),
   choiceLabel: optional(text), cost: optional(Type.Object({ currency: RefSchema, amount: count }, { additionalProperties: false })), pickOne: optional(count),
-  actionChance: optional(percent),
+  actionChance: optional(percent), openChance: optional(percent), openChanceLevel: optional(count), oddsUnavailable: optional(text),
   availabilityIndex: count, placementCount: count, places: Type.Array(PlaceSpotsSchema),
 }, { additionalProperties: false });
 export type ContainerRow = Static<typeof ContainerRowSchema>;

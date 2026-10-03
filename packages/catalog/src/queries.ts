@@ -416,7 +416,7 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
     itemGameActions.set(row.entity_key, values);
   }
   for (const row of db.query<{ entity_key: string; socket_type: string | null; gem_type: string | null }, []>("SELECT entity_key, socket_type, gem_type FROM item_sockets ORDER BY entity_key, socket_index").all()) { const values = itemSockets.get(row.entity_key) ?? []; values.push({ socketType: row.socket_type, gemType: row.gem_type }); itemSockets.set(row.entity_key, values); }
-  const items = db.query<{ entity_key: string; rarity: string | null; item_type: string | null; armor_slot: string | null; weapon_slot: string | null; weapon_type: string | null; armor_type: string | null; attack_speed: number | null; min_damage: number | null; max_damage: number | null; weapon_damage_type: string | null; attack_mode: string | null; physical_label: string | null; random_stats_max: number; gem_type: string | null; enchantment_entity_key: string | null; enchantment_label: string | null; sell_price: number | null; sell_currency_entity_key: string | null; sell_currency_label: string | null; buy_price: number | null; buy_currency_entity_key: string | null; buy_currency_label: string | null; currency_entity_key: string | null; currency_label: string | null; stack_limit: number; quest_drop_only: number; corruption_token: number; level_requirement: number | null; action_abilities_json: string; use_lines_json: string; condition_ids_json: string }, []>("SELECT * FROM item_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, rarity: row.rarity, itemType: row.item_type, armorSlot: row.armor_slot, weaponSlot: row.weapon_slot, weaponType: row.weapon_type, armorType: row.armor_type, attackSpeed: row.attack_speed, minDamage: row.min_damage, maxDamage: row.max_damage, weaponDamageType: row.weapon_damage_type, attackMode: row.attack_mode, physicalLabel: row.physical_label, stats: itemStats.get(row.entity_key) ?? [], randomStatsMax: row.random_stats_max, randomStats: itemRandomStats.get(row.entity_key) ?? [], sockets: itemSockets.get(row.entity_key) ?? [], gameActions: itemGameActions.get(row.entity_key) ?? [], gem: row.gem_type === null && !itemGemStats.has(row.entity_key) ? null : { gemType: row.gem_type, stats: itemGemStats.get(row.entity_key) ?? [] }, enchantment: row.enchantment_entity_key === null && row.enchantment_label === null ? null : endpoint(refs, row.enchantment_entity_key, row.enchantment_label), sellPrice: row.sell_price, sellCurrency: row.sell_currency_entity_key === null && row.sell_currency_label === null ? null : endpoint(refs, row.sell_currency_entity_key, row.sell_currency_label), buyPrice: row.buy_price, buyCurrency: row.buy_currency_entity_key === null && row.buy_currency_label === null ? null : endpoint(refs, row.buy_currency_entity_key, row.buy_currency_label), currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), stackLimit: row.stack_limit, questDropOnly: row.quest_drop_only === 1, corruptionToken: row.corruption_token === 1, equipmentRequirements: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "equipment", row.level_requirement), useConditions: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "use", null), actionAbilities: (parse(row.action_abilities_json) as Array<{ ability: unknown; rankIndex: number }>).map((value) => ({ ability: endpointJson(refs, value.ability), rankIndex: value.rankIndex })), useLines: parse(row.use_lines_json) as CatalogItemFacts["useLines"], conditionIds: textArray(row.condition_ids_json), gearSet: gearSetByItem.get(row.entity_key) ?? null }));
+  const items = db.query<{ entity_key: string; rarity: string | null; item_type: string | null; armor_slot: string | null; weapon_slot: string | null; weapon_type: string | null; armor_type: string | null; attack_speed: number | null; min_damage: number | null; max_damage: number | null; weapon_damage_type: string | null; attack_mode: string | null; physical_label: string | null; random_stats_max: number; gem_type: string | null; enchantment_entity_key: string | null; enchantment_label: string | null; sell_price: number | null; sell_currency_entity_key: string | null; sell_currency_label: string | null; buy_price: number | null; buy_currency_entity_key: string | null; buy_currency_label: string | null; currency_entity_key: string | null; currency_label: string | null; stack_limit: number; quest_drop_only: number; corruption_token: number; level_requirement: number | null; action_abilities_json: string; use_lines_json: string; condition_ids_json: string }, []>("SELECT * FROM item_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, rarity: row.rarity, itemType: row.item_type, armorSlot: row.armor_slot, weaponSlot: row.weapon_slot, weaponType: row.weapon_type, armorType: row.armor_type, attackSpeed: row.attack_speed, minDamage: row.min_damage, maxDamage: row.max_damage, weaponDamageType: row.weapon_damage_type, attackMode: row.attack_mode, physicalLabel: row.physical_label, stats: itemStats.get(row.entity_key) ?? [], randomStatsMax: row.random_stats_max, randomStats: itemRandomStats.get(row.entity_key) ?? [], sockets: itemSockets.get(row.entity_key) ?? [], gameActions: itemGameActions.get(row.entity_key) ?? [], gem: row.gem_type === null && !itemGemStats.has(row.entity_key) ? null : { gemType: row.gem_type, stats: itemGemStats.get(row.entity_key) ?? [] }, enchantment: row.enchantment_entity_key === null && row.enchantment_label === null ? null : endpoint(refs, row.enchantment_entity_key, row.enchantment_label), sellPrice: row.sell_price, sellCurrency: row.sell_currency_entity_key === null && row.sell_currency_label === null ? null : endpoint(refs, row.sell_currency_entity_key, row.sell_currency_label), buyPrice: row.buy_price, buyCurrency: row.buy_currency_entity_key === null && row.buy_currency_label === null ? null : endpoint(refs, row.buy_currency_entity_key, row.buy_currency_label), currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), stackLimit: row.stack_limit, questDropOnly: row.quest_drop_only === 1, corruptionToken: row.corruption_token === 1, levelRequirement: row.level_requirement, equipmentRequirements: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "equipment", row.level_requirement), useConditions: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "use", null), actionAbilities: (parse(row.action_abilities_json) as Array<{ ability: unknown; rankIndex: number }>).map((value) => ({ ability: endpointJson(refs, value.ability), rankIndex: value.rankIndex })), useLines: parse(row.use_lines_json) as CatalogItemFacts["useLines"], conditionIds: textArray(row.condition_ids_json), gearSet: gearSetByItem.get(row.entity_key) ?? null }));
 
   const npcStats = new Map<string, CatalogNpcFacts["stats"]>(), phases = new Map<string, CatalogNpcFacts["abilityPhases"]>(), rewards = new Map<string, CatalogNpcFacts["factionRewards"]>();
   const phaseAbilities = new Map<string, CatalogNpcFacts["abilityPhases"][number]["abilities"]>();
@@ -454,9 +454,9 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
     entries.push({ item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: row.min_count, max: row.max_count, rate: row.raw_rate });
     entriesByTable.set(row.loot_table_id, entries);
   }
-  const itemLootTables = db.query<{ loot_table_id: number; payload_json: string }, []>("SELECT loot_table_id, payload_json FROM loot_tables ORDER BY loot_table_id").all().map((row) => {
+  const itemLootTables = db.query<{ loot_table_id: number; level_band_gear: number; payload_json: string }, []>("SELECT loot_table_id, level_band_gear, payload_json FROM loot_tables ORDER BY loot_table_id").all().map((row) => {
     const payload = JSON.parse(row.payload_json) as { includeWorldLoot: boolean; worldLootShare: number; bonusDropChance: number; hasMinimumDrops: boolean; minDroppedItems: number; limitDroppedItems: boolean; maxDroppedItems: number; worldLootStats: number[] | null; worldLootArmorType: { nativeId: number; name: string | null } | null };
-    return { id: row.loot_table_id, name: refs.get(`lootTables:${row.loot_table_id}`)?.label ?? `Loot table ${row.loot_table_id}`, ...payload, entries: entriesByTable.get(row.loot_table_id) ?? [] };
+    return { id: row.loot_table_id, name: refs.get(`lootTables:${row.loot_table_id}`)?.label ?? `Loot table ${row.loot_table_id}`, ...payload, levelBandGear: row.level_band_gear === 1, entries: entriesByTable.get(row.loot_table_id) ?? [] };
   });
   const corruptionRow = db.query<{ facts_json: string }, []>("SELECT facts_json FROM corruption_facts").get();
   const corruption = corruptionRow === null ? null : parse(corruptionRow.facts_json) as CatalogCorruptionFacts;
@@ -582,11 +582,12 @@ export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]
     const limit = table.limitDroppedItems === true && typeof table.maxDroppedItems === "number" && table.maxDroppedItems >= 1 ? table.maxDroppedItems : null;
     // The minimum-drop pass fills up to the minimum, never past the limit, and picks each entry at most once.
     const minimum = table.hasMinimumDrops === true && typeof table.minDroppedItems === "number" && table.minDroppedItems >= 1 ? Math.min(table.minDroppedItems, limit ?? row.entry_count, row.entry_count) : null;
-    let creatureLevel: CatalogDropRow["creatureLevel"] = null;
+    let creatureLevel: CatalogDropRow["creatureLevel"] = null, worldReferenceLevel: number | null = null;
     if (row.context === "world") {
       const sourceKey = `${row.item_entity_key}|${row.binding_index}:${row.entry_index}`;
       if (row.level_band_gear === 1 && !requiredLevels.has(sourceKey)) throw new Error(`World loot entry ${sourceKey} of a level-band table has no level eligibility.`);
       const requiredLevel = row.level_band_gear === 1 ? requiredLevels.get(sourceKey) ?? null : null;
+      worldReferenceLevel = requiredLevel !== null && requiredLevel > 0 ? requiredLevel : null;
       creatureLevel = worldCreatureLevel(typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0, typeof binding.maximumNPCLevel === "number" ? binding.maximumNPCLevel : 0, requiredLevel, rules.levelBandRange);
       // No creature level passes both the binding range and the level band, so the game never gives this entry.
       if (creatureLevel === null) continue;
@@ -597,6 +598,7 @@ export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]
       item: endpoint(refs, row.item_entity_key, row.item_entity_key), lootTableId: row.loot_table_id, entryIndex: row.entry_index,
       min: row.min_count, max: row.max_count, rawRate: row.raw_rate, displayedChance: row.raw_rate === null ? null : Math.round(row.raw_rate * 10) / 10,
       tableRate: row.table_rate, tableMinimum: minimum, tableLimit: limit !== null && row.entry_count > limit ? limit : null, creatureLevel,
+      ...(worldReferenceLevel !== null ? { worldReferenceLevel } : {}),
       conditionIds: row.condition_id === null ? [] : [row.condition_id], placementIds: row.owner_entity_key === null ? [] : placements.get(row.owner_entity_key) ?? [],
     });
   }
@@ -657,6 +659,7 @@ export function queryInteractionRows(db: Database): CatalogQueryResult<CatalogIn
       min: typeof context.min === "number" ? context.min : null,
       max: typeof context.max === "number" ? context.max : null,
       rawRate: typeof context.rawRate === "number" ? context.rawRate : null,
+      ...(typeof context.lootTableId === "number" ? { lootTableId: context.lootTableId } : {}),
       ...(typeof context.authoredActionChance === "number" ? { actionChance: context.authoredActionChance } : {}),
       ...(typeof context.gameActionChance === "number" ? { gameActionChance: context.gameActionChance } : {}),
       ...(typeof context.gameActionTemplate === "string" || context.gameActionTemplate === null ? { gameActionTemplate: context.gameActionTemplate } : {}),
@@ -785,19 +788,32 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
   return { ...identity(db), records };
 }
 /** A global world loot table: its player level window, where 0 or less leaves a bound open, and its rows. */
-export interface CatalogWorldLootTable { lootTableId: number; minimumLevel: number; maximumLevel: number; hasRequirements: boolean; entries: Array<{ itemKey: string; rate: number | null }> }
+export interface CatalogWorldLootTable { lootTableId: number; tableRate: number | null; worldLimit: number | null; minimumRank: number | null; levelBandRange: number | null; minimumLevel: number; maximumLevel: number; hasRequirements: boolean; entries: Array<{ itemKey: string; rate: number | null }> }
 
 /** The world loot tables of the economy settings, which also feed the world loot of supply packs. */
 export function queryWorldLootTables(db: Database): CatalogQueryResult<CatalogWorldLootTable[]> {
   const tables = new Map<number, CatalogWorldLootTable>();
-  for (const row of db.query<{ binding_index: number; loot_table_id: number; payload_json: string; item_entity_key: string; raw_rate: number | null }, []>(`
-    SELECT b.binding_index, b.loot_table_id, b.payload_json, e.item_entity_key, e.raw_rate
+  const settings = db.query<{ world_limit: number | null; rank: number | null }, []>(`
+    SELECT DISTINCT json_extract(context_json, '$.worldLootSettings.maximumItemsPerNPC') AS world_limit,
+      json_extract(context_json, '$.worldLootSettings.minimumNPCRank') AS rank
+    FROM item_sources WHERE source_kind = 'world-loot' AND json_extract(context_json, '$.worldLootSettings') IS NOT NULL`).all();
+  if (settings.length > 1) throw new Error("World loot sources disagree on the world loot settings.");
+  const worldLimit = settings[0]?.world_limit ?? null, minimumRank = settings[0]?.rank ?? null;
+  const ranges = db.query<{ range: number }, []>(`
+    SELECT DISTINCT json_extract(context_json, '$.levelEligibility.levelBand.range') AS range
+    FROM item_sources WHERE source_kind = 'world-loot'
+      AND json_extract(context_json, '$.levelEligibility.levelBand.range') IS NOT NULL`).all();
+  if (ranges.length > 1) throw new Error("World loot sources disagree on the level band range.");
+  const levelBandRange = ranges[0]?.range ?? null;
+  for (const row of db.query<{ binding_index: number; loot_table_id: number; payload_json: string; table_rate: number | null; item_entity_key: string; raw_rate: number | null }, []>(`
+    SELECT b.binding_index, b.loot_table_id, b.payload_json, b.raw_rate AS table_rate, e.item_entity_key, e.raw_rate
     FROM loot_bindings b JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id
     WHERE b.context = 'world' ORDER BY b.binding_index, e.entry_index`).all()) {
     let table = tables.get(row.binding_index);
     if (!table) {
       const binding = object(row.payload_json);
-      table = { lootTableId: row.loot_table_id, minimumLevel: typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0,
+      table = { lootTableId: row.loot_table_id, tableRate: row.table_rate, worldLimit, minimumRank, levelBandRange,
+        minimumLevel: typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0,
         maximumLevel: typeof binding.maximumNPCLevel === "number" ? binding.maximumNPCLevel : 0, hasRequirements: binding.requirementsTemplate != null, entries: [] };
       tables.set(row.binding_index, table);
     }

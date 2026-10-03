@@ -120,6 +120,22 @@ test("each guide shows every rule of its topic in the section that the rules rec
   }
 });
 
+test("Creature Drops appears in Mechanics when a verified loot rule is published", () => {
+  const base = rules.find((rule) => rule.topic === "loot");
+  if (!base) throw new Error("The fixture needs a loot rule.");
+  const creatureRule: CatalogMechanicsRule = { ...base, ruleId: "creature-table-roll", section: "creature-drops",
+    phrase: "Each loot list rolls on its own when you kill a creature.", placements: [
+      { page: "npcs", target: "drops", scope: "all" }, { page: "items", target: "dropped-by", scope: "all" },
+    ] };
+  const added: CatalogFacts = { ...facts, progression: { ...facts.progression, mechanicsRules: [...rules, creatureRule] } };
+  const loot = documents(added).get("mechanics:loot") as LootGuide;
+  const section = loot.sections.find((entry) => entry.id === "creature-drops");
+  expect(section).toMatchObject({ title: "Creature Drops", rules: [
+    expect.objectContaining({ id: "creature-table-roll" }),
+  ] });
+  expect(section?.lead).toContain("qualify for a creature's loot");
+});
+
 test("World Quests guide groups lifecycle and Heroic rewards under distinct sections", () => {
   const questRules: CatalogMechanicsRule[] = [
     { ruleId: "world-quest-zone-cycle", topic: "world-quests", section: "availability", ordinal: 0, status: "verified",

@@ -106,6 +106,7 @@ export interface CatalogQuestPickup {
 export interface CatalogDungeonFinder { supplyPack: CatalogEndpoint | null; dungeons: CatalogEndpoint[] }
 export interface CatalogItemLootTable {
   id: number; name: string; includeWorldLoot: boolean; worldLootShare: number; bonusDropChance: number;
+  levelBandGear: boolean;
   hasMinimumDrops: boolean; minDroppedItems: number; limitDroppedItems: boolean; maxDroppedItems: number;
   worldLootStats: number[] | null; worldLootArmorType: { nativeId: number; name: string | null } | null;
   entries: Array<{ item: CatalogEndpoint; min: number; max: number; rate: number | null }>;
@@ -141,6 +142,7 @@ export interface CatalogItemFacts {
   stackLimit: number;
   questDropOnly: boolean;
   corruptionToken: boolean;
+  levelRequirement?: number | null;
   equipmentRequirements: CatalogRequirementGroup[];
   useConditions: CatalogRequirementGroup[];
   actionAbilities: CatalogContextualAbilityReference[];
@@ -410,6 +412,8 @@ export interface CatalogDropRow {
   tableMinimum: number | null;
   tableLimit: number | null;
   creatureLevel: { min: number; max: number | null } | null;
+  /** The item's required level used as a reference for a level-band world loot roll. */
+  worldReferenceLevel?: number;
   conditionIds: string[];
   placementIds: string[];
 }
@@ -464,6 +468,8 @@ export interface CatalogInteractionRow {
   min: number | null;
   max: number | null;
   rawRate: number | null;
+  /** Authored loot table used by this object's interaction. */
+  lootTableId?: number;
   /** Chance of completing the object's action; separate from the loot table's row chance. */
   actionChance?: number;
   /** Chance of a nested GameActions action, after the object's action fires. */

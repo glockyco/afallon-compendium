@@ -9,6 +9,7 @@ import { displayName, plainText } from "../text";
 import { roundWeaponDamage, weaponDamageLabel } from "../weapon-display";
 import { bandWorldLoot, type WorldLootItem, type WorldLootTable } from "../world-loot";
 import { itemKind } from "../item-type";
+import { objectDropOdds } from "./loot-chances";
 import { lootFields } from "./loot";
 import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
@@ -363,19 +364,24 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     availability: projectAvailability(row.availability, conditions, input.resolve),
     placements: publishedPlacements(row.placementIds, input.placements),
   }))).map(withAvailabilityIndex);
-  const collectedFrom = groupPlacementCounts(itemInteractions.filter((row) => !indexes.placedNodes.has(row.sourceId)).map((row) => ({
-    ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }),
-    label: interactionLabel(row.objectName),
-    ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
-    ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
-    ...(row.prefabChoices !== undefined && row.prefabChoices > 1 ? { prefabChoices: row.prefabChoices } : {}),
-    ...(row.choiceLabel ? { choiceLabel: displayName(row.choiceLabel) } : {}),
-    ...(row.cost ? { cost: { currency: input.resolve(row.cost.currency), amount: row.cost.amount } } : {}),
-    ...(row.pickOne !== undefined && row.pickOne > 1 ? { pickOne: row.pickOne } : {}),
-    ...actionChance(row),
-    availability: projectAvailability(row.availability, conditions, input.resolve),
-    placements: publishedPlacements(row.placementIds, input.placements),
-  }))).map(withAvailabilityIndex);
+  const collectedFrom = groupPlacementCounts(itemInteractions.filter((row) => !indexes.placedNodes.has(row.sourceId)).map((row) => {
+    const odds = objectDropOdds(input, row);
+    return {
+      ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }),
+      label: interactionLabel(row.objectName),
+      ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
+      ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
+      ...("chance" in odds ? { openChance: odds.chance, ...(odds.level === undefined ? {} : { openChanceLevel: odds.level }) }
+        : { oddsUnavailable: odds.unavailable }),
+      ...(row.prefabChoices !== undefined && row.prefabChoices > 1 ? { prefabChoices: row.prefabChoices } : {}),
+      ...(row.choiceLabel ? { choiceLabel: displayName(row.choiceLabel) } : {}),
+      ...(row.cost ? { cost: { currency: input.resolve(row.cost.currency), amount: row.cost.amount } } : {}),
+      ...(row.pickOne !== undefined && row.pickOne > 1 ? { pickOne: row.pickOne } : {}),
+      ...actionChance(row),
+      availability: projectAvailability(row.availability, conditions, input.resolve),
+      placements: publishedPlacements(row.placementIds, input.placements),
+    };
+  })).map(withAvailabilityIndex);
   const questRows = indexes.questsByCounterpart.get(entity.entityKey) ?? [];
   const recipeRows = indexes.recipesByItem.get(entity.entityKey) ?? [];
   const taughtRecipe = indexes.teachings.get(entity.entityKey);

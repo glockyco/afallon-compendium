@@ -50,7 +50,8 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [] };
   Assert(DropRowSchema, drop);
   Assert(DropRowSchema, { ...drop, counterpart: boss, chance: 12.5, tableChance: 5, tableMinimum: 1, tableLimit: 2, creatureLevel: { min: 18 } });
-  Assert(DropRowSchema, { ...drop, chance: 12.5, killChance: 2.4 });
+  Assert(DropRowSchema, { ...drop, chance: 12.5, killChance: 2.4, chanceLevel: 10 });
+  Assert(DropRowSchema, { ...drop, chance: 12.5, oddsUnavailable: "The required player level is unknown." });
   expect(() => Assert(DropRowSchema, { ...drop, killChance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, tableMinimum: 0 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
@@ -59,6 +60,10 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Stat", "Item power 400", { spans: [{ ref: { key: "stats:53", kind: "stats", name: "Item power" } }, { text: " 400" }] })] }] });
   Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, requirements: [], availability: [], placementCount: 1, places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", spotCount: 1, placementIds: ["p1"] }] });
   Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", availabilityIndex: 0, placementCount: 1, places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", spotCount: 1, placementIds: ["p1"] }] });
+  Assert(ContainerRowSchema, { label: "Locked Chest", chance: 3, openChance: 2.45921323925406, openChanceLevel: 10,
+    availabilityIndex: 0, placementCount: 1, places: [] });
+  expect(() => Assert(ContainerRowSchema, { label: "Locked Chest", openChance: 101,
+    availabilityIndex: 0, placementCount: 1, places: [] })).toThrow();
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
   Assert(UsedInRecipeRowSchema, { counterpart: item, count: 3, product: { counterpart: boss, count: 2 }, skill: item, requiredLevel: 1 });
   Assert(PlaceEntranceSchema, { place: unresolved, placements: [placement] });

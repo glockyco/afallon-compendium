@@ -89,10 +89,12 @@ test('world loot keeps level eligibility separate from creature rank and the lis
     creatureLevel: { min: 21, max: 29 }, tableChance: 5, tableMinimum: 1, tableLimit: 2,
   })], []);
   const [route] = itemSourceLines(gear);
-  expect(route?.text).toBe('Creatures of rank Elite or higher at levels 21 to 29 can drop it as world loot.');
+  expect(route?.text).toBe('Creatures of rank Elite or higher at levels 21 to 29 can drop it as World Loot.');
   expect(route?.drop?.chance).toBe(4);
-  expect(route?.detail).toBe('Each kill has a 5% chance to drop 1 or 2 items from this loot list.');
+  expect(route?.detail).toBe('The World Loot list rolls on 5% of eligible kills and gives 1 or 2 items.');
   gear.droppedBy[0]!.killChance = 0.5;
+  gear.droppedBy[0]!.chanceLevel = 25;
+  expect(itemSourceLines(gear)[0]?.drop?.chanceLevel).toBe(25);
   expect(itemSourceLines(gear)[0]?.drop?.killChance).toBe(0.5);
 });
 
