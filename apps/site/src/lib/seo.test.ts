@@ -11,17 +11,17 @@ const item = (overrides: Record<string, unknown> = {}): StaticDocument => ({
 }) as unknown as StaticDocument;
 
 test('summarizes item rarity and level-restricted drops without implying every creature drops it', () => {
-  expect(entityDescription(item())).toContain('uncommon shield in Afallon. Dropped by level 6–14 Forest Scout.');
+  expect(entityDescription(item())).toContain('uncommon shield in Afallon. Forest Scout can drop it at levels 6–14.');
 });
 
 test('a world drop from any creature states its actual eligible levels', () => {
-  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 6, max: 14 } }] }))).toContain('Dropped by level 6–14 creatures.');
-  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 1 } }] }))).toContain('Dropped by creatures.');
+  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 6, max: 14 } }] }))).toContain('It can drop from creatures at levels 6–14.');
+  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 1 } }] }))).toContain('It can drop from creatures.');
 });
 
 test('uses an available container source before creature drops and never invents absent sources', () => {
-  expect(entityDescription(item({ inContainers: [{ label: 'Locked Wooden Treasure Chest' }] }))).toContain('Find it in Locked Wooden Treasure Chest or from level 6–14 Forest Scout.');
-  expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/Dropped by|Sold by|Find it in/);
+  expect(entityDescription(item({ inContainers: [{ label: 'Locked Wooden Treasure Chest' }] }))).toContain('Find it in Locked Wooden Treasure Chest. Forest Scout can drop it at levels 6–14.');
+  expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/can drop|sells it|Find it in/);
 });
 
 test('uses only known NPC level and place, without inventing a location for an unplaced NPC', () => {
@@ -42,6 +42,18 @@ test('an oversized source does not cut a fact in half', () => {
   const description = entityDescription(item({ inContainers: [{ label: 'A '.repeat(100) + 'Treasure' }] }));
   expect(description).toContain('uncommon shield in Afallon.');
   expect(description).not.toContain('Find it in A');
+});
+
+test('equipment and quest summaries use complete player-facing facts', () => {
+  const gloves = item({ ref: { name: "Scout's Gloves" }, facts: { rarity: 'Uncommon', itemType: 'ARMOR', armorType: 'LEATHER', slot: 'GLOVES' }, droppedBy: [] });
+  expect(entityDescription(gloves)).toContain("Scout's Gloves is a pair of uncommon leather gloves in Afallon.");
+  const quest = { kind: 'quests', document: {
+    ref: { name: 'Eggs-traordinary Collection' }, description: null,
+    facts: { levelRange: { min: 15, max: 30 } },
+    objectives: [{ type: 'getItem', count: 10, target: { key: 'items:90', kind: 'items', name: 'Funnel Weaver Egg' } }],
+    starts: [{ kind: 'npc', npc: { key: 'npcs:58', kind: 'npcs', name: 'Esko' } }],
+  } } as unknown as StaticDocument;
+  expect(entityDescription(quest)).toContain('Collect Funnel Weaver Egg (10 needed). Start it with Esko.');
 });
 
 test('canonical URLs ignore query and preserve slash paths', () => {
