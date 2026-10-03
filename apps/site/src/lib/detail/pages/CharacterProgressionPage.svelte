@@ -85,7 +85,7 @@
         {/if}
       </GuideSection>
       {#if section.id === 'kill-experience'}
-        <Section id="try-it-on-a-creature" title="Try It on a Creature">
+        <Section id="try-it-on-a-creature" title="Try it on a creature">
           <KillCalculator guide={document} {registry} bind:characterLevel />
         </Section>
       {/if}

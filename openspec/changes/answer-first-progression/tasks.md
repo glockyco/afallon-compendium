@@ -1,7 +1,7 @@
 ## 1. Progression Answers
 
 - [x] 1.1 Add computed journey shares and conditional real-creature kill estimates with unit tests.
-- [x] 1.2 Lead with the remembered-level answer and journey cards, followed by one always-visible full curve and a disclosure of every breakpoint.
+- [x] 1.2 Lead with the remembered-level answer beside one visible full curve, followed by the full-width journey strip and a disclosure of every breakpoint.
 
 ## 2. Calculator And Proof
 
@@ -17,3 +17,8 @@
 
 - [x] 4.1 Prefer a published ordinary level-matched encounter, group level numbers and linked names, move the creature picker into the always-open settings card, and keep disclosure titles compact.
 - [x] 4.2 Test the example calculation and browser interactions, review six responsive screenshots, validate the change, and build and verify the staged publication.
+
+## 5. Curve And Heroic Clarity
+
+- [x] 5.1 Put the only curve beside the answer, remove Normal 1× rows, and keep the journey percentage and creature-level phrase together.
+- [x] 5.2 Align the Heroic creature-level selector with its column, review Firefox and Chromium at three widths, validate the change, build the publication, and verify the staged change. Shared stepper migration is tracked by the separate level-control change.

@@ -2,9 +2,9 @@
 
 ### Requirement: Character Progression answers for one remembered level
 
-The Character Progression page SHALL lead its curve section with the published experience from the selected character level to the next, and a conditional range of whole kills of a linked published creature at a published place and spawn level, based on the verified kill calculation without followers, Heroic empowerment, or Experience Bonus. The example SHALL name these conditions and explain that other game and world effects can change an actual award. At the cap it SHALL not promise another level or a finite number of kills. The selected-level answer and experience journey SHALL appear in aligned cards above one always-visible complete labeled logarithmic curve. Its axis and level tick labels SHALL remain legible at small text size across viewport widths, and its selected point SHALL follow the remembered level. A named disclosure SHALL retain every published level breakpoint without repeating the chart. The journey bar SHALL report the selected level's share of total published experience to the cap in numbers as well as visually, and SHALL identify the experience share in the last ten levels as experience distribution, not time or predicted effort.
+The Character Progression page SHALL lead its curve section with the published experience from the selected character level to the next, and a conditional range of whole kills of a linked published creature at a published place and spawn level, based on the verified kill calculation without followers, Heroic empowerment, or Experience Bonus. The example SHALL name these conditions and explain that other game and world effects can change an actual award. At the cap it SHALL not promise another level or a finite number of kills. The selected-level answer SHALL sit beside the one always-visible complete labeled logarithmic curve on wide screens and stack above it on phones. Its axis and level tick labels SHALL remain legible at small text size across viewport widths, and its selected point SHALL follow the remembered level. A full-width experience journey strip SHALL follow the answer and chart. A named disclosure SHALL retain every published level breakpoint without repeating the chart. The journey bar SHALL report the selected level's share of total published experience to the cap in numbers as well as visually, and SHALL identify the experience share in the last ten levels as experience distribution, not time or predicted effort.
 
-The page SHALL offer exactly one character-level control shared by its curve answer, kill calculator, and level-up talent point example. Its saved value SHALL use the same browser-local reader level used by the site's other character examples, with a visible fallback when no level has been saved and no silent change to a previously selected level when the creature changes. The opening example SHALL prefer a published ordinary open-world creature at the selected level over challenge variants, named elites, or internal names with parenthetical qualifiers when such a creature is available. The Heroic creature comparison SHALL likewise align its creature-and-place selector and character/gear level controls within their columns.
+The page SHALL offer exactly one character-level control shared by its curve answer, kill calculator, and level-up talent point example. Its saved value SHALL use the same browser-local reader level used by the site's other character examples, with a visible fallback when no level has been saved and no silent change to a previously selected level when the creature changes. The opening example SHALL prefer a published ordinary open-world creature at the selected level over challenge variants, named elites, or internal names with parenthetical qualifiers when such a creature is available. The Heroic creature comparison SHALL align its creature-and-place selector and character/gear level controls within their columns. It SHALL show Normal kill experience without empty 1× rows and show verified health, damage and experience multipliers only for the conditional Heroic creature outcome. It SHALL explain that only some creatures become Heroic while the tier is active; absolute combat values SHALL remain absent until verified and published.
 
 #### Scenario: Linked kill estimate
 - **WHEN** a reader selects level 40 with Enraged Ent at its published Oakshade Logging Camp spawn, alongside level-matched challenge-stone variants and an elite
@@ -23,13 +23,18 @@ The page SHALL offer exactly one character-level control shared by its curve ans
 
 #### Scenario: One visible curve with inspectable breakpoints
 - **WHEN** a reader opens Character Progression at 1440, 1100, or 390 px
-- **THEN** the answer and journey cards precede one visible full curve, with a marked selected level and readable, muted axis labels
-- **AND** the table of all level breakpoints remains in a disclosure below that curve, with no second chart
+- **THEN** the answer card sits beside one visible full curve on wide screens and above it on phones, with a marked selected level and readable muted axis labels
+- **AND** the full-width journey strip follows those two, and the table of every breakpoint stays in a disclosure without a second chart
 
 #### Scenario: Aligned calculator and Heroic controls
 - **WHEN** a reader compares a creature's kill experience at 1440 px
 - **THEN** the open settings card contains the creature select as its first control, while that settings card and the result card align with equal heights and the award identifies experience
 - **AND** the Heroic creature-and-place select and level controls fit their comparison columns without mismatched widths
+
+#### Scenario: Heroic relative strength without empty baselines
+- **WHEN** a reader compares a normal eligible creature with its conditional Heroic outcome
+- **THEN** the Normal card shows its modeled kill experience without 1× health or damage rows
+- **AND** the Heroic card shows verified relative health, damage and kill experience factors without claiming absolute health or damage
 
 #### Scenario: Level cap and small screen
 - **WHEN** the selected level is the cap on a 390 px screen

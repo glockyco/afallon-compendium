@@ -72,9 +72,7 @@
 </script>
 
 {#if !compact && !chartOnly}<p class="intro">Each point shows the experience from that level to the next. The scale is logarithmic, so each grid line is ten times the one below it.</p>{/if}
-<!-- This focusable region also lets keyboard readers pan the wider chart if their viewport cannot fit it. -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div bind:this={chartContainer} class="chart-scroll" class:compact role="region" aria-label="Level curve chart" tabindex="0">
+<div bind:this={chartContainer} class="chart-scroll" class:compact class:chartOnly={chartOnly} role="region" aria-label="Level curve chart">
   <svg bind:this={chart} viewBox={`0 0 ${width} ${height}`} role="img" preserveAspectRatio="xMidYMid meet" aria-labelledby={`${uid}-title ${uid}-description`}>
     <title id={`${uid}-title`}>Experience to next level by {subject.toLowerCase() === "character" ? "character" : subject} level</title>
     <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each known level below the cap. The marked point follows the selected level.</desc>
@@ -113,8 +111,8 @@
   .intro { color: var(--c-text-dim); line-height: 1.5; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
   svg { display: block; width: 100%; min-width: 36rem; height: auto; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
-  .chart-scroll.compact svg { min-width: 0; }
-  @media (max-width: 640px) { .chart-scroll:not(.compact) svg { min-width: 0; height: 260px; } }
+  .chart-scroll.compact svg, .chart-scroll.chartOnly svg { min-width: 0; }
+  @media (max-width: 640px) { .chart-scroll.chartOnly svg { height: 260px; } }
   .grid { stroke: var(--c-line); stroke-dasharray: 3 4; }
   .axis { stroke: var(--c-text-dim); }
   .curve { fill: none; stroke: var(--c-accent); stroke-width: 2.5; stroke-linejoin: round; }

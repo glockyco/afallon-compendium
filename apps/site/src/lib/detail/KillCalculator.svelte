@@ -47,11 +47,11 @@
 <div class="calculator">
   <div class="result">
     <div class="result-heading">
-      <h3>Experience per Kill</h3>
+      <h3>Experience per kill</h3>
       <p class="selected-creature"><EntityLink ref={entry.creature} {registry} /> in {#if place.place}<EntityLink ref={place.place} {registry} />{:else}{place.name}{/if} at <span class="no-break">level&nbsp;{formatNumber(creatureLevel)}</span>.</p>
     </div>
     <div aria-live="polite" aria-atomic="true">
-      <p class="award">{toNext === undefined ? 'Level Cap' : `${range(result.award.low, result.award.high)} Experience`}</p>
+      <p class="award">{toNext === undefined ? 'Level cap' : `${range(result.award.low, result.award.high)} experience`}</p>
       <p class="kills">
         {#if toNext === undefined}Level&nbsp;{formatNumber(characterLevel)} is the level cap, so kills give no more experience.
         {:else if kills === null}With these settings, a kill gives no experience.
@@ -59,16 +59,15 @@
       </p>
     </div>
     <p class="note">This leaves out world effects and some other game effects.{#if experienceBonus > 0}{' '}The game may round the final amount.{/if}</p>
-    <DetailsDisclosure title="How the Kill Award Adds Up">
+    <DetailsDisclosure title="How the kill award adds up">
       <table class="c-table c-table--calculator" aria-label="Experience calculation">
-        <caption>How it adds up</caption>
         <thead><tr><th scope="col">Step</th><th scope="col" class="c-num">Experience</th></tr></thead>
         <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td class="c-num">{range(step.low, step.high)}</td></tr>{/each}</tbody>
       </table>
     </DetailsDisclosure>
   </div>
   <div class="settings">
-    <h3>Adjust the Kill</h3>
+    <h3>Adjust the kill</h3>
     <div class="picker">
       <label for="kill-creature">Creature</label>
       <select id="kill-creature" bind:value={selected} on:keydown={navigate}>
@@ -81,25 +80,25 @@
     </div>
     <div class="setting-fields">
       {#if levels.length > 1}
-        <label class="field">Creature Level
+        <label class="field">Creature level
           <select bind:value={creatureLevel}>{#each levels as level}<option value={level}>{formatNumber(level)}</option>{/each}</select>
         </label>
       {/if}
       <div class="numbers">
-        <label class="field">Living Followers
+        <label class="field">Living followers
           <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} />
         </label>
-        <label class="field">Experience Bonus
+        <label class="field">Experience bonus
           <span class="suffixed"><input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /><span>%</span></span>
         </label>
       </div>
       {#if guide.killCalculator.heroicMultiplier !== undefined}
-        <label class="check"><input type="checkbox" bind:checked={heroic} /><span>Empowered in Heroic Tier</span><span class="dim">If eligible · ×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
+        <label class="check"><input type="checkbox" bind:checked={heroic} /><span>Heroic creature</span><span class="dim">If eligible · ×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
       {/if}
     </div>
   </div>
   <div class="source-facts">
-    <DetailsDisclosure title="Creature Experience Details">
+    <DetailsDisclosure title="Creature experience details">
       <dl class="facts">
         <div><dt>Creature</dt><dd><EntityLink ref={entry.creature} {registry} /></dd></div>
         <div><dt>Level</dt><dd>{npcLevelText(entry.level)}</dd></div>
