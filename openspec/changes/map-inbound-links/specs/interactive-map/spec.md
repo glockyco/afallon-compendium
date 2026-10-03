@@ -2,11 +2,11 @@
 
 ### Requirement: Inbound map links frame their destinations
 
-A map link naming a published placement without an explicit camera view SHALL frame that placement at a useful scale. A map link naming a published entity without an explicit camera view SHALL frame all of that entity's published spots and list those spots, including when the entity's category is not selected. An explicit camera view SHALL remain authoritative. Changing selections after arrival SHALL NOT reposition the live camera.
+A map link naming a published placement without an explicit camera view SHALL frame that placement at a useful scale, no closer than the map image's own available detail. A map link naming a published entity without an explicit camera view SHALL frame all of that entity's published spots and list those spots, including when the entity's category is not selected. When linked spots span maps with different image detail, framing SHALL respect the least detailed map. An explicit camera view SHALL remain authoritative. Changing selections after arrival SHALL NOT reposition the live camera.
 
 #### Scenario: A reader follows a placement link
 - **WHEN** a reader opens a map link to one published spot with no camera coordinates
-- **THEN** that spot is visible near the center at a useful scale
+- **THEN** that spot is visible near the center without zooming past the map image's available detail
 - **AND** selecting another spot later does not move the camera
 
 #### Scenario: A reader follows an entity link
