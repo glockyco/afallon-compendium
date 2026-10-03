@@ -1,5 +1,6 @@
 <script lang="ts" generics="Row">
   import { onMount, tick } from 'svelte';
+  import { growingCount } from '../growing-count';
   import HowItWorks from './HowItWorks.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
@@ -17,6 +18,11 @@
   export let rowAnchors: (row: Row) => readonly string[] = () => [];
 
   let expanded = false;
+  // Hidden rows cost nothing until a reader reveals them: the table builds only the rows it shows, and builds revealed
+  // rows in steps so that a long relation does not stall the page.
+  const REVEAL_STEP = 100;
+  const built = growingCount(shownRowCount(rows.length, false), REVEAL_STEP);
+  let mounted = false;
 
   function sortValue(row: Row, id: string): SortValue {
     return columns.find((column) => column.id === id)?.sort?.(row);
@@ -24,20 +30,34 @@
 
   $: sorted = sort ? sortRows(rows, sortValue, sort) : rows;
   $: shown = shownRowCount(sorted.length, expanded);
+  $: if (mounted) built.growTo(shown);
+  $: builtRows = sorted.slice(0, Math.min($built, shown));
+  // An address can name a row that is not built yet. Its anchor waits beside the control that reveals the row, so every
+  // fragment link has a target in the page, and without a script the browser lands at that control.
+  $: waitingAnchors = sorted.slice(builtRows.length).flatMap((row) => rowAnchors(row));
   // A table with one row has nothing to order, so its headings are plain text.
   $: sortable = rows.length > 1;
   // On a phone, up to two numbers sit beside the name when no other column comes before them. Every other column is a
   // labelled detail line below the name.
   $: besideName = columns.map((column, index) => index > 0 && index <= 2 && columns.slice(1, index + 1).every((entry) => entry.numeric));
 
-  // The address can name an anchor in a row that the limit hides. Such a row opens the table and scrolls into view.
+  // The address can name an anchor in a row that the limit hides. Such a row opens the table, is built, and scrolls into
+  // view. A built row is already in the page, and the browser scrolls to it.
   async function revealTarget(): Promise<void> {
     const id = fragmentId(window.location.hash);
     const index = id ? sorted.findIndex((row) => rowAnchors(row).includes(id)) : -1;
-    if (index < 0 || index < shown) return;
-    expanded = true;
-    await tick();
+    if (index < 0 || index < $built) return;
+    await buildThrough(index);
     requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'center' }));
+  }
+
+  async function buildThrough(index: number): Promise<void> {
+    if (index >= shown) {
+      expanded = true;
+      await tick();
+    }
+    built.showAtLeast(index + 1);
+    await tick();
   }
 
   // A tab set asks the tables of its panel to reveal an anchor before it scrolls, also for a repeated fragment link.
@@ -45,14 +65,12 @@
   async function revealAnchor(id: string): Promise<boolean> {
     const index = sorted.findIndex((row) => rowAnchors(row).includes(id));
     if (index < 0) return false;
-    if (index >= shown) {
-      expanded = true;
-      await tick();
-    }
+    if (index >= $built) await buildThrough(index);
     return true;
   }
 
   onMount(() => {
+    mounted = true;
     void revealTarget();
     const onHashChange = () => void revealTarget();
     window.addEventListener('hashchange', onHashChange);
@@ -60,6 +78,7 @@
     return () => {
       window.removeEventListener('hashchange', onHashChange);
       removeRevealer?.();
+      built.stop();
     };
   });
 
@@ -95,9 +114,9 @@
     </thead>
     <!-- svelte-ignore a11y_no_redundant_roles -->
     <tbody role="rowgroup">
-      {#each sorted as row, index}
+      {#each builtRows as row}
         <!-- svelte-ignore a11y_no_redundant_roles -->
-        <tr role="row" hidden={index >= shown}>
+        <tr role="row">
           {#each columns as column, columnIndex}
             <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && !besideName[columnIndex]}>
               {#if columnIndex === 0}{#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
@@ -109,6 +128,7 @@
       {/each}
     </tbody>
   </table>
+  {#each waitingAnchors as anchor}<span class="anchor" id={anchor}></span>{/each}
   {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
 </div>
 
@@ -121,7 +141,6 @@
   th { border-bottom: 1px solid var(--c-line-soft); color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; white-space: normal; }
   tbody tr:hover { background: var(--c-tint-hover); }
   tbody td { border-top: 1px solid var(--c-line-soft); overflow-wrap: break-word; }
-  tr[hidden] { display: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   th.num :global(.c-sort) { justify-content: flex-end; width: 100%; }
   td :global(small) { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: var(--c-text-small); white-space: normal; }

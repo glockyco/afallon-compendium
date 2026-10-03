@@ -1,15 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
+import { entityPageEntries } from '$lib/server/page-entries';
 import { serverMapLoader } from '$lib/server/publication';
 import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
 
-export const entries: EntryGenerator = async () => {
-  const loader = serverMapLoader();
-  const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
-  const routeByKind = new Map(registry.filter((entry) => entry.pages).map((entry) => [entry.kind, entry.route]));
-  return indexes.entries.filter((entry) => entry.document && entry.ref.slug && routeByKind.has(entry.ref.kind))
-    .map((entry) => ({ kind: routeByKind.get(entry.ref.kind)!, slug: entry.ref.slug! }));
-};
+export const entries: EntryGenerator = entityPageEntries;
 
 type InlineItem = Extract<StaticDocument, { kind: 'items' }>['document'];
 

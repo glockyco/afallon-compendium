@@ -7,12 +7,12 @@ import type { DeploymentMetadata } from "./stage-publication.ts";
 
 const FREE_ASSET_LIMIT = 20_000;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set([".html", ".json", ".js", ".css", ".webp", ".png", ".ico", ""]);
+const ALLOWED_EXTENSIONS = new Set([".html", ".json", ".js", ".css", ".webp", ".png", ".ico", ".xml", ".txt", ""]);
 const siteDir = resolve(import.meta.dirname, "..");
 const outputDir = deploymentPaths(siteDir).outputDir;
 const files = listFiles(outputDir);
 
-for (const required of ["index.html", "404.html", "items/index.html", "coverage/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.png", "og-default.png"]) {
+for (const required of ["index.html", "404.html", "items/index.html", "coverage/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.png", "og-default.png", "sitemap.xml", "robots.txt"]) {
   if (!files.includes(required)) throw new Error(`Deployment output is missing ${required}.`);
 }
 if (files.length > FREE_ASSET_LIMIT) {

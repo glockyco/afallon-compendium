@@ -45,20 +45,22 @@
 </script>
 
 <ul class="places">
-  {#each sorted as place, index}
-    <li id={place.id} hidden={index >= shown}>
+  {#each sorted.slice(0, shown) as place}
+    <li id={place.id}>
       <span class="name">{#if place.nameHref}<a class="c-link place-name" href={place.nameHref}>{place.place.key === null ? place.place.label : place.place.name}</a>{:else}<EntityLink ref={place.place} {registry} />{/if}</span>
       <span class="spots">{place.spotCount} {place.spotCount === 1 ? 'spot' : 'spots'}</span>
       <span class="bar" aria-hidden="true"><span style={`width: ${place.spotCount / maximum * 100}%`}></span></span>
     </li>
   {/each}
 </ul>
+<!-- A hidden place keeps its anchor beside the control that reveals it, so a fragment link always has a target. -->
+{#each sorted.slice(shown) as place}{#if place.id}<span class="waiting" id={place.id}></span>{/if}{/each}
 {#if shown < sorted.length}<button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
 
 <style>
   .places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; padding: 0; list-style: none; }
   li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .75rem; align-items: center; min-width: 0; padding: .5rem 0; border-bottom: 1px solid var(--c-line-soft); scroll-margin-top: 6rem; }
-  li[hidden] { display: none; }
+  .waiting { scroll-margin-top: 6rem; }
   .name { min-width: 0; overflow-wrap: break-word; }
   .place-name { display: inline-flex; min-height: 1.5rem; align-items: center; color: var(--c-text-strong); text-decoration: none; }
   .place-name:hover, .place-name:focus-visible { color: var(--c-accent); text-decoration: underline; }

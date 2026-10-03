@@ -6,7 +6,8 @@
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
   import ListFilterPanel from './ListFilterPanel.svelte';
-  import { formatNumber, rarityTone, readerNoun } from './format';
+  import { formatNumber, nameOf, rarityTone, readerNoun } from './format';
+  import { growingCount } from './growing-count';
   import {
     activeFilterCount, emptyFilters, facetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
     statSortValue, writeFilters, type ListFilterState,
@@ -56,22 +57,38 @@
   ];
   $: shapes = columns.map((column) => columnShape(column.id, column.numeric === true));
 
-  // Column widths follow the widest value of each column (see list-layout.ts). Above phone widths the table measures
-  // its cells after each render and keeps the widest width it has seen per column, so filtering does not make columns
-  // jump. On a phone each row is a card and the table keeps no widths.
+  // A list builds its first rows at once, on the server and in the browser, and then adds the rest of the current
+  // results in steps between frames, so a long list opens without first building every row. A filter, search, or sort
+  // change starts again from the first rows.
+  const FIRST_ROWS = 60;
+  const ROW_STEP = 50;
+  const built = growingCount(FIRST_ROWS, ROW_STEP);
+  let mounted = false;
+
+  // Column widths follow the widest value of each column (see list-layout.ts). Above phone widths a hidden sample table
+  // builds the rows that hold the longest values of each column among all current results, and the list measures those
+  // with its first rows. The widths therefore fit every row from the first frame, although the list builds its rows in
+  // steps. The list keeps the widest width it has seen per column, so filtering does not make columns jump. On a phone
+  // each row is a card and the table keeps no widths.
+  const SAMPLE_PER_COLUMN = 5;
   let listElement: HTMLDivElement;
+  let sampleElement: HTMLDivElement | undefined;
   let natural: Record<string, number> = {};
   let available = 0;
   let wide = false;
   let widths: number[] | undefined;
   let measuredFor: unknown[] = [];
+  $: sampleRows = wide ? widestRows(filteredRows, columns.map((column) => column.id)) : [];
   $: widths = wide && available > 0 && columns.every((column) => natural[column.id] !== undefined)
     ? sameWidths(widths, columnWidths(columns.map((column, index) => ({ shape: shapes[index]!, natural: natural[column.id]! })), available))
     : undefined;
 
   // A table wider than its card, even with every column at its floor, scrolls inside the card instead of moving the
-  // page sideways. Its header then sticks within the card only.
+  // page sideways. Its header then sticks within the card only. A table flows with the page only once its measured
+  // widths fit: before the first measurement, as in the page that the server renders, its values take their natural
+  // widths, and a long one would otherwise spill past the card.
   $: overflowing = widths !== undefined && widths.reduce((sum, width) => sum + width, 0) > available;
+  $: flowWide = widths !== undefined && !overflowing;
 
   function sameWidths(previous: number[] | undefined, next: number[]): number[] {
     return previous && previous.length === next.length && previous.every((width, index) => width === next[index]) ? previous : next;
@@ -91,7 +108,10 @@
       range.selectNodeContents(cell.querySelector('.c-sort') ?? cell);
       grow(column.id, range.getBoundingClientRect().width + cellPadding(cell));
     });
-    for (const row of table.querySelectorAll('tbody tr')) {
+    // The first rows and the sample of the widest values stand for every row, so measuring stays short however long the
+    // list is.
+    const rows = [...[...table.querySelectorAll('tbody tr')].slice(0, FIRST_ROWS), ...(sampleElement?.querySelectorAll('tbody tr') ?? [])];
+    for (const row of rows) {
       row.querySelectorAll(':scope > td').forEach((cell, index) => {
         const column = columns[index];
         if (!column) return;
@@ -104,7 +124,39 @@
     }
     if (Object.keys(next).some((id) => next[id] !== natural[id])) natural = next;
   }
+
+  // The rows that hold the longest values of each column. A value's length in characters stands for its width, and five
+  // rows per column leave room for wide letters.
+  function widestRows(rows: readonly ListRow[], ids: readonly string[]): ListRow[] {
+    const chosen = new Set<ListRow>();
+    for (const id of ids) {
+      const top: Array<{ row: ListRow; length: number }> = [];
+      for (const row of rows) {
+        const length = valueLength(row, id);
+        if (top.length === SAMPLE_PER_COLUMN && length <= top[SAMPLE_PER_COLUMN - 1]!.length) continue;
+        top.push({ row, length });
+        top.sort((left, right) => right.length - left.length);
+        top.length = Math.min(top.length, SAMPLE_PER_COLUMN);
+      }
+      for (const entry of top) chosen.add(entry.row);
+    }
+    return [...chosen];
+  }
+
+  // The length of the text that a cell shows, following the branches of the row snippet below.
+  function valueLength(row: ListRow, id: string): number {
+    if (id === 'name') return row.ref.name.length;
+    if (id.startsWith(STAT_COLUMN)) return statText(row, id.slice(STAT_COLUMN.length)).length;
+    const value = row.values[id];
+    if (value === null || value === undefined) return 0;
+    const relations = row.relations?.[id];
+    if (relations?.length) return relations.reduce((sum, ref, index) => sum + nameOf(ref).length + (row.relationSuffixes?.[id]?.[index]?.length ?? 0) + (index ? 2 : 0), 0);
+    if (typeof value === 'number') return formatNumber(value).length;
+    return cellValues(row, id).map((entry) => listValueLabel(id, entry)).join(', ').length;
+  }
   $: filteredRows = sortRows(list.rows.filter((row) => matchesFilters(row, filters, kind, rangeIds)), sortValue, sort);
+  $: if (mounted) built.restart(filteredRows.length);
+  $: shownRows = filteredRows.slice(0, $built);
   $: activeCount = activeFilterCount(filters);
   $: chips = filterChips(filters);
   $: hiddenOptions = kind.facets.flatMap((facet) => (facet.defaultHiddenValues ?? []).map((value) => ({
@@ -129,7 +181,8 @@
     observer.observe(column);
     // Widths measured in a fallback font are wrong once the page font arrives, so the table measures again.
     void document.fonts?.ready.then(() => { natural = {}; measuredFor = []; });
-    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); };
+    mounted = true;
+    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); built.stop(); };
   });
 
   // The table measures again when its rows or columns change, not when only its widths do.
@@ -241,6 +294,33 @@
   }
 </script>
 
+{#snippet listRow(row: ListRow)}
+  <tr>
+    <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
+    {#each visibleColumns as column, index}
+      <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}><span class={`cell ${shapes[index + 1]}`} on:pointerenter={titleIfCut}>
+        {#if row.values[column.id] === null || row.values[column.id] === undefined}
+          <!-- A list cell without a value states nothing: the entity has no such fact. -->
+        {:else if column.id === 'rarity'}
+          <span data-rarity={rarityTone(String(row.values[column.id]))}><Badge label={listValueLabel(column.id, String(row.values[column.id]))} tone="rarity" /></span>
+        {:else if column.id === 'role'}
+          <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={listValueLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
+        {:else if row.relations?.[column.id]?.length}
+          {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} plain truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
+        {:else if typeof row.values[column.id] === 'number'}
+          <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
+        {:else}
+          {cellValues(row, column.id).map((value) => listValueLabel(column.id, value)).join(', ')}
+        {/if}
+      </span></td>
+    {/each}
+    {#each filters.stats as filter (filter.key)}
+      {@const text = statText(row, filter.key)}
+      <td data-label={statLabel(filter.key)} class="c-num" class:blank={!text}><span class="cell number">{text}</span></td>
+    {/each}
+  </tr>
+{/snippet}
+
 <div class="layout" class:with-panel={hasPanel}>
   {#if hasPanel}
     <aside class="sidebar" aria-label="Filters">
@@ -269,36 +349,17 @@
     </div>
 
     <div class="list" style={`--bar-height: ${barHeight}px`} bind:this={listElement}>
-      <DataTable {columns} {widths} {sort} sticky flowWide={!overflowing} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
-        {#each filteredRows as row (row.ref.key)}
-          <tr>
-            <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} forceIcon truncate /></td>
-            {#each visibleColumns as column, index}
-              <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}><span class={`cell ${shapes[index + 1]}`} on:pointerenter={titleIfCut}>
-                {#if row.values[column.id] === null || row.values[column.id] === undefined}
-                  <!-- A list cell without a value states nothing: the entity has no such fact. -->
-                {:else if column.id === 'rarity'}
-                  <span data-rarity={rarityTone(String(row.values[column.id]))}><Badge label={listValueLabel(column.id, String(row.values[column.id]))} tone="rarity" /></span>
-                {:else if column.id === 'role'}
-                  <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={listValueLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
-                {:else if row.relations?.[column.id]?.length}
-                  {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} plain truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
-                {:else if typeof row.values[column.id] === 'number'}
-                  <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
-                {:else}
-                  {cellValues(row, column.id).map((value) => listValueLabel(column.id, value)).join(', ')}
-                {/if}
-              </span></td>
-            {/each}
-            {#each filters.stats as filter (filter.key)}
-              {@const text = statText(row, filter.key)}
-              <td data-label={statLabel(filter.key)} class="c-num" class:blank={!text}><span class="cell number">{text}</span></td>
-            {/each}
-          </tr>
-        {/each}
+      <DataTable {columns} {widths} {sort} sticky {flowWide} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
+        {#each shownRows as row (row.ref.key)}{@render listRow(row)}{/each}
       </DataTable>
       {#if filteredRows.length === 0}<p class="c-empty empty">No {readerNoun(kind.plural)} match these filters.</p>{/if}
     </div>
+    {#if sampleRows.length}
+      <!-- The sample only measures the widest values of each column. Readers and assistive technology never meet it. -->
+      <div class="sample" aria-hidden="true" inert bind:this={sampleElement}>
+        <DataTable {columns}>{#each sampleRows as row (row.ref.key)}{@render listRow(row)}{/each}</DataTable>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -349,6 +410,9 @@
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
   .badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
+  /* The sample lays out its values on one line at their full width, out of sight and outside the page's layout. */
+  .sample { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; contain: strict; }
+  .sample :global(table) { width: max-content; }
 
   /* The phone sheet fills the screen; its footer stays in view while its filters scroll. */
   .sheet { width: 100%; max-width: 100%; height: 100%; max-height: 100%; margin: 0; padding: 0; border: 0; background: var(--c-surface-1); color: var(--c-text); }

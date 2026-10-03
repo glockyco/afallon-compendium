@@ -1,12 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
+import { listPageEntries } from '$lib/server/page-entries';
 import { serverMapLoader } from '$lib/server/publication';
 import { isPublicPageKind } from '@afallon/contracts/public';
 
-export const entries: EntryGenerator = async () => {
-  const registry = await serverMapLoader().loadRegistry();
-  return registry.filter((entry) => entry.list).map((entry) => ({ kind: entry.route }));
-};
+export const entries: EntryGenerator = listPageEntries;
 
 export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
