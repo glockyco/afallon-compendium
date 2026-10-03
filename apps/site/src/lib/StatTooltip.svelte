@@ -37,7 +37,7 @@
   {#if limits.length}<p class="line">{limits.join(', ').replace(/^./, (letter) => letter.toUpperCase())}.</p>{/if}
   {#if document.recovery.length}<p class="line">Recovers {listText(document.recovery.map((row) => `${formatNumber(row.amount)} every ${formatNumber(row.interval)} ${row.interval === 1 ? 'second' : 'seconds'} ${when(row.when)}`))}.</p>{/if}
   {#if document.onHit.length}
-    <p class="line">On a hit: {#each document.onHit as row, index}{index ? ', ' : ''}<EntityReference ref={row.effect} {registry} plain /> ({formatNumber(row.chance)}%){/each}{#if document.procCooldown > 0}, then {formatNumber(document.procCooldown)} {document.procCooldown === 1 ? 'second' : 'seconds'} before it can trigger again{/if}.</p>
+    <p class="line">On an eligible hit, this stat's current value is its trigger chance. When it triggers, {#each document.onHit as row, index}{index ? ', ' : ''}<EntityReference ref={row.effect} {registry} plain /> applies {formatNumber(row.chance)}% of the time{/each}{#if document.procCooldown > 0}, then {formatNumber(document.procCooldown)} {document.procCooldown === 1 ? 'second' : 'seconds'} before it can trigger again{/if}.</p>
   {/if}
   {#if sources.length}<p class="line">From {listText(sources)}.</p>{/if}
 </article>

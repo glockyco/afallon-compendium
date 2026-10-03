@@ -151,6 +151,36 @@ test("item effects include direct use, ranked ability, and stat proc without mix
   ]);
 });
 
+test("direct item action zero and 100 both apply without a chance label, while a positive chance remains visible", () => {
+  const effect = (key: string) => ({ entityKey: key, name: key, kind: "effects", details: { duration: 0, endless: false } } as CatalogProgressionFact);
+  const ref = (key: string) => ({ entityKey: key, label: key });
+  const input = { facts: { progression: { facts: [effect("effects:10"), effect("effects:11"), effect("effects:12")], appliers: [] } },
+    resolve: (endpoint: { entityKey: string | null; label: string }) => ({ key: endpoint.entityKey, name: endpoint.label, kind: "effects", slug: endpoint.label }),
+  } as unknown as DocumentProjectionInput;
+  const item = { ...facts.items[0]!, gameActions: [
+    { type: "Effect", target: ref("effects:10"), chance: 0 },
+    { type: "Effect", target: ref("effects:11"), chance: 100 },
+    { type: "Effect", target: ref("effects:12"), chance: 35 },
+  ] } as CatalogFacts["items"][number];
+  expect(projectItemEffects(item, undefined, input).map(({ chance }) => chance)).toEqual([undefined, undefined, 35]);
+});
+
+test("effect source and item page agree on a direct action chance per use", () => {
+  const item = { ...entities[0]!, name: "Potion" };
+  const effectEntity = { entityKey: "effects:10", kind: "effects", nativeId: 10, name: "Warmth", description: null, iconAssetName: null, artwork: [] } as CatalogEntityRow;
+  const effect: CatalogProgressionFact = { entityKey: effectEntity.entityKey, kind: "effects", name: "Warmth", details: {
+    effectType: { name: "HealOverTime", value: 1 }, tag: null, isState: false, isBuffOnSelf: false,
+    duration: 0, endless: false, pulses: 1, stackLimit: 1, allowMultiple: false, allowMixedCaster: false,
+    isPersistent: false, canBeManuallyRemoved: false, ranks: [],
+  } };
+  const input: CatalogFacts = { ...facts, entities: [item, effectEntity], items: [{ ...facts.items[0]!, gameActions: [
+    { type: "Effect", target: { entityKey: effectEntity.entityKey, label: "Warmth" }, chance: 35 },
+  ] } as CatalogFacts["items"][number]], progression: { ...facts.progression, facts: [effect] } };
+  const { documents } = project(input.entities, input, { ...relations, drops: [], gathers: [], containers: [], placements: [] });
+  expect((documents.get(item.entityKey) as PublicItem).appliesEffects).toMatchObject([{ chance: 35, trigger: "Use" }]);
+  expect((documents.get(effectEntity.entityKey) as Extract<PublicDocument, { appliedBy: unknown }>).appliedBy).toMatchObject([{ chance: 35, via: "Item Use" }]);
+});
+
 test("a zero-base item rating does not inherit resource-pool behavior", () => {
   const energy: CatalogEntityRow = { entityKey: "stats:2", kind: "stats", nativeId: 2, name: "Energy", description: "Used by abilities.", iconAssetName: null, artwork: [] };
   const statDetails = {

@@ -98,7 +98,7 @@
   const effectColumns: RelationColumn<PublicItem['appliesEffects'][number]>[] = [
     { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
     { id: 'trigger', label: 'When', value: (row) => row.trigger, whenShared: omitAlways },
-    { id: 'chance', label: 'Chance', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance', hint: 'Direct item effects roll once per use. Effects from an activated ability roll for each eligible application attempt. On-hit effects roll only after their stat triggers.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
     { id: 'duration', label: 'Duration', numeric: true, value: (row) => row.durationSeconds, sort: (row) => row.durationSeconds },
   ];
   $: useEffectPlan = planColumns(effectColumns, useEffects);
@@ -121,7 +121,7 @@
       {:else if document.description || useEffects.length}
         <AnswerCard title="What it does">
           {#if document.description}<p>{document.description}</p>{/if}
-          {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% chance){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
+          {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% per use for a direct item effect, or per application attempt for an activated ability){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
           <p class="unknown-source">No known way to get this item.</p>
         </AnswerCard>
       {:else}<p class="unknown-source">No known way to get this item.</p>{/if}
@@ -210,8 +210,8 @@
               {#each document.whenUsed.chests as chest, index}
                 <div class="c-stack">
                   {#if document.whenUsed.chests.length > 1}<h3>Chest {formatNumber(index + 1)}</h3>{/if}
-                  {#if chest.chance < 100 || chest.maxDrops > 0}
-                    <p>{#if chest.chance < 100}Using the item has a {formatNumber(chest.chance)}% chance to open this chest.{/if}{#if chest.maxDrops > 0}{' '}At most {formatNumber(chest.maxDrops)} {chest.maxDrops === 1 ? 'item drops' : 'items drop'}.{/if}</p>
+                  {#if (chest.chance > 0 && chest.chance < 100) || chest.maxDrops > 0}
+                    <p>{#if chest.chance > 0 && chest.chance < 100}Using the item has a {formatNumber(chest.chance)}% chance per use to open this chest.{/if}{#if chest.maxDrops > 0}{' '}At most {formatNumber(chest.maxDrops)} {chest.maxDrops === 1 ? 'item drops' : 'items drop'}. Successful item rolls beyond this limit are not received.{/if}</p>
                   {/if}
                   <RelationTable columns={chestColumns} rows={chest.rows} label="Chest contents" sort={{ id: 'chance', dir: 'desc' }}>
                     <svelte:fragment slot="cell" let:row let:column>
@@ -242,7 +242,7 @@
       </Section>
     {/if}
     {#if hitEffects.length}
-      <Section id="on-hit-effects" title="On-hit effects" count={hitEffects.length} line={hitEffects.every((row) => row.trigger === 'After enchanting, on hit') ? 'These effects can trigger after enchanting the gear.' : 'These effects can trigger when the gear hits.'}>
+      <Section id="on-hit-effects" title="On-hit effects" count={hitEffects.length} line="On an eligible hit, the current value of the linked stat determines whether it triggers. Each listed chance rolls only after that stat triggers.">
         <RelationTable columns={hitEffectPlan.columns} rows={hitEffects} label="Effects on hit">
           <svelte:fragment slot="cell" let:row let:column>
             {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />

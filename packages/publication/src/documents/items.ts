@@ -284,7 +284,7 @@ export function projectItemEffects(fact: CatalogItemFacts | undefined, enchantin
     if (seen.has(identity)) return;
     seen.add(identity);
     rows.push({ effect: input.resolve({ entityKey: key, label: effectFact.name ?? key }), trigger,
-      ...(chance < 100 ? { chance } : {}), ...(!effectFact.details.endless && effectFact.details.duration > 0 ? { durationSeconds: effectFact.details.duration } : {}) });
+      ...(chance > 0 && chance < 100 ? { chance } : {}), ...(!effectFact.details.endless && effectFact.details.duration > 0 ? { durationSeconds: effectFact.details.duration } : {}) });
   };
   for (const action of fact.gameActions) if (action.type === "Effect" && action.target?.entityKey) add(action.target.entityKey, "Use", action.chance);
   for (const applier of input.facts.progression.appliers) {

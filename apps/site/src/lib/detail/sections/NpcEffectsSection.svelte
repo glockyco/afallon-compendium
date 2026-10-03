@@ -16,7 +16,7 @@
   const columns: RelationColumn<NpcAppliedEffect>[] = [
     { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
     { id: 'ability', label: 'Ability', value: (row) => row.ability && nameOf(row.ability), sort: (row) => row.ability && nameOf(row.ability) },
-    { id: 'chance', label: 'Chance', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'chance', label: 'Chance', hint: 'Rolled each time this ability tries to apply the effect to a target after requirements are met. Targets hit and pulses can add attempts.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
     { id: 'target', label: 'Target', value: (row) => row.target, whenShared: omitAlways },
   ];
   $: planned = planColumns(columns, abilities);
@@ -35,6 +35,7 @@
 {#if abilities.length}
   <Section id="applied-effects" title="Effects they apply" count={abilities.length}>
     {#if sharedTarget && sharedTarget !== 'Target'}<p>{sharedTarget === 'Caster' ? 'These effects affect the NPC.' : `These effects target ${sharedTarget.toLowerCase()}.`}</p>{/if}
+    <p>Each chance rolls per eligible application attempt on a target. Targets hit and pulses can add attempts.</p>
     <RelationTable columns={planned.columns} rows={abilities} label={`Effects applied by ${name}`}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />

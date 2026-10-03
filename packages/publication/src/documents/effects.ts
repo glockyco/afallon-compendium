@@ -230,7 +230,10 @@ function applicationSources(key: string, input: EffectInput): EffectSource[] {
       ...(applier.rank !== null ? { rank: applier.rank } : {}), ...(applier.chance < 100 ? { chance: applier.chance } : {}), ...(target ? { target } : {}),
     });
   }
-  for (const item of facts.items) if (item.gameActions.some((candidate) => effectInAction(candidate.type, candidate.target) === key)) rows.push({ source: ref({ entityKey: item.entityKey, label: item.entityKey }, input), via: "Item Use" });
+  for (const item of facts.items) for (const action of item.gameActions) if (effectInAction(action.type, action.target) === key) rows.push({
+    source: ref({ entityKey: item.entityKey, label: item.entityKey }, input), via: "Item Use",
+    ...(action.chance > 0 && action.chance < 100 ? { chance: action.chance } : {}),
+  });
   for (const item of facts.items) {
     if (item.actionAbilities.some((row) => abilityApplies(row.ability.entityKey, row.rankIndex, key, abilities))
       || item.gameActions.some((row) => row.type === "Ability" && abilityApplies(row.target?.entityKey ?? null, undefined, key, abilities)))

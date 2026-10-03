@@ -51,8 +51,8 @@
     {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot></p>{/each}
     {#if facts.randomStats.length}
       <div class="group">
-        <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}</p>
-        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot>{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
+        <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}. Each stat rolls in order when generated. A selected stat rolls a value in its range.</p>
+        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot>{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}% if reached)</span>{/if}</p>{/each}
       </div>
     {/if}
 

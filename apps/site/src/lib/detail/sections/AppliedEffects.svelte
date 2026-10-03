@@ -19,7 +19,7 @@
   };
   const context = (row: AbilityAppliedEffect) => [
     row.rank === undefined ? undefined : `Rank ${row.rank + 1}`,
-    row.chance === undefined ? undefined : `${formatNumber(row.chance)}% chance`,
+    row.chance === undefined ? undefined : `${formatNumber(row.chance)}% per application attempt`,
     row.target === 'Target' ? 'on the target' : row.target === 'Caster' ? 'on the caster' : row.target ? `on ${row.target.toLocaleLowerCase()}` : undefined,
     row.endless ? 'Ongoing' : row.durationSeconds ? duration(row.durationSeconds) : undefined,
   ].filter(Boolean).join(' · ');
@@ -28,6 +28,7 @@
 {#if rows.length}
   <div class="applied-effects">
     {#if heading}<h3>Applies effects</h3>{/if}
+    <p class="chance-note">Each chance is rolled when this ability tries to apply that effect to a target after its requirements are met. Targets hit and pulses can add attempts.</p>
     <ul>
       {#each rows.slice(0, shown) as row, index (index)}
         {@const details = context(row)}
@@ -43,6 +44,7 @@
   h3 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
   ul { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
   li { display: grid; gap: .12rem; min-width: 0; }
+  .chance-note { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
   li span { color: var(--c-text-dim); font-size: var(--c-text-small); }
   button { width: fit-content; }
 </style>
