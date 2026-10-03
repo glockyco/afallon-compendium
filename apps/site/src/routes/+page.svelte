@@ -157,7 +157,7 @@
       <ul class="classes">
         {#each data.classes as entry (entry.ref.key)}
           <li>
-            <OverviewTile ref={entry.ref} registry={data.registry} variant="class" home facts={[entry.talentTrees === null ? '' : countText(entry.talentTrees, 'Talent Tree', 'Talent Trees'), entry.abilities === null ? '' : countText(entry.abilities, 'Ability', 'Abilities')].filter(Boolean)} />
+            <OverviewTile ref={entry.ref} registry={data.registry} variant="class" home facts={[entry.talentTrees === null ? '' : countText(entry.talentTrees, 'talent tree', 'talent trees'), entry.abilities === null ? '' : countText(entry.abilities, 'ability', 'abilities')].filter(Boolean)} />
           </li>
         {/each}
       </ul>
@@ -176,7 +176,7 @@
       <ul class="skills">
         {#each data.craftingSkills as skill (skill.ref.key)}
           <li>
-            <OverviewTile ref={skill.ref} registry={data.registry} home facts={[countText(skill.recipes, 'Recipe', 'Recipes')]} />
+            <OverviewTile ref={skill.ref} registry={data.registry} home facts={[countText(skill.recipes, 'recipe', 'recipes')]} />
           </li>
         {/each}
       </ul>
