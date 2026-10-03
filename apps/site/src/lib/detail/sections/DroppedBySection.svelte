@@ -53,7 +53,7 @@
                 {#if row.killChance === undefined}<Hint text={`${LISTED_RATE_HINT}${row.oddsUnavailable ? ` ${row.oddsUnavailable}` : ''}`}>Listed rate:</Hint>
                 {:else}Chance per kill:{/if}{' '}
               </span>
-            {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}{#if row.killChance !== undefined && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel} <LootChanceHint /></small>{/if}
+            {/if}{#if row.killChance === undefined && row.oddsUnavailable}<Hint text={`${LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>{:else}{value}{/if}{#if row.killChance !== undefined && known < rows.length && row.chanceLevel === undefined}{' '}<LootChanceHint />{/if}{#if row.killChance !== undefined && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel} <LootChanceHint /></small>{/if}
           {/if}
         {:else if column === 'perKill'}{dropsPerKillText(row)}
         {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}

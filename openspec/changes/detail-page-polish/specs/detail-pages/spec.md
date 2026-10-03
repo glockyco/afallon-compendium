@@ -44,10 +44,11 @@ A floating section navigator SHALL not overlap readable content at desktop or ph
 ### Requirement: Chances and ability outcomes have player context
 
 An item's concise kill-drop answer SHALL state its per-kill chance beside the source without stray punctuation or internal qualifiers. A linked hint on that answer and the full chance table SHALL explain the assumption of no Loot Chance, how Luck affects it in this version, and link to Loot Chance, Luck, and the loot mechanics explanation. Level restrictions SHALL remain visible. An ability SHALL link only effects with a player-facing name; fallback unnamed effect labels SHALL not appear in its answer or Versions table when its native description already explains the outcome.
+The chance hint SHALL use the same round help mark as other detail explanations and sit immediately after the chance, before the sentence's closing punctuation.
 
 #### Scenario: Boss item drop rate
 - **WHEN** a reader opens Mandrith Carapace Cleaver
-- **THEN** Kraath's route states 18.31% per kill with a linked help mark explaining the baseline, without a detached separator or an unexplained 0 Loot Chance qualifier
+- **THEN** Kraath's route states 18.31% per kill followed by a round linked help mark before the period, without a detached separator or an unexplained 0 Loot Chance qualifier
 
 #### Scenario: Ability with an internal effect
 - **WHEN** a reader opens Ambush

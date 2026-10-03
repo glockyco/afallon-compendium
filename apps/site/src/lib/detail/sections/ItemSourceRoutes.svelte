@@ -77,7 +77,7 @@
               {#if entry.drop.killChance === undefined}
                 {rate} <Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>listed rate</Hint>.
               {:else}
-                {rate.startsWith('About ') ? rate : `${rate} per kill`}. <LootChanceHint />
+                {rate.startsWith('About ') ? rate : `${rate} per kill`}{' '}<LootChanceHint trailing="." />
               {/if}
             {/if}
             {#if entry.detail}

@@ -32,3 +32,8 @@
 - [x] 6.2 Align item tooltip handedness with the title and hide fallback unnamed ability effects without hiding named outcomes; inspect sword, cleaver, Ambush, and a named-effect ability.
 - [x] 6.3 Give in-flow section navigation a distinct purpose label and put calculation prose inside disclosure; inspect Fangchill, Kraath, Aquarius, and the old-data fallback at 390 and 1100 px.
 - [x] 6.4 Stage the fresh merged publication, build and assert deployment, validate OpenSpec, pass staged verification, and capture affected pages in Firefox and Chromium at 1440, 1100, and 390 px.
+
+## 7. Chance Help Mark
+
+- [x] 7.1 Use the round detail help mark beside kill chances before their closing punctuation, including chance-table context; inspect cleaver and Dropped by on phone and desktop.
+- [x] 7.2 Rebuild and assert the merged publication, validate OpenSpec, and pass staged repository verification.
