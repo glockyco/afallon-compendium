@@ -62,12 +62,6 @@ export const MARKER_IDS = [
 export type MarkerRow = Pick<PublicPlacement, "categories">;
 export type RGB = readonly [number, number, number];
 
-export interface IconSize {
-  base: number;
-  min: number;
-  max: number;
-}
-
 export interface MarkerLayer {
   id: string;
   kind: "icon";
@@ -92,7 +86,6 @@ export interface MarkerDefinition {
   pluralLabel: string;
   icon: IconNode;
   color: RGB;
-  iconSize: IconSize;
   precedence: number;
   renderOrder: number;
   defaultVisible: boolean;
@@ -105,6 +98,8 @@ export interface MarkerDefinition {
 const markerLayer: MarkerLayer = { id: "map-placement-markers", kind: "icon" };
 export const MARKER_LAYER_ID = markerLayer.id;
 export const MARKER_SIZE_RANGE = { min: 50, max: 200, default: 100, baseScale: 1.4 } as const;
+/** Every marker has the same size, so no category looks more important than another. The size setting scales it. */
+export const MARKER_ICON_SIZE = 22;
 
 export function markerSizeScale(percent: number): number {
   return percent / MARKER_SIZE_RANGE.default * MARKER_SIZE_RANGE.baseScale;
@@ -118,7 +113,6 @@ export const markerRegistry = {
     pluralLabel: "Enemies",
     icon: Skull,
     color: [225, 29, 72],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 700,
     renderOrder: 180,
     defaultVisible: false,
@@ -132,7 +126,6 @@ export const markerRegistry = {
     pluralLabel: "Bosses",
     icon: Crown,
     color: [109, 40, 217],
-    iconSize: { base: 27, min: 20, max: 54 },
     precedence: 800,
     renderOrder: 800,
     defaultVisible: true,
@@ -146,7 +139,6 @@ export const markerRegistry = {
     pluralLabel: "Neutrals",
     icon: PawPrint,
     color: [245, 158, 11],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 690,
     renderOrder: 150,
     defaultVisible: false,
@@ -160,7 +152,6 @@ export const markerRegistry = {
     pluralLabel: "Merchants",
     icon: Coins,
     color: [6, 182, 212],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 620,
     renderOrder: 620,
     defaultVisible: false,
@@ -174,7 +165,6 @@ export const markerRegistry = {
     pluralLabel: "Auctioneers",
     icon: Gavel,
     color: [244, 114, 182],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 634,
     renderOrder: 634,
     defaultVisible: true,
@@ -188,7 +178,6 @@ export const markerRegistry = {
     pluralLabel: "Bankers",
     icon: Landmark,
     color: [250, 204, 21],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 635,
     renderOrder: 635,
     defaultVisible: true,
@@ -202,7 +191,6 @@ export const markerRegistry = {
     pluralLabel: "Flight Masters",
     icon: Dragon,
     color: [56, 189, 248],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 640,
     renderOrder: 640,
     defaultVisible: true,
@@ -216,7 +204,6 @@ export const markerRegistry = {
     pluralLabel: "Quest Givers",
     icon: ScrollText,
     color: [168, 85, 247],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 630,
     renderOrder: 630,
     defaultVisible: false,
@@ -230,7 +217,6 @@ export const markerRegistry = {
     pluralLabel: "Townsfolk",
     icon: User,
     color: [59, 130, 246],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 500,
     renderOrder: 500,
     defaultVisible: false,
@@ -244,7 +230,6 @@ export const markerRegistry = {
     pluralLabel: "Interactive Objects",
     icon: Hand,
     color: [148, 163, 184],
-    iconSize: { base: 19, min: 15, max: 40 },
     precedence: 300,
     renderOrder: 300,
     defaultVisible: false,
@@ -258,7 +243,6 @@ export const markerRegistry = {
     pluralLabel: "Alchemy Stations",
     icon: FlaskConical,
     color: [139, 92, 246],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 654,
     renderOrder: 654,
     defaultVisible: true,
@@ -272,7 +256,6 @@ export const markerRegistry = {
     pluralLabel: "Cooking Stations",
     icon: CookingPot,
     color: [234, 88, 12],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 650,
     renderOrder: 650,
     defaultVisible: false,
@@ -286,7 +269,6 @@ export const markerRegistry = {
     pluralLabel: "Smithing Stations",
     icon: Anvil,
     color: [71, 85, 105],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 652,
     renderOrder: 652,
     defaultVisible: true,
@@ -300,7 +282,6 @@ export const markerRegistry = {
     pluralLabel: "Furnaces",
     icon: Flame,
     color: [239, 68, 68],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 651,
     renderOrder: 651,
     defaultVisible: true,
@@ -314,7 +295,6 @@ export const markerRegistry = {
     pluralLabel: "Tailoring Stations",
     icon: Scissors,
     color: [236, 72, 153],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 653,
     renderOrder: 653,
     defaultVisible: true,
@@ -328,7 +308,6 @@ export const markerRegistry = {
     pluralLabel: "Crafting Stations",
     icon: Hammer,
     color: [249, 115, 22],
-    iconSize: { base: 21, min: 16, max: 44 },
     precedence: 610,
     renderOrder: 610,
     defaultVisible: false,
@@ -342,7 +321,6 @@ export const markerRegistry = {
     pluralLabel: "Ore Veins",
     icon: Pick,
     color: [120, 120, 130],
-    iconSize: { base: 20, min: 15, max: 42 },
     precedence: 103,
     renderOrder: 103,
     defaultVisible: false,
@@ -356,7 +334,6 @@ export const markerRegistry = {
     pluralLabel: "Herbs",
     icon: Leaf,
     color: [132, 204, 22],
-    iconSize: { base: 20, min: 15, max: 42 },
     precedence: 102,
     renderOrder: 102,
     defaultVisible: false,
@@ -370,7 +347,6 @@ export const markerRegistry = {
     pluralLabel: "Mushrooms",
     icon: Mushroom,
     color: [217, 119, 6],
-    iconSize: { base: 20, min: 15, max: 42 },
     precedence: 101,
     renderOrder: 101,
     defaultVisible: false,
@@ -384,7 +360,6 @@ export const markerRegistry = {
     pluralLabel: "Fishing Spots",
     icon: Fish,
     color: [14, 165, 233],
-    iconSize: { base: 20, min: 15, max: 42 },
     precedence: 100,
     renderOrder: 100,
     defaultVisible: false,
@@ -398,7 +373,6 @@ export const markerRegistry = {
     pluralLabel: "Containers",
     icon: TreasureChest,
     color: [234, 179, 8],
-    iconSize: { base: 20, min: 15, max: 42 },
     precedence: 400,
     renderOrder: 400,
     defaultVisible: false,
@@ -412,7 +386,6 @@ export const markerRegistry = {
     pluralLabel: "Travel Points",
     icon: DoorExit,
     color: [34, 197, 94],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 550,
     renderOrder: 550,
     defaultVisible: true,
@@ -426,7 +399,6 @@ export const markerRegistry = {
     pluralLabel: "Towns",
     icon: BuildingCommunity,
     color: [245, 158, 11],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 560,
     renderOrder: 590,
     defaultVisible: true,
@@ -440,7 +412,6 @@ export const markerRegistry = {
     pluralLabel: "Forts",
     icon: Castle,
     color: [100, 116, 139],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 570,
     renderOrder: 585,
     defaultVisible: true,
@@ -454,7 +425,6 @@ export const markerRegistry = {
     pluralLabel: "Camps",
     icon: Tent,
     color: [132, 204, 22],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 530,
     renderOrder: 580,
     defaultVisible: true,
@@ -468,7 +438,6 @@ export const markerRegistry = {
     pluralLabel: "Dungeon Entrances",
     icon: BuildingTunnel,
     color: [168, 85, 247],
-    iconSize: { base: 23, min: 18, max: 48 },
     precedence: 580,
     renderOrder: 570,
     defaultVisible: true,
@@ -482,7 +451,6 @@ export const markerRegistry = {
     pluralLabel: "Challenge Stones",
     icon: BuildingMonument,
     color: [14, 165, 233],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 540,
     renderOrder: 560,
     defaultVisible: true,
@@ -496,7 +464,6 @@ export const markerRegistry = {
     pluralLabel: "Graveyards",
     icon: Grave2,
     color: [148, 163, 184],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 548,
     renderOrder: 555,
     defaultVisible: true,
@@ -510,7 +477,6 @@ export const markerRegistry = {
     pluralLabel: "Altars of Corruption",
     icon: Diamonds,
     color: [220, 38, 38],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 547,
     renderOrder: 565,
     defaultVisible: true,
@@ -524,7 +490,6 @@ export const markerRegistry = {
     pluralLabel: "Heroic Consoles",
     icon: Power,
     color: [192, 132, 252],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 549,
     renderOrder: 566,
     defaultVisible: true,
@@ -540,7 +505,6 @@ export const markerRegistry = {
     pluralLabel: "Properties",
     icon: House,
     color: [217, 119, 6],
-    iconSize: { base: 22, min: 17, max: 46 },
     precedence: 545,
     renderOrder: 575,
     defaultVisible: true,

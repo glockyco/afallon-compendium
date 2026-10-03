@@ -1,7 +1,7 @@
 import { COORDINATE_SYSTEM, type Layer } from "@deck.gl/core";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { IconSheetResult } from "../icon-sheet";
-import { MARKER_LAYER_ID, markerFor, markerSizeScale, type MarkerId } from "../marker-registry";
+import { MARKER_ICON_SIZE, MARKER_LAYER_ID, markerFor, markerSizeScale, type MarkerId } from "../marker-registry";
 import type { MarkerRecord } from "../render-data";
 
 export function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean, enabled = true): [number, number, number, number] {
@@ -27,7 +27,7 @@ export function createPlacementIconLayer(
     id: MARKER_LAYER_ID, data: markers, iconAtlas: iconSheet.canvas as unknown as string, iconMapping: iconSheet.mapping,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: true, billboard: false,
     getPosition: marker => marker.position, getIcon: marker => marker.markerId,
-    getSize: marker => markerFor(marker.markerId).iconSize.base * scale,
+    getSize: MARKER_ICON_SIZE * scale,
     getColor: marker => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
     sizeUnits: "pixels", sizeMinPixels: 14 * scale, sizeMaxPixels: 44 * scale,
     updateTriggers: { getColor: [selectedId, hoveredId], getSize: [markerSize] },
@@ -46,7 +46,7 @@ export function createHighlightLayers(
 ): Layer[] {
   if (data.length === 0) return [];
   const scale = markerSizeScale(markerSize);
-  const radius = (marker: MarkerRecord) => (markerFor(marker.markerId).iconSize.base / 2 + radiusOffset) * scale;
+  const radius = (MARKER_ICON_SIZE / 2 + radiusOffset) * scale;
   return [
     new ScatterplotLayer<MarkerRecord>({
       id: `${id}-outline`,

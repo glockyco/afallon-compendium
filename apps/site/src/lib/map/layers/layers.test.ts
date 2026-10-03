@@ -4,11 +4,16 @@ import { buildRegions, type MarkerRecord } from "../render-data";
 import { createConnectionLayers, type TravelConnection } from "./connections";
 import { orderImageryLayers } from "./imagery";
 import { createHighlightLayers, createPlacementIconLayer, createStackCountLayer, markerColor } from "./markers";
+import { markerRegistry, type MarkerId } from "../marker-registry";
 import { createMovementLayers, type MovementGeometry } from "./movement";
 import { createRegionLayers, polygonCentroid, type RegionRecord } from "./regions";
 
 function property<T>(layer: { props: unknown }, name: string): T {
   return (layer.props as Record<string, unknown>)[name] as T;
+}
+// A layer property is either one value for every object or a function of the object.
+function drawnValue(value: number | ((marker: MarkerRecord) => number), marker: MarkerRecord): number {
+  return typeof value === "function" ? value(marker) : value;
 }
 
 test("region layers preserve coordinates and label centroids", () => {
@@ -79,30 +84,44 @@ test("marker size scales icons, highlights, and stack offsets at the rebased end
   const iconSizes = (markerSize: number) => {
     const layer = createPlacementIconLayer([marker], iconSheet, markerSize);
     return {
-      base: property<(value: MarkerRecord) => number>(layer, "getSize")(marker),
+      base: drawnValue(property<number | ((value: MarkerRecord) => number)>(layer, "getSize"), marker),
       minimum: property<number>(layer, "sizeMinPixels"),
       maximum: property<number>(layer, "sizeMaxPixels"),
     };
   };
   for (const [percent, expectedScale] of [[50, 0.7], [100, 1.4], [200, 2.8]] as const) {
     const sizes = iconSizes(percent);
-    expect(sizes.base).toBeCloseTo(23 * expectedScale);
+    expect(sizes.base).toBeCloseTo(22 * expectedScale);
     expect(sizes.minimum).toBeCloseTo(14 * expectedScale);
     expect(sizes.maximum).toBeCloseTo(44 * expectedScale);
   }
 
-  const radius = (markerSize: number) => property<(value: MarkerRecord) => number>(
+  const radius = (markerSize: number) => drawnValue(property<number | ((value: MarkerRecord) => number)>(
     createHighlightLayers("highlight", [marker], [255, 255, 255, 255], [255, 255, 255, 40], 2, markerSize)[0]!,
     "getRadius",
-  )(marker);
+  ), marker);
   const stackOffset = (markerSize: number) => property<[number, number]>(createStackCountLayer([marker], markerSize)!, "getPixelOffset");
   for (const [percent, scale] of [[50, 0.7], [100, 1.4], [200, 2.8]] as const) {
-    expect(radius(percent)).toBeCloseTo(13.5 * scale);
+    expect(radius(percent)).toBeCloseTo(13 * scale);
     const [x, y] = stackOffset(percent);
     expect(x).toBeCloseTo(9 * scale);
     expect(y).toBeCloseTo(-9 * scale);
   }
   expect(property<number>(createStackCountLayer([marker], 200)!, "getSize")).toBe(12);
+});
+
+test("every marker category draws at the same size and with the same highlight", () => {
+  const iconSheet = { canvas: {} as HTMLCanvasElement, mapping: {} };
+  const record = (markerId: MarkerId): MarkerRecord => ({ placementId: markerId, mapSpaceId: "map", position: [0, 0, 0], label: markerId,
+    categories: [markerId], markerId, members: [markerId], enabled: true, isTravel: false });
+  const records = (Object.keys(markerRegistry) as MarkerId[]).map(record);
+  const icons = createPlacementIconLayer(records, iconSheet, 100);
+  const highlight = createHighlightLayers("highlight", records, [255, 255, 255, 255], [255, 255, 255, 40], 2, 100)[0]!;
+  const sizes = new Set(records.map((value) => drawnValue(property<number | ((marker: MarkerRecord) => number)>(icons, "getSize"), value)));
+  const radii = new Set(records.map((value) => drawnValue(property<number | ((marker: MarkerRecord) => number)>(highlight, "getRadius"), value)));
+  expect(records.length).toBeGreaterThan(20);
+  expect([...sizes]).toHaveLength(1);
+  expect([...radii]).toHaveLength(1);
 });
 
 test("marker styles preserve selection, hover, disabled, and category colors", () => {
