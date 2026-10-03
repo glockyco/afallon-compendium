@@ -36,7 +36,7 @@ The map SHALL reuse equivalent successful or pending resource requests and SHALL
 
 ### Requirement: Shared-world rendering does not wait for unrelated search data
 
-The map SHALL assemble placements from all published maps without an active-map selector. Map-data readiness SHALL require essential map parts, imagery manifests, and all declared geometry, but SHALL NOT wait for search indexes or document details. Search SHALL expose its own pending or failure state, and dependent result counts SHALL NOT appear as final zero results while resources are pending.
+The map SHALL assemble placements from all published maps without an active-map selector. Map-data readiness SHALL require essential map parts, all declared geometry, and imagery manifests for the initial visible map spaces, but SHALL NOT wait for search indexes, document details, or imagery manifests for spaces outside an explicit camera view. The map SHALL load an unloaded space's imagery manifest when that space enters the camera. Search SHALL expose its own pending or failure state, and dependent result counts SHALL NOT appear as final zero results while resources are pending.
 
 #### Scenario: Search loading is delayed
 - **WHEN** map parts and geometry are ready but search resources remain pending
@@ -46,6 +46,11 @@ The map SHALL assemble placements from all published maps without an active-map 
 #### Scenario: Movement is enabled
 - **WHEN** a reader enables movement after map-data readiness
 - **THEN** the map displays published movement paths from loaded geometry without additional geometry requests
+
+#### Scenario: An explicit camera leaves some maps outside the viewport
+- **WHEN** a saved view is centered on one map and other maps lie outside that view
+- **THEN** the reader can navigate the shared world without downloading the other maps' imagery manifests at startup
+- **AND** moving to another map loads its manifest and displays its imagery without refetching geometry or placements
 
 ### Requirement: Renderer updates preserve camera and coordinate ownership
 
@@ -177,7 +182,7 @@ Each category SHALL add information. A category that every character carries, or
 
 Extraction vocabulary SHALL NOT appear on the player surface. The interface SHALL NOT show placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
 
-Overlapping categories SHALL NOT create duplicate physical markers. Dense views SHALL aggregate markers without silently excluding categories.
+Overlapping categories SHALL NOT create duplicate physical markers. Only markers at the exact same world position SHALL form one counted marker group. Nearby markers at different positions SHALL remain independently visible. Every group member SHALL be reachable by pointer and keyboard.
 
 #### Scenario: A vendor also gives quests
 - **WHEN** a reader enables both the merchant and quest-giver categories
@@ -200,13 +205,13 @@ Overlapping categories SHALL NOT create duplicate physical markers. Dense views 
 - **AND** it remains in the generated artifacts
 
 #### Scenario: A low-zoom view contains many resources
-- **WHEN** individual markers would obscure terrain
-- **THEN** the map aggregates them with discoverable counts
-- **AND** zooming or selecting an aggregate reveals its members
+- **WHEN** two or more markers have precisely the same world position at any zoom
+- **THEN** one marker shows a count of the coincident spots
+- **AND** each member can be selected by pointer or keyboard without grouping nearby spots
 
 ### Requirement: One registry owns marker presentation
 
-Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling maps. One registry SHALL own each marker's icon, color, label, plural label, size, precedence, render order, and default visibility. Consumers SHALL read that registry.
+Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling maps. One registry SHALL own each marker's icon, color, label, plural label, precedence, render order, and default visibility. Consumers SHALL read that registry. Every marker category SHALL draw at the same size, which only the reader's marker size setting changes, and its selection and hover highlights SHALL use that same size.
 
 There SHALL NOT be a second registry, a compatibility mapping, or a per-consumer marker switch. Adding a category SHALL require one registry entry, and a test SHALL fail when a registered category has no rendered layer.
 
@@ -227,6 +232,10 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 - **WHEN** two categories are compared without color perception
 - **THEN** their glyphs distinguish them
 - **AND** the result list and details state the category in words
+
+#### Scenario: A boss beside an enemy
+- **WHEN** a boss marker and an enemy marker are visible at the same zoom and marker size setting
+- **THEN** both markers draw at the same size
 
 ### Requirement: Published maps share one world
 
@@ -340,3 +349,54 @@ The Heroic Tier opening and Getting started section SHALL link each published co
 - **WHEN** a reader follows a Heroic Console map link from the Heroic Tier page or its place page
 - **THEN** the map selects the matching published Heroic Console placement
 - **AND** the other two console spots remain independently selectable
+
+### Requirement: Inbound map links frame their destinations
+
+A map link naming a published placement without an explicit camera view SHALL frame that placement at a useful scale, no closer than the map image's own available detail. A map link naming a published entity without an explicit camera view SHALL frame all of that entity's published spots and list those spots, including when the entity's category is not selected. When linked spots span maps with different image detail, framing SHALL respect the least detailed map. An explicit camera view SHALL remain authoritative. Changing selections after arrival SHALL NOT reposition the live camera.
+
+#### Scenario: A reader follows a placement link
+- **WHEN** a reader opens a map link to one published spot with no camera coordinates
+- **THEN** that spot is visible near the center without zooming past the map image's available detail
+- **AND** selecting another spot later does not move the camera
+
+#### Scenario: A reader follows an entity link
+- **WHEN** a reader opens a map link to an entity with several published spots and no camera coordinates
+- **THEN** the camera frames all of its published spots
+- **AND** the result list names only those spots, even if their category is normally hidden
+
+#### Scenario: A reader opens a saved camera view
+- **WHEN** a map link contains a placement or entity and an explicit camera view
+- **THEN** the explicit camera position and zoom remain unchanged
+
+### Requirement: Map selection and hover remain legible
+
+Selected and hovered markers SHALL draw above ordinary marker icons. A hover preview SHALL clear when a camera change leaves no marker under the pointer. Movement paths and roaming ranges SHALL NOT capture marker selection. Map status SHALL describe matching spots and spots in view in plain player-facing language.
+
+#### Scenario: A selected marker neighbors another marker
+- **WHEN** a linked placement is selected next to a different marker
+- **THEN** the selected marker icon remains visible above the neighboring icon
+
+#### Scenario: The reader zooms away from a hovered marker
+- **WHEN** a hovered marker moves away from a stationary pointer during zoom
+- **THEN** its hover preview no longer persists without a marker under the pointer
+
+#### Scenario: The reader points inside a roaming range
+- **WHEN** a movement range is visible and no marker is under the pointer
+- **THEN** that range does not select its creature
+
+### Requirement: Search indexes load when needed
+
+The map SHALL leave search indexes unloaded until a reader focuses or types in the search field or opens a link or selection that needs an entity or item document. It SHALL reuse the request for subsequent searches and selections. A pending search SHALL show its loading indicator in or beside the input without changing input height or clipping results.
+
+#### Scenario: A reader opens the map without searching
+- **WHEN** the map opens without a selected spot, linked entity, item, place, or query
+- **THEN** the map renders its placements and does not download search indexes
+
+#### Scenario: Search receives focus
+- **WHEN** a reader focuses or types in the search field
+- **THEN** the map begins loading the published search indexes
+- **AND** the input and surrounding content do not shift while the indicator is shown
+
+#### Scenario: A reader follows an item link
+- **WHEN** a saved map link names an item whose document has not loaded
+- **THEN** the map loads the search indexes and item document to resolve the item spots
