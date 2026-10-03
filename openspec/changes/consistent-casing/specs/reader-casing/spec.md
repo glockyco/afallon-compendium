@@ -46,3 +46,7 @@ The kind line and identity facts immediately beneath a page title SHALL use Titl
 #### Scenario: Kind line beneath a stat title
 - **WHEN** a reader opens the Stamina stat page
 - **THEN** the kind line reads “Defense Stat,” while an ordinary field label such as “Starting value” remains sentence case
+
+#### Scenario: Minor word joins an identity fact to its source
+- **WHEN** a boss page names the place it belongs to in the title block
+- **THEN** the fact reads “Boss of Duskfall Depths”, retaining lowercase “of” inside the full line and the place's game-provided spelling

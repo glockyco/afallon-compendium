@@ -56,14 +56,14 @@ test('title-block kind lines and identity fact labels are titles, not field labe
     writeFileSync(join(output, 'index.html'), '<h1>Afallon Compendium</h1>');
     writeFileSync(join(output, '404.html'), '<h1>Page Not Found</h1>');
     const page = join(output, 'stats', 'stamina', 'index.html');
-    writeFileSync(page, '<header class="title-block"><h1>Stamina</h1><ul class="facts"><li class="type">Defense stat</li><li><span class="label">Boss of</span><span class="refs"><a>The Witch of Oakenvale</a></span></li></ul></header>');
+    writeFileSync(page, '<header class="title-block"><h1>Stamina</h1><ul class="facts"><li class="type">Defense stat</li><li><span class="label">Boss Of</span><span class="refs"><a>The Witch of Oakenvale</a></span></li></ul></header>');
     const failed = Bun.spawnSync(['bun', script, `--output=${output}`, '--strict']);
     expect(failed.exitCode).toBe(1);
     expect(JSON.parse(failed.stdout.toString()).violations.map((entry: { class: string; text: string }) => [entry.class, entry.text])).toEqual([
-      ['kind', 'Defense stat'], ['kind', 'Boss of'],
+      ['kind', 'Defense stat'], ['kind', 'Boss Of'],
     ]);
 
-    writeFileSync(page, '<header class="title-block"><h1>Stamina</h1><ul class="facts"><li class="type">Defense Stat</li><li><span class="label">Boss Of</span><span class="refs"><a>The Witch of Oakenvale</a></span></li></ul></header>');
+    writeFileSync(page, '<header class="title-block"><h1>Stamina</h1><ul class="facts"><li class="type">Defense Stat</li><li><span class="label">Boss of</span><span class="refs"><a>The Witch of Oakenvale</a></span></li></ul></header>');
     expect(Bun.spawnSync(['bun', script, `--output=${output}`, '--strict']).exitCode).toBe(0);
   } finally {
     rmSync(output, { recursive: true, force: true });

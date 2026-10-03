@@ -48,7 +48,7 @@ const properWords: Record<string, true> = { Afallon: true, Compendium: true, Her
 const phraseHeading = /^(?:How |Try |See |Show |Can |Could |When |Why |Getting |Turning |Finding |Taking |Joining |Meeting |Building |Playing |Your |Experience per |What can |What it |What to |What changes|What you get|Where and when |Where to get |Where to find it|Used by|Used for|Dropped by|Sold by|Found in|Mined from|Gathered from|Starts with|Starts and ends with|Turn in to|Turn it on|Explore this place|To gather|Choose one|Effects they apply|Points to learn|About this item)/iu;
 const sentenceLink = /^(?:How |See |Turning |Find a |What )/iu;
 
-function casingViolation(value: string, group: LabelClass, route: string): boolean {
+function casingViolation(value: string, group: LabelClass, route: string, continues = false): boolean {
   if (!value || authoredNames[value] || reveal.test(value) || /^Unknown: /u.test(value)) return false;
   const gameName = authoredPageNames.get(route);
   if (gameName && (group === 'heading' || group === 'title') && (value === gameName || value.startsWith(`${gameName} · Afallon `))) return false;
@@ -72,7 +72,7 @@ function casingViolation(value: string, group: LabelClass, route: string): boole
   return words.some((word, index) => {
     if (abbreviations[word] || /[\p{Ll}][\p{Lu}]/u.test(word) || /^\p{Lu}{2,}$/u.test(word)) return false;
     const bare = word.toLocaleLowerCase('en-US');
-    if (minor[bare] && index > 0 && (index < words.length - 1 || /\d/u.test(value.slice(value.lastIndexOf(word) + word.length)))) return word !== bare && !(word === 'On' && value.includes('Turning It On and Off'));
+    if (minor[bare] && index > 0 && (index < words.length - 1 || continues || /\d/u.test(value.slice(value.lastIndexOf(word) + word.length)))) return word !== bare && !(word === 'On' && value.includes('Turning It On and Off'));
     return /^\p{Ll}/u.test(word);
   });
 }
@@ -96,7 +96,7 @@ function routeKind(route: string): string {
   if (parts[0] === 'map' || parts[0] === 'about' || parts[0] === 'coverage') return parts[0]!;
   return parts.length > 2 ? `${parts[0]}-detail` : `${parts[0]}-list`;
 }
-function record(route: string, group: LabelClass, raw: string, excludedComponent = false): void {
+function record(route: string, group: LabelClass, raw: string, excludedComponent = false, continues = false): void {
   const value = clean(raw);
   if (!value || /^[-–+×\d\s%,.]+$/.test(value)) return;
   const kind = routeKind(route);
@@ -105,7 +105,7 @@ function record(route: string, group: LabelClass, raw: string, excludedComponent
   row.checked++;
   if (reveal.test(value)) remaining.add(value.replace(/[\d,]+/, '#'));
   if (authoredPageNames.get(route) === value && (group === 'heading' || group === 'title') && casingViolation(value, group, '')) allowlistedGameNames.add(value);
-  if (casingViolation(value, group, route)) {
+  if (casingViolation(value, group, route, continues)) {
     const excluded = excludedComponent || (route === 'mechanics/character-progression/index.html'
       && (excludedProgression[value] || /^Level \d+ × \d+ per level$/.test(value)
         || /^Creatures that can spawn above level \d+/.test(value) || /^\d+ creatures that scale with the player$/.test(value)));
@@ -139,10 +139,12 @@ function visit(node: Node, route: string, parent?: Element, excludedAncestor = f
   else if (tag === 'a' && /section-link|c-action|how-it-works|route-more/.test(css)) group = 'action';
   else if (/(?:^|\s)tile-meta(?:\s|$)/.test(css)) group = 'fact';
   else if (/(?:^|\s)count(?:\s|$)/.test(css)) group = 'count';
+  const continues = group === 'kind' && tag === 'span' && parent?.name === 'li'
+    && parent.children.some((child) => child !== element && child.type === 'tag' && /(?:^|\s)(?:refs|value)(?:\s|$)/.test((child as Element).attribs.class ?? ''));
   if (tag === 'summary' && element.children.some((child) => child.type === 'tag' && /(?:^|\s)summary-note(?:\s|$)/.test((child as Element).attribs.class ?? ''))) {
     for (const child of element.children) record(route, 'summary', text(child), excluded);
   } else if (group) record(route, group, group === 'kind' && tag === 'li'
-    ? element.children.filter((child) => child.type === 'text').map(text).join(' ') : text(element), excluded);
+    ? element.children.filter((child) => child.type === 'text').map(text).join(' ') : text(element), excluded, continues);
   if (element.attribs.placeholder) record(route, 'placeholder', element.attribs.placeholder, excluded);
   if (['button', 'input', 'select'].includes(tag) && element.attribs['aria-label']
     && clean(element.attribs['aria-label']) !== clean(text(element))

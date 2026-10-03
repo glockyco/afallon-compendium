@@ -43,7 +43,7 @@
   $: typeLine = [npcTypeLabel(facts.npcType), ...facts.roles.map((role) => categoryLabel(roleLabel(role))), ...(!facts.roles.length && document.locations.length ? [creatureTypeLabel(facts.creatureType)] : [])].filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ');
   $: showFactionInTitle = Boolean(facts.faction && (document.flights?.length || !document.locations.length && !document.adventurer));
   $: titleFacts = [
-    ...(document.bossOf.length ? [{ label: 'Boss Of', refs: document.bossOf }] : []),
+    ...(document.bossOf.length ? [{ label: 'Boss of', refs: document.bossOf }] : []),
     ...(showFactionInTitle && facts.faction ? [{ label: 'Faction', refs: [facts.faction] }] : []),
     ...(facts.tameable ? [{ label: 'Hunter Pet', text: 'Can Be Tamed' }] : []),
   ] satisfies TitleFact[];
