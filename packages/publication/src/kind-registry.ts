@@ -7,12 +7,13 @@ const kindEntries = [
   { kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true,
     // The name colour shows the rarity, so rarity is a filter and not a column. One Type column names what an item is,
     // and the weapon, armor, slot, and type filters keep each of those facts.
-    columns: [column("type", "Type"), column("itemPower", "Item power", true), column("levelRequirement", "Level", true)],
-    facets: [facet("class", "Usable by"), facet("weapon", "Weapon"), facet("armor", "Armor"), facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity"), facet("material", "Used in crafting")] },
+    columns: [column("type", "Type"), column("itemPower", "Item Power", true), column("levelRequirement", "Level", true), column("damage", "Damage")],
+    facets: [facet("class", "Usable By"), facet("weapon", "Weapon"), facet("armor", "Armor"), facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity"), facet("material", "Used In Crafting"), facet("knownWay", "Availability", ["No Known Way"])] },
   { kind: "npcs", label: "NPC", plural: "NPCs", route: "npcs", icon: "npc", pages: true, list: true, searchable: true,
-    columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction")],
+    columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction"),
+      column("class", "Class"), column("partyRole", "Party Role")],
     // Class and Party Role filter the adventurers of the world roster.
-    facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction"), facet("class", "Class"), facet("partyRole", "Party role")] },
+    facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction"), facet("class", "Class"), facet("partyRole", "Party Role"), facet("knownWay", "Availability", ["No Known Way"])] },
   { kind: "quests", label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, list: true, searchable: true,
     columns: [column("levelRange", "Quest level"), column("chain", "Chain"),
       column("area", "Area"), column("giver", "Giver")],
@@ -23,7 +24,7 @@ const kindEntries = [
   { kind: "properties", label: "Property", plural: "Properties", route: "properties", icon: "property", pages: true, list: true, searchable: true,
     columns: [column("type", "Type"), column("place", "Place"), column("price", "Price", true), column("income", "Income", true)], facets: [facet("type", "Type"), facet("place", "Place")] },
   { kind: "abilities", label: "Ability", plural: "Abilities", route: "abilities", icon: "ability", pages: true, list: true, searchable: true,
-    columns: [column("source", "Source")], facets: [facet("sourceKind", "Source", ["No Known Use"]), facet("class", "Class")] },
+    columns: [column("source", "Source")], facets: [facet("sourceKind", "Source"), facet("class", "Class"), facet("knownWay", "Availability", ["No Known Way"])] },
   { kind: "recipes", label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe", pages: false, list: true, searchable: false,
     // A recipe row links its product, so the product needs no column of its own.
     columns: [column("station", "Station"), column("skill", "Skill")],

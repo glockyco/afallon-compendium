@@ -148,9 +148,14 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
 test("item rows name the classes that can use them, what they are, their crafting use, and stats", () => {
   const ref = (key: string, name: string) => ({ key, kind: key.split(":")[0] as "items", name, slug: name.toLowerCase().replaceAll(" ", "-") });
   const stat = (key: string, name: string) => ({ key, kind: "stats" as const, name });
-  const item = (key: string, name: string, facts: Partial<PublicItem["facts"]>, usedInRecipes: PublicItem["usedInRecipes"] = []) => ({
-    ref: ref(key, name), facts: { itemType: "ARMOR", stats: [], randomStats: [], ...facts }, usedInRecipes,
-  }) as unknown as PublicItem;
+  const item = (key: string, name: string, facts: Partial<PublicItem["facts"]>, usedInRecipes: PublicItem["usedInRecipes"] = []): PublicItem => ({
+    ref: ref(key, name), description: null, art: {},
+    facts: { itemType: "ARMOR", stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false,
+      corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [], ...facts },
+    sourceSpotCount: 0, sourceAvailabilities: [], droppedBy: [], soldBy: [], buys: [], gatheredFrom: [], inContainers: [],
+    collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes, usedInQuests: [], startingGearOf: [], fromItems: [],
+    questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] }, appliesEffects: [],
+  });
   const shieldmaster = { ref: { ...ref("classes:0", "Shieldmaster"), kind: "classes" }, facts: { weapons: ["Shield", "One Handed Sword"] }, trees: [] } as unknown as PublicClass;
   const arcanist = { ref: { ...ref("classes:1", "Arcanist"), kind: "classes" }, facts: { weapons: ["Staff"] }, trees: [] } as unknown as PublicClass;
   const documents = new Map<string, PublicDocument>([

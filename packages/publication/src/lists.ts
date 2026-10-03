@@ -1,5 +1,5 @@
 import type { CatalogEndpoint, CatalogFacts } from "@afallon/contracts/catalog";
-import { categoryLabel } from "@afallon/contracts/public";
+import { categoryLabel, collectRefs } from "@afallon/contracts/public";
 import { itemTypeLabel } from "./item-type";
 import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
@@ -44,6 +44,43 @@ function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
 
+// Visibility depends on published ways to reach the entity, never on its level, rarity, or a maintained name list.
+// Optional recovered fields allow a publication without that evidence to keep its entries behind the reveal.
+type ItemSources = PublicItem & {
+  startingGearOfAdventurers?: readonly Ref[];
+  gainedFromItems?: readonly Ref[];
+  lootTables?: readonly { name: string; source?: Ref; world?: boolean }[];
+};
+type NpcSources = PublicNpc & {
+  summonedBy?: readonly Ref[];
+  spawnedBy?: readonly { label: string; place: Ref }[];
+  recruitedByActions?: readonly { label: string; owner?: Ref }[];
+};
+type AbilitySources = Omit<PublicAbility, "versions"> & {
+  versions: (PublicAbility["versions"][number] & { unlockedByActions?: readonly { label: string; owner?: Ref }[] })[];
+};
+
+export function itemHasKnownWay(document: ItemSources): boolean {
+  return Boolean(document.sourceSpotCount > 0 || document.droppedBy.length || document.soldBy.length
+    || document.buys.length || document.gatheredFrom.length || document.inContainers.length
+    || document.collectedFrom.length || document.rewardedBy.length || document.givenBy.length
+    || document.crafting || document.startingGearOf.length || document.fromItems.length
+    || document.clothDrop || document.questPickups.length || document.dungeonFinder
+    || document.facts.dungeonRewards?.length || document.startingGearOfAdventurers?.length || document.gainedFromItems?.length
+    || document.lootTables?.some((table) => table.source || table.world));
+}
+
+export function npcHasKnownWay(document: NpcSources, referencedByOtherPage: ReadonlySet<string>): boolean {
+  return Boolean(document.locations.length || document.adventurer || document.summonedBy?.length
+    || document.spawnedBy?.length || document.recruitedByActions?.length || referencedByOtherPage.has(document.ref.key));
+}
+
+export function abilityHasKnownWay(document: AbilitySources): boolean {
+  return document.versions.some((version) => Boolean(version.learnedBy.length || version.usedBy.length
+    || version.usedByItems.length || version.unlockedByActions?.length));
+}
+
+
 function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow {
   const facts = document.facts;
   const slot = facts.slot ?? facts.weaponSlot;
@@ -59,24 +96,33 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
   return {
     ref: document.ref,
     // `rarity` colours the name.
-    values: { rarity: facts.rarity ?? null, type: itemTypeLabel(facts), itemPower: facts.itemPower ?? null, levelRequirement: facts.levelRequirement ?? null },
+    values: { rarity: facts.rarity ?? null, type: itemTypeLabel(facts), itemPower: facts.itemPower ?? null,
+      levelRequirement: facts.levelRequirement ?? null,
+      damage: facts.weaponType && facts.minDamage !== undefined && facts.maxDamage !== undefined
+        ? `${facts.minDamage}–${facts.maxDamage}` : null },
     facets: { class: usableBy, weapon: facetValue(facts.weaponType), armor: facetValue(facts.armorType), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
-      material: [String(document.usedInRecipes.length > 0)] },
+      material: [String(document.usedInRecipes.length > 0)], knownWay: [itemHasKnownWay(document) ? "Known Way" : "No Known Way"] },
     ...(stats.length ? { stats } : {}),
   };
 }
 
-function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef>): ListRow {
-  const level = document.facts.level ? levelText(document.facts.level) : null;
+function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef>, referencedByOtherPage: ReadonlySet<string>): ListRow {
+  const level = document.adventurer ? String(document.adventurer.startingLevel) : document.facts.level ? levelText(document.facts.level) : null;
   const places = new Set(document.locations.map((location) => location.label));
   const place = places.size === 1 ? places.values().next().value! : places.size > 1 ? `${places.size} places` : null;
   const faction = refName(document.facts.faction);
-  return { ref: document.ref, values: { level, role: document.facts.roles.join(", ") || null, place, faction },
+  const className = document.adventurer ? refName(document.adventurer.class) : null;
+  const roles: string[] = document.facts.roles.includes("boss") ? document.facts.roles.filter((role) => role !== "enemy") : [...document.facts.roles];
+  if (document.adventurer) roles.push("Adventurer", document.adventurer.role);
+  return { ref: document.ref,
+    values: { level, role: roles.join(", ") || null, place, faction, class: className, partyRole: document.adventurer?.role ?? null },
     // The column names one place or counts them. The filter offers each place, so an NPC in several places matches each.
-    facets: { role: document.facts.roles, places: [...places].sort(), faction: facetValue(faction),
-      class: facetValue(document.adventurer ? refName(document.adventurer.class) : null), partyRole: document.adventurer ? [document.adventurer.role] : [] },
+    facets: { role: roles, places: [...places].sort(), faction: facetValue(faction), class: facetValue(className),
+      partyRole: document.adventurer ? [document.adventurer.role] : [],
+      knownWay: [npcHasKnownWay(document, referencedByOtherPage) ? "Known Way" : "No Known Way"] },
     relations: { ...(place && places.size === 1 ? { place: namedRelation([place], placesByName) } : {}),
-      ...(document.facts.faction ? { faction: [document.facts.faction] } : {}) } };
+      ...(document.facts.faction ? { faction: [document.facts.faction] } : {}),
+      ...(document.adventurer ? { class: [document.adventurer.class] } : {}) } };
 }
 
 function questRow(document: PublicQuest, rewardTypes: readonly string[], placesByName: ReadonlyMap<string, EntityRef>): ListRow {
@@ -116,14 +162,19 @@ function abilityRow(document: PublicAbility): ListRow {
   });
   const creatures = [...new Set(document.versions.flatMap((version) => version.usedBy).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
   const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
-  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : "No Known Use";
-  const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ") : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ") : items.join(", ") || "No Known Use";
+  const actions = (document as AbilitySources).versions.flatMap((version) => version.unlockedByActions ?? []);
+  const interactionNames = [...new Set(actions.map((action) => refName(action.owner) ?? action.label))].sort();
+  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : actions.length ? "Interaction" : "No Known Use";
+  const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ")
+    : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ")
+      : items.length ? items.join(", ") : interactionNames.join(", ") || "No Known Use";
   const shownNames = classes.length ? classes : creatures.length ? creatures : items;
   const sourceRefs = classes.length ? learners.map((learner) => learner.class)
     : creatures.length ? document.versions.flatMap((version) => version.usedBy)
       : document.versions.flatMap((version) => version.usedByItems);
   const linked = shownNames.length <= 2 ? shownNames.map((name) => sourceRefs.find((ref) => refName(ref) === name)!) : [];
-  return { ref: document.ref, values: { source }, facets: { sourceKind: [sourceKind], class: classes },
+  return { ref: document.ref, values: { source },
+    facets: { sourceKind: [sourceKind], class: classes, knownWay: [abilityHasKnownWay(document) ? "Known Way" : "No Known Way"] },
     ...(linked.length ? { relations: { source: linked },
       ...(classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) } : {}) };
 }
@@ -215,11 +266,19 @@ export function buildKindLists(
   const rowsByKind = new Map<string, ListRow[]>();
   const classes = [...documents.values()].filter(isClass);
   const placesByName = new Map([...documents.values()].filter((entry): entry is PublicPlace => entry.ref.kind === "places").map((entry) => [entry.ref.name, entry.ref]));
+  // References elsewhere in the publication give otherwise unplaced NPCs a discoverable context.
+  // Ignore a document's subject ref so the NPC does not qualify solely by publishing its own page.
+  const referencedNpcs = new Set<string>();
+  for (const document of documents.values()) {
+    for (const ref of collectRefs(document)) {
+      if (ref.kind === "npcs" && ref.key !== document.ref.key) referencedNpcs.add(ref.key);
+    }
+  }
   for (const document of documents.values()) {
     let row: ListRow;
     switch (document.ref.kind) {
       case "items": row = itemRow(document as PublicItem, classes); break;
-      case "npcs": row = npcRow(document as PublicNpc, placesByName); break;
+      case "npcs": row = npcRow(document as PublicNpc, placesByName, referencedNpcs); break;
       case "quests": row = questRow(document as PublicQuest, questRewardTypes.get(document.ref.key) ?? [], placesByName); break;
       case "places": row = placeRow(document as PublicPlace); break;
       case "properties": row = propertyRow(document as PublicProperty); break;

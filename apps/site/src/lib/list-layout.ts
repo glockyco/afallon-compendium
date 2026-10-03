@@ -1,3 +1,5 @@
+import type { ListRow, PublicKindEntry } from '@afallon/contracts/public';
+
 /**
  * Column widths of a list table. A browser's automatic table layout gives spare width to the columns with the longest
  * content, so one long name pushes every other column away and leaves gaps between short values. The list instead
@@ -24,7 +26,7 @@ const STAGES: ReadonlyArray<ReadonlySet<ColumnShape>> = [new Set(['name', 'text'
 
 // The columns of other things' names or of sentences, and the columns that show badges. Every other non-numeric column is a
 // label.
-const TEXT_COLUMNS: ReadonlySet<string> = new Set(['place', 'chain', 'area', 'giver', 'source', 'description']);
+const TEXT_COLUMNS: ReadonlySet<string> = new Set(['place', 'chain', 'area', 'giver', 'source', 'description', 'class']);
 const BADGE_COLUMNS: ReadonlySet<string> = new Set(['role']);
 
 /** The shape of a published list column. The first column of every list is the entry's name. */
@@ -36,6 +38,26 @@ export function columnShape(id: string, numeric: boolean): ColumnShape {
 }
 
 const limits = (shape: ColumnShape) => shape === 'name' || shape === 'text' || shape === 'label' ? LIMITS[shape] : undefined;
+
+/** A filter changes which facts distinguish the matching rows, not which URL range controls remain available. */
+export function visibleListColumns(rows: readonly ListRow[], kind: PublicKindEntry): PublicKindEntry['columns'] {
+  if (rows.length === 0) return [];
+  return kind.columns.filter((column) => {
+    if (column.id === 'damage' && !rows.every((row) => (row.facets.weapon ?? []).length > 0)) return false;
+    if ((column.id === 'class' || column.id === 'partyRole') && kind.kind === 'npcs'
+      && !rows.every((row) => (row.facets.role ?? []).includes('Adventurer'))) return false;
+    const first = rows[0]!.values[column.id] ?? null;
+    if (rows.length === 1) return first !== null;
+    let filled = first !== null, different = false;
+    for (let index = 1; index < rows.length; index += 1) {
+      const value = rows[index]!.values[column.id] ?? null;
+      if (value !== null) filled = true;
+      if (value !== first) different = true;
+      if (filled && different) return true;
+    }
+    return false;
+  });
+}
 
 /**
  * The width of each column, in pixels, from its natural width (its widest value or heading, with padding) and the

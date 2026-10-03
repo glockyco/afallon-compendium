@@ -95,6 +95,21 @@ export function matchesFilters(row: ListRow, state: ListFilterState, kind: Publi
   return state.stats.every((filter) => statMatches(row, filter));
 }
 
+/** Hidden rows that would pass all current controls if the reader reveals their default-hidden value. */
+export function hiddenFacetOptions(rows: readonly ListRow[], state: ListFilterState, kind: PublicKindEntry, numericColumns: readonly string[]): Array<{ facet: Facet; value: string; count: number }> {
+  const options: Array<{ facet: Facet; value: string; count: number }> = [];
+  for (const facet of kind.facets) {
+    if ((state.facets[facet.id] ?? []).length) continue;
+    for (const value of facet.defaultHiddenValues ?? []) {
+      const revealed = { ...state, facets: { ...state.facets, [facet.id]: [value] } };
+      let count = 0;
+      for (const row of rows) if (matchesFilters(row, revealed, kind, numericColumns)) count += 1;
+      if (count) options.push({ facet, value, count });
+    }
+  }
+  return options;
+}
+
 export type FacetOption = { value: string; count: number };
 
 /**

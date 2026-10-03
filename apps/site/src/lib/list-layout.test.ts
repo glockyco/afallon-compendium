@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { columnShape, columnWidths } from './list-layout';
+import { columnShape, columnWidths, visibleListColumns } from './list-layout';
 
 test('spare width spreads evenly between neighbouring columns, after left-aligned values and before numbers', () => {
   // A name, a type label, item power, and level, in a table 330 px wider than they need: three equal parts of 110 px.
@@ -53,4 +53,33 @@ test('when even the floors do not fit, every column keeps its floor and the tabl
 
 test('other things\' names are texts, roles are badges, numeric columns are numbers, and everything else is a label', () => {
   expect([columnShape('name', false), columnShape('giver', false), columnShape('itemPower', true), columnShape('type', false), columnShape('role', false)]).toEqual(['name', 'text', 'number', 'label', 'badges']);
+});
+
+test('matching adventurers replace empty place and faction facts with class and party role', () => {
+  const columns = ['level', 'role', 'place', 'faction', 'class', 'partyRole'].map((id) => ({ id, label: id, sortable: true, numeric: id === 'level' }));
+  const kind = { kind: 'npcs', columns } as Parameters<typeof visibleListColumns>[1];
+  const adventurer = (name: string, role: string, className: string) => ({
+    ref: { key: `npcs:${name}`, kind: 'npcs' as const, name, slug: name.toLowerCase() },
+    values: { level: '7', role: `Adventurer, ${role}`, place: null, faction: null, class: className, partyRole: role },
+    facets: { role: ['Adventurer', role] },
+  });
+  const rows = [adventurer('Eldeth', 'Tank', 'Druid'), { ...adventurer('Hildra', 'Healer', 'Priest'),
+    values: { level: '20', role: 'Adventurer, Healer', place: null, faction: null, class: 'Priest', partyRole: 'Healer' } }];
+  expect(visibleListColumns(rows, kind).map((column) => column.id)).toEqual(['level', 'role', 'class', 'partyRole']);
+  expect(visibleListColumns([...rows, { ...rows[0]!, facets: { role: ['enemy'] } }], kind).map((column) => column.id)).toEqual(['level', 'role']);
+});
+
+test('weapon-focused rows gain damage while other item groups and blank results do not', () => {
+  const kind = { kind: 'items', columns: ['type', 'itemPower', 'damage'].map((id) => ({
+    id, label: id, sortable: true, numeric: id === 'itemPower',
+  })) } as Parameters<typeof visibleListColumns>[1];
+  const weapon = (name: string, damage: string) => ({
+    ref: { key: `items:${name}`, kind: 'items' as const, name, slug: name.toLowerCase() },
+    values: { type: 'Sword', itemPower: 20, damage }, facets: { weapon: ['SWORD'] },
+  });
+  const sword = weapon('Iron Sword', '8–13'), greatsword = weapon('Long Sword', '20–30');
+  const boots = { ...weapon('Boots', ''), values: { type: 'Boots', itemPower: 10, damage: null }, facets: { weapon: [] } };
+  expect(visibleListColumns([sword, greatsword], kind).map((column) => column.id)).toEqual(['damage']);
+  expect(visibleListColumns([sword, greatsword, boots], kind).map((column) => column.id)).toEqual(['type', 'itemPower']);
+  expect(visibleListColumns([], kind)).toEqual([]);
 });

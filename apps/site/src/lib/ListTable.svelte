@@ -9,10 +9,10 @@
   import { formatNumber, nameOf, rarityTone, readerNoun } from './format';
   import { growingCount } from './growing-count';
   import {
-    activeFilterCount, emptyFilters, facetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
+    activeFilterCount, emptyFilters, facetOptions, hiddenFacetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
     statSortValue, writeFilters, type ListFilterState,
   } from './list-filters';
-  import { columnShape, columnWidths, type ColumnShape } from './list-layout';
+  import { columnShape, columnWidths, visibleListColumns, type ColumnShape } from './list-layout';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
@@ -37,14 +37,12 @@
   let sort: SortState = kind.defaultSort ?? { id: 'name', dir: 'asc' };
   let sheet: HTMLDialogElement;
 
-  // A column that has the same value in every row, or no value in any, says nothing about one row, so it leaves. A
-  // column some rows fill stays, and the rows without a value stay blank.
-  $: visibleColumns = kind.columns.filter((column) => {
-    const values = list.rows.map((row) => row.values[column.id] ?? null);
-    return values.some((value) => value !== null) && (values.length === 1 || new Set(values).size > 1);
-  });
-  $: ranges = visibleColumns.filter((column) => column.numeric);
+  // The filter controls include every published numeric column, even after its current result column disappears.
+  $: ranges = kind.columns.filter((column) => column.numeric);
   $: rangeIds = ranges.map((column) => column.id);
+  $: matchingRows = list.rows.filter((row) => matchesFilters(row, filters, kind, rangeIds));
+  // Values from the matching rows, not the entire kind, determine whether a column distinguishes these results.
+  $: visibleColumns = visibleListColumns(matchingRows, kind);
   $: groups = kind.facets.map((facet) => ({ facet, options: facetOptions(list.rows, filters, kind, rangeIds, facet) })).filter((group) => group.options.length > 0);
   $: stats = statOptions(list.rows);
   // A short list fits on one screen, so filters would only add noise beside it.
@@ -154,14 +152,14 @@
     if (typeof value === 'number') return formatNumber(value).length;
     return cellValues(row, id).map((entry) => listValueLabel(id, entry)).join(', ').length;
   }
-  $: filteredRows = sortRows(list.rows.filter((row) => matchesFilters(row, filters, kind, rangeIds)), sortValue, sort);
+  $: filteredRows = sortRows(matchingRows, sortValue, sort);
   $: if (mounted) built.restart(filteredRows.length);
   $: shownRows = filteredRows.slice(0, $built);
   $: activeCount = activeFilterCount(filters);
   $: chips = filterChips(filters);
-  $: hiddenOptions = kind.facets.flatMap((facet) => (facet.defaultHiddenValues ?? []).map((value) => ({
-    facet, value, count: list.rows.filter((row) => (row.facets[facet.id] ?? []).includes(value)).length,
-  }))).filter((option) => option.count > 0 && !(filters.facets[option.facet.id] ?? []).length);
+  $: hiddenOptions = hiddenFacetOptions(list.rows, filters, kind, rangeIds);
+  // Reserve the reveal's row while typing only if these other filters can still match a hidden entry.
+  $: hasPotentialHidden = hiddenFacetOptions(list.rows, { ...filters, q: '' }, kind, rangeIds).length > 0;
 
   onMount(() => {
     const restore = () => readUrl(new URL(window.location.href));
@@ -335,7 +333,7 @@
       {#if hasPanel}<button type="button" class="filters-button" on:click={openSheet}>Filters{#if activeCount}{` (${formatNumber(activeCount)})`}{/if}</button>{/if}
     </div>
 
-    <div class="result-bar" bind:offsetHeight={barHeight}>
+    <div class="result-bar" class:visibility-list={hasPotentialHidden} bind:offsetHeight={barHeight}>
       <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong>{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if} {list.rows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</p>
       {#if chips.length}
         <ul class="chips" aria-label="Active filters">
@@ -344,7 +342,7 @@
       {/if}
       {#if chips.length || filters.q.trim()}<button type="button" class="clear" on:click={clearFilters}>Clear all</button>{/if}
       {#each hiddenOptions as option}
-        <button type="button" class="reveal" on:click={() => setFacet(option.facet.id, option.value, true)}>Show {formatNumber(option.count)} hidden ({listValueLabel(option.facet.id, option.value)})</button>
+        <button type="button" class="reveal" on:click={() => setFacet(option.facet.id, option.value, true)}>Show {formatNumber(option.count)} Hidden ({listValueLabel(option.facet.id, option.value)})</button>
       {/each}
     </div>
 
@@ -393,6 +391,8 @@
 
   /* The count and the active filter chips stay in view while the list scrolls, and the table header sticks below them. */
   .result-bar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; margin-bottom: .6rem; padding: .4rem 0; background: var(--c-surface-0); }
+  /* Reserve room for a counted reveal even when a search temporarily finds none, so typing cannot move the rows. */
+  .result-bar.visibility-list { min-height: 2.75rem; }
   /* A table that flows sticks its header below the result bar. A table that scrolls inside its card sticks it at the
      card's top, because the card is then its scrollport. */
   .list :global(.c-table-scroll--flow-wide .c-table--sticky thead th) { top: var(--bar-height, 0px); }
@@ -443,6 +443,7 @@
   }
 
   @media (max-width: 640px) {
+    .result-bar.visibility-list { min-height: 5rem; }
     .list { padding: 0; border: 0; background: none; }
     .list :global(.c-table-scroll) { overflow: visible; }
     .list :global(table), .list :global(tbody), .list :global(tr), .list :global(td) { display: block; min-width: 0; }

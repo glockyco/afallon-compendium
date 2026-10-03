@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { ListRow, PublicKindEntry } from '@afallon/contracts/public';
-import { emptyFilters, facetOptions, formatStatParam, matchesFilters, parseStatParam, readFilters, statMatches, writeFilters, type ListFilterState } from './list-filters';
+import { emptyFilters, facetOptions, formatStatParam, hiddenFacetOptions, matchesFilters, parseStatParam, readFilters, statMatches, writeFilters, type ListFilterState } from './list-filters';
 
 const kind: PublicKindEntry = {
   kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'item', pages: true, list: true, searchable: true,
@@ -69,4 +69,38 @@ test('filters survive a round trip through the URL', () => {
   expect(params.get('sort')).toBe('gear');
   const restored = readFilters(new URLSearchParams(params.toString()), kind, ['levelRequirement']);
   expect(restored).toEqual({ ...selected, facets: { slot: ['BOOTS', 'GLOVES'], rarity: [], itemType: [] } });
+});
+
+test('a Shout search counts only its matching hidden ability and reveal retains the name search', () => {
+  const abilities: PublicKindEntry = { ...kind, kind: 'abilities', facets: [
+    { id: 'sourceKind', label: 'Source' }, { id: 'knownWay', label: 'Availability', defaultHiddenValues: ['No Known Way'] },
+  ] };
+  const ability = (name: string, known: boolean): ListRow => ({
+    ref: { key: `abilities:${name}`, kind: 'abilities', name, slug: name.toLowerCase() },
+    values: { source: known ? 'Guardian' : 'No Known Use' },
+    facets: { sourceKind: [known ? 'Creature' : 'No Known Use'], knownWay: [known ? 'Known Way' : 'No Known Way'] },
+  });
+  const entries = [ability('Defiant Shout', true), ability('Shout', false),
+    ...Array.from({ length: 53 }, (_, index) => ability(`Unused Ability ${index}`, false))];
+  expect(hiddenFacetOptions(entries, emptyFilters(), abilities, [])[0]?.count).toBe(54);
+  const search = { ...emptyFilters(), q: 'shout' };
+  expect(entries.filter((entry) => matchesFilters(entry, search, abilities, [])).map((entry) => entry.ref.name)).toEqual(['Defiant Shout']);
+  expect(hiddenFacetOptions(entries, search, abilities, []).map(({ value, count }) => [value, count])).toEqual([['No Known Way', 1]]);
+  const revealed = { ...search, facets: { knownWay: ['No Known Way'] } };
+  expect(entries.filter((entry) => matchesFilters(entry, revealed, abilities, [])).map((entry) => entry.ref.name)).toEqual(['Shout']);
+  expect(hiddenFacetOptions(entries, revealed, abilities, [])).toEqual([]);
+});
+
+test('hidden reveal count obeys other facets, inclusive bounds, and stat requirements', () => {
+  const items: PublicKindEntry = { ...kind, facets: [...kind.facets, { id: 'knownWay', label: 'Availability', defaultHiddenValues: ['No Known Way'] }] };
+  const hidden = (name: string, slot: string, level: number, stat: number): ListRow => row(name, slot, 'Rare', {
+    values: { levelRequirement: level }, facets: { slot: [slot], rarity: ['Rare'], itemType: ['ARMOR'], knownWay: ['No Known Way'] },
+    stats: [{ name: 'Strength', percent: false, min: stat, max: stat }],
+  });
+  const entries = [hidden('Sword of Echoes', 'HANDS', 20, 30), hidden('Sword of Wind', 'HANDS', 21, 12), hidden('Sword of Mist', 'HEAD', 20, 30)];
+  const narrowed: ListFilterState = { ...emptyFilters(), q: 'sword', facets: { slot: ['HANDS'] }, minimums: { levelRequirement: '20' },
+    maximums: { levelRequirement: '20' }, stats: [{ key: 'Strength', min: '30', max: '' }] };
+  expect(hiddenFacetOptions(entries, narrowed, items, ['levelRequirement'])[0]?.count).toBe(1);
+  expect(hiddenFacetOptions(entries, { ...narrowed, minimums: { levelRequirement: '21' } }, items, ['levelRequirement'])).toEqual([]);
+  expect(hiddenFacetOptions(entries, { ...narrowed, facets: { slot: ['BOOTS'] } }, items, ['levelRequirement'])).toEqual([]);
 });
