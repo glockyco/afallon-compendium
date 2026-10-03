@@ -45,13 +45,13 @@
 </PageShell>
 
 <style>
-  .about { max-width: 68rem; }
   header { padding: 1.5rem 0 2rem; border-bottom: 1px solid var(--c-line); }
   h1 { margin: 0; color: var(--c-text-strong); font: 600 clamp(2rem, 4vw, 3rem)/1.12 var(--c-serif); }
   .lead { max-width: 49rem; margin: 1rem 0 0; color: var(--c-text); font-size: var(--c-text-lead); line-height: 1.55; }
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(13rem, 17rem); align-items: start; gap: clamp(2rem, 5vw, 5rem); padding-top: 2rem; }
+  /* Rules separate sections and never close the last one, which the footer's own rule already does. */
   .sections { display: grid; gap: 1.5rem; }
-  section { padding-bottom: 1.5rem; border-bottom: 1px solid var(--c-line-soft); }
+  section + section { padding-top: 1.5rem; border-top: 1px solid var(--c-line-soft); }
   h2 { margin: 0 0 .75rem; color: var(--c-text-strong); font: 600 1.5rem/1.25 var(--c-serif); }
   p { margin: 0 0 .8rem; color: var(--c-text-dim); line-height: 1.65; }
   p:last-child { margin-bottom: 0; }
