@@ -50,6 +50,15 @@
   $: coverage = data.coverage;
   $: kinds = new Map(data.registry.map((entry) => [entry.kind, entry]));
   $: crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'Coverage' }];
+  // Each entry is one short count, in alphabetical order of what it counts, so the grid reads as one list.
+  $: published = [
+    ...coverage.pages.flatMap((page) => {
+      const kind = kinds.get(page.kind);
+      return kind ? [{ noun: page.count === 1 ? readerNoun(kind.label) : readerNoun(kind.plural), count: page.count, href: `${base}/${kind.route}/` }] : [];
+    }),
+    { noun: coverage.placementCount === 1 ? 'map location' : 'map locations', count: coverage.placementCount, href: `${base}/map/` },
+    { noun: coverage.mapCount === 1 ? 'map' : 'maps', count: coverage.mapCount, href: `${base}/map/` },
+  ].sort((left, right) => left.noun.localeCompare(right.noun, 'en')).map((entry) => ({ label: `${formatNumber(entry.count)} ${entry.noun}`, href: entry.href }));
 </script>
 
 <svelte:head><title>Data coverage · Afallon Compendium</title><meta name="description" content="What the Afallon Compendium publishes for the current game release, and what it does not know yet." /></svelte:head>
@@ -61,11 +70,7 @@
   <div class="c-stack">
     <Card title="Published">
       <ul class="published">
-        {#each coverage.pages as page}
-          {@const kind = kinds.get(page.kind)}
-          <li>{#if kind}<a class="c-link" href={`${base}/${kind.route}/`}>{formatNumber(page.count)} {page.count === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</a>{:else}{formatNumber(page.count)} {page.kind}{/if}</li>
-        {/each}
-        <li><a class="c-link" href={`${base}/map/`}>{formatNumber(coverage.placementCount)} map locations on {formatNumber(coverage.mapCount)} maps</a></li>
+        {#each published as entry (entry.label)}<li><a class="c-link" href={entry.href}>{entry.label}</a></li>{/each}
       </ul>
     </Card>
 
