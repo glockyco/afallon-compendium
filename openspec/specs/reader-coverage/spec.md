@@ -49,6 +49,10 @@ The reader-facing coverage page SHALL show the number of published pages per kin
 - **WHEN** the only source of an item is the supplemental cloth drop
 - **THEN** its page does not appear under Items without a known source
 
+#### Scenario: Adventurers have no fixed location
+- **WHEN** an NPC page belongs to an adventurer, who roams and joins a party by invitation
+- **THEN** the page is not listed under NPCs without a map location
+
 ### Requirement: The publication graph verifies coverage
 
 The coverage resource SHALL use the registered static coverage schema. The graph SHALL check that its map and placement counts match the root. It SHALL check that page counts match published documents and each gap reference points to a published page. Operator gate counts and publication issues SHALL remain in publish command output rather than reader coverage.
