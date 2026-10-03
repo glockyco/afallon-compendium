@@ -89,7 +89,7 @@
         <p>Use a Heroic Console in one of these places, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
         <nav class="console-spots" aria-label="Find a Heroic Console">
           {#each consoles as console (console.spot.placementId)}
-            <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
+            <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on Map</a></span>
           {/each}
         </nav>
         <a class="c-link more" href="#entering">Turning it on and off</a>
@@ -98,7 +98,7 @@
     {#if health !== undefined && damage !== undefined}
       <div>
         <h2>What changes</h2>
-        <p>Creatures have {formatNumber(health)} times their health and deal {formatNumber(damage)} times their damage, more as your gear improves.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
+        <p>Empowered creatures have {formatNumber(health)}× health and deal {formatNumber(damage)}× damage. Your gear raises both.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
         <a class="c-link more" href="#empowered-creatures">Empowered creatures</a>
       </div>
     {/if}
@@ -120,7 +120,7 @@
               <p class="console-lead">Find each console on the map.</p>
               <nav class="console-spots" aria-label="Heroic Console locations">
                 {#each consoles as console (console.spot.placementId)}
-                  <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on map</a></span>
+                  <span><EntityLink ref={console.place} {registry} /><a class="c-link" href={spotOnMap(console.spot.placementId)}>Show on Map</a></span>
                 {/each}
               </nav>
             {/if}

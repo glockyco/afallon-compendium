@@ -26,14 +26,14 @@
 
 {#snippet startSpots(placements: PlacementRef[])}
   {#if placements.length}
-    <a class="c-link" href={spotOnMap(placements[0]!.placementId)} aria-label={`Show ${placements.length === 1 ? 'the spot' : `the first of ${placements.length} spots`} on the map`}>{placements.length === 1 ? 'Show on map' : `${formatNumber(placements.length)} spots`}</a>
+    <a class="c-link" href={spotOnMap(placements[0]!.placementId)} aria-label={`Show ${placements.length === 1 ? 'the spot' : `the first of ${placements.length} spots`} on the map`}>{placements.length === 1 ? 'Show on Map' : `${formatNumber(placements.length)} spots`}</a>
   {/if}
 {/snippet}
 
 <div class="starters">
   {#each people as person}
     <div><h3>{person.ends ? 'Starts and ends with' : 'Starts with'}</h3>
-      <p><EntityLink ref={person.npc} {registry} />{#if person.areas.length}{' · '}{person.areas.join(', ')}{/if}{#if person.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(person.npc.key)}>Show on map</a>{/if}</p>
+      <p><EntityLink ref={person.npc} {registry} />{#if person.areas.length}{' · '}{person.areas.join(', ')}{/if}{#if person.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(person.npc.key)}>Show on Map</a>{/if}</p>
     </div>
   {/each}
   {#if zones.length || objects.length}<div><h3>Starts with</h3>
@@ -48,7 +48,7 @@
   </div>{/if}
   {#if remainingTurnIns.length || (!document.turnIns.length && (document.facts.turnInWithoutNpc || document.facts.worldQuest))}
     <div><h3>{document.facts.worldQuest && !document.turnIns.length ? 'Completion' : 'Turn in to'}</h3>
-      {#each remainingTurnIns as turnIn}<p><EntityLink ref={turnIn.npc} {registry} />{#if turnIn.areas.length}{' · '}{turnIn.areas.join(', ')}{/if}{#if turnIn.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(turnIn.npc.key)}>Show on map</a>{/if}</p>{/each}
+      {#each remainingTurnIns as turnIn}<p><EntityLink ref={turnIn.npc} {registry} />{#if turnIn.areas.length}{' · '}{turnIn.areas.join(', ')}{/if}{#if turnIn.npc.key !== null}{' · '}<a class="c-link" href={entityOnMap(turnIn.npc.key)}>Show on Map</a>{/if}</p>{/each}
       {#if !document.turnIns.length}<p>{document.facts.worldQuest ? 'Completes automatically when its objectives are finished.' : document.facts.turnInWithoutNpc ? 'Completes without a turn-in character.' : 'No turn-in character is named.'}</p>{/if}
     </div>
   {/if}

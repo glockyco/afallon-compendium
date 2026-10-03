@@ -51,7 +51,7 @@
         </ul>
       {/if}
     </div>
-    {#if mapHref}<a class="c-action map" href={mapHref}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Show on map</a>{/if}
+    {#if mapHref}<a class="c-action map" href={mapHref}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Show on Map</a>{/if}
   </div>
   <slot />
 </header>

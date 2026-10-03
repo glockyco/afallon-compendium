@@ -22,7 +22,7 @@
 </script>
 
 {#snippet spotLinks(placements: PlacementRef[], name: string)}
-  {#if placements.length === 1}<a class="c-link" href={spotOnMap(placements[0]!.placementId)} aria-label={`Show the entrance in ${name} on the map`}>Show on map</a>
+  {#if placements.length === 1}<a class="c-link" href={spotOnMap(placements[0]!.placementId)} aria-label={`Show the entrance in ${name} on the map`}>Show on Map</a>
   {:else if placements.length > 1}<span class="spots">{#each placements as placement, index}<a class="c-link" href={spotOnMap(placement.placementId)} aria-label={`Show entrance ${index + 1} in ${name} on the map`}>Entrance {index + 1}</a>{/each}</span>{/if}
 {/snippet}
 
@@ -47,7 +47,7 @@
   <SideCard id="timed-dungeon" title="Timed dungeon">
     <FactList>
       {#if timed.totalSeconds !== undefined}<FactRow label="Timer">{timerText(timed.totalSeconds)}</FactRow>{/if}
-      {#if timed.altars.length}<FactRow label="Altar of Corruption"><a class="c-link" href={spotOnMap(timed.altars[0]!.placementId)}>Show on map</a></FactRow>{/if}
+      {#if timed.altars.length}<FactRow label="Altar of Corruption"><a class="c-link" href={spotOnMap(timed.altars[0]!.placementId)}>Show on Map</a></FactRow>{/if}
     </FactList>
     <ul>
       {#each timed.thresholds as threshold}<li>Defeat the last boss with {timerText(threshold.remainingSeconds)} left and the reward token gains {levels(threshold.tokenLevels)}.</li>{/each}
@@ -64,7 +64,7 @@
         <FactRow label={roleLabel(service.category).toLowerCase().replace(/^./, (initial) => initial.toUpperCase())}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
       {/each}
       {#each document.heroicConsoles ?? [] as console, index (console.placementId)}
-        <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on map</a></FactRow>
+        <FactRow label={document.heroicConsoles?.length === 1 ? 'Heroic Console' : `Heroic Console ${index + 1}`}><a class="c-link" href={spotOnMap(console.placementId)}>Show on Map</a></FactRow>
       {/each}
     </FactList>
     {#if document.heroicConsoles?.length}<p class="console-context">Use a Heroic Console to turn Heroic Tier on or off. <a class="c-link" href={`${base}/mechanics/heroic-tier/#entering`}>How Heroic Tier works</a></p>{/if}

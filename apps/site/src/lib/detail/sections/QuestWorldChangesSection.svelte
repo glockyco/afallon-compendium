@@ -35,7 +35,7 @@
       {:else if column === 'condition'}<Availability rules={row.availability} {registry} />
       {:else if column === 'spots'}
         {#if row.placements.length}
-          <a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>{row.placements.length === 1 ? 'Show on map' : 'Spot 1'}</a>
+          <a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>{row.placements.length === 1 ? 'Show on Map' : 'Spot 1'}</a>
           {#if row.placements.length > 1}
             <details class="more-spots"><summary>Show {formatNumber(row.placements.length - 1)} more</summary>
               <div class="spot-list">{#each row.placements.slice(1) as spot, index}<a class="c-link" href={spotOnMap(spot.placementId)} aria-label={`Show map spot ${index + 2}`}>{index + 2}</a>{/each}</div>

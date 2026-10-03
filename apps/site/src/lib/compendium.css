@@ -238,10 +238,14 @@ body { font-size: 1rem; line-height: 1.5; }
 .c-table--calculator tbody th { color: var(--c-text-dim); font-weight: 500; text-align: left; overflow-wrap: break-word; }
 .c-table--calculator thead th { white-space: normal; }
 .c-table--calculator.c-table--comparison { width: min(100%, 48.25rem); }
-.c-table--comparison :is(.from-value, .to-value, .change-value) { width: 4.85rem; }
+.c-table--comparison :is(.from-value, .to-value, .change-value) { width: 4.5rem; }
 .c-table--comparison .positive { color: var(--c-positive); }
 .c-table--comparison .negative { color: var(--c-tone-negative); }
-@container try-it (min-width: 61rem) {
+@media (max-width: 480px) {
+  .c-table--comparison :is(.from-value, .to-value, .change-value) { width: 4rem; }
+  .c-table--comparison tbody th { font-size: .8rem; }
+}
+@container comparison (min-width: 61rem) {
   .c-table--calculator.c-table--comparison { width: 100%; }
   .c-table--comparison .from-value, .c-table--comparison .to-value { display: none; }
   .c-table--comparison .change-value { width: 5rem; }

@@ -84,11 +84,11 @@
       <div class="card"><h4>Normal</h4><dl>
         <div><dt>Maximum Health</dt><dd>1×</dd></div><div><dt>Damage</dt><dd>1×</dd></div>
         <div><dt>Kill Experience</dt><dd>{characterLevel >= progression.curve.cap ? 'Level Cap' : normal ? xp(normal) : 'Unavailable'}</dd></div>
-      </dl><p>Published creature combat values do not establish actual maximum health or attack damage after all encounter modifiers.</p></div>
+      </dl></div>
       <div class="card changed"><h4>If Empowered</h4><dl>
         <div><dt>Maximum Health</dt><dd>{exact.format(strength.health)}×</dd></div><div><dt>Damage</dt><dd>{exact.format(strength.damage)}×</dd></div>
         <div><dt>Kill Experience</dt><dd>{characterLevel >= progression.curve.cap ? 'Level Cap' : empowered ? xp(empowered) : 'Unavailable'}{characterLevel < progression.curve.cap && empowered ? ` (${exact.format(settings.killExperienceMultiplier)}×)` : ''}</dd></div>
-      </dl><p><a class="c-link" href="#affixes">Affixes</a> may further change combat. Rare and Boss creatures always get at least one. <a class="c-link" href="#essence">Heroic Essence</a> requires Essence points and varies by rank and health. If this creature drops eligible equipment, it may be <a class="c-link" href="#heroic-gear">Heroic gear</a>. No particular item is guaranteed.</p></div>
+      </dl><p><a class="c-link" href="#affixes">Affixes</a> may further change combat. Rare and Boss creatures always get at least one. With Essence points, empowered kills add <a class="c-link" href="#essence">Heroic Essence</a> toward your Heroic Ascension talents. If this creature drops eligible equipment, it may be <a class="c-link" href="#heroic-gear">Heroic gear</a>. No particular item is guaranteed.</p></div>
     </div>
     <p class="note">Experience assumes no living followers or Experience Bonus and excludes world and other game modifiers. Quest experience does not gain the kill multiplier. The tier pauses in {#each excluded as place, index}{index ? ', ' : ''}<EntityLink ref={place} {registry} />{/each} and in dungeons with a timer or corruption, then resumes when you leave.</p>
   {/if}

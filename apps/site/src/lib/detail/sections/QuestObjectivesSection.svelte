@@ -19,7 +19,7 @@
       <li>
         <span class="number" aria-hidden="true">{index + 1}</span>
         <div class="task"><p class="instruction"><ObjectiveText {objective} />{#if 'count' in objective && !authoredCounts[index]}<strong class="count">{formatNumber(objective.count)} required</strong>{/if}</p>
-          {#if 'target' in objective}<p class="target">Target: <EntityLink ref={objective.target} {registry} />{#if objective.target.key !== null && objective.target.kind === 'npcs'}{' '}· <a class="c-link" href={entityOnMap(objective.target.key)}>Show on map</a>{/if}</p>{/if}
+          {#if 'target' in objective}<p class="target">Target: <EntityLink ref={objective.target} {registry} />{#if objective.target.key !== null && objective.target.kind === 'npcs'}{' '}· <a class="c-link" href={entityOnMap(objective.target.key)}>Show on Map</a>{/if}</p>{/if}
           {#each objective.completions as completion}<div class="completion">
             <p>{completion.label ?? 'Interactive object'}</p>
             {#if completion.placements.length}<LocationLinks placements={completion.placements} />{/if}

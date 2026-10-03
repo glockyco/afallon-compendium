@@ -42,9 +42,9 @@
       {#each examples as example}<option value={example.slug}>{example.name}</option>{/each}
     </select>
   </div>
-  {#if item}<p class="context"><EntityLink ref={item.ref} {registry} /> has a creature-drop path where Heroic Tier can be active. A Heroic drop is possible, not guaranteed. This item is a separate example, not a claimed drop from the creature above.</p>{/if}
+  {#if item}<p class="context"><EntityLink ref={item.ref} {registry} /> may become Heroic when a creature drops it. This item is not a confirmed drop from the creature above.</p>{/if}
   <ItemComparison {item} {registry} {loading} {error} beforeLabel="Normal" afterLabel="Heroic" afterHeroic tableLabel="Heroic Item Stat Changes" />
-  <p class="context">The Heroic bonus applies to fixed stats and weapon damage, not random rolls, gems or enchantments.</p>
+  <p class="context">Only fixed stats and weapon damage gain the Heroic bonus. Random rolls, gems and enchantments do not.</p>
 </div>
 
 <style>

@@ -47,7 +47,7 @@
                   {#if !row.choiceLabel && !row.cost && !row.availability.length}<span>No requirements</span>{/if}
                 </div>
                 <div class="meta">
-                  {#if group.variants.length > 1 && row.placements.length}{#if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>{:else}<span>{spots(row.placements.length)}</span>{/if}{:else if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>Show on map</a>{/if}
+                  {#if group.variants.length > 1 && row.placements.length}{#if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>1 spot</a>{:else}<span>{spots(row.placements.length)}</span>{/if}{:else if row.placements.length === 1}<a class="c-link" href={spotOnMap(row.placements[0]!.placementId)}>Show on Map</a>{/if}
                   {#if row.items.length > SHORT_LIST}<button type="button" class="c-action" aria-expanded={open.has(row)} on:click={() => toggle(row)}>{open.has(row) ? 'Hide items' : `Show ${formatNumber(row.items.length)} items`}</button>{/if}
                 </div>
               </div>
