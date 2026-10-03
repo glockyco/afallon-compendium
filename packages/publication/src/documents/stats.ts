@@ -66,8 +66,16 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       seenTalents.add(id);
       const icon = input.artByEntity.get(bonus.entityKey)?.icon;
       talents.push({ class: character, talent: { ...character, name: displayName(bonus.name ?? node.target?.label ?? "Talent"), variant: talentAnchor(node.tree, node.nodeIndex), ...(icon ? { icon } : {}) } });
-      for (const rank of bonus.details.ranks) for (const stat of rank.statEffects.filter((entry) => resolves(entry.stat))) {
-        talentGrants.push({ source: talents[talents.length - 1]!.talent, family: "talents", class: character, amount: stat.amount, percent: stat.isPercent, tier: rank.rank + 1 });
+      // Every rank of a talent raises the same bonus, so the talent is one grant for each of its flat and percent forms:
+      // the bonus range across its ranks, and in `tier` how many ranks give the bonus.
+      for (const percent of [false, true]) {
+        const ranks = bonus.details.ranks.map((rank) => rank.statEffects.filter((entry) => resolves(entry.stat) && entry.isPercent === percent))
+          .filter((entries) => entries.length > 0);
+        if (!ranks.length) continue;
+        const amounts = ranks.map((entries) => entries.reduce((sum, entry) => sum + entry.amount, 0));
+        const min = Math.min(...amounts), max = Math.max(...amounts);
+        talentGrants.push({ source: talents[talents.length - 1]!.talent, family: "talents", class: character, percent,
+          ...(min === max ? { amount: min } : { min, max }), tier: ranks.length });
       }
     }
   }

@@ -2,11 +2,15 @@
 
 ### Requirement: Stat pages explain and quantify sources
 
-The site SHALL lead with a stat's player-facing function and show its published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges. Empty source families SHALL have no tabs. Item sources SHALL distinguish fixed bonuses and possible rolls. Gear sets SHALL show their piece tier, talents their class and rank, and class growth SHALL remain a separate table. The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning.
+The site SHALL lead with a stat's player-facing function and show its published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges. Empty source families SHALL have no tabs. Item sources SHALL distinguish fixed bonuses and possible rolls. Gear sets SHALL show their piece tier, and a talent SHALL be one row with its class, its bonus range across its ranks, and how many ranks give the bonus. Class growth SHALL remain a separate table. The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning.
 
 #### Scenario: A stat has multiple bonus forms
 - **WHEN** a reader visits a stat that appears on fixed items and as a possible item roll
 - **THEN** the page distinguishes those ways of obtaining the stat, shows amounts or roll ranges, and its item-list link includes every item with either bonus form
+
+#### Scenario: A talent with ten ranks
+- **WHEN** a talent raises Damage Dealt by 1% at its first rank and 10% at its tenth
+- **THEN** the Talents tab shows one row for it with +1%–+10% and 10 ranks
 
 ### Requirement: Item power is an equipment rating, not a resource pool
 

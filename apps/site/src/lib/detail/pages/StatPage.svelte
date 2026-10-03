@@ -42,7 +42,7 @@
     const rows = document.grants.filter((row) => (family.types as readonly string[]).includes(row.family));
     const count = new Set(rows.map((row) => `${row.source.key}#${'variant' in row.source ? row.source.variant ?? '' : ''}`)).size;
     const columns = sourceColumns.filter((column) => (family.columns as readonly string[]).includes(column.id))
-      .map((column) => column.id === 'tier' && family.key === 'talents' ? { ...column, label: 'Rank' } : column);
+      .map((column) => column.id === 'tier' && family.key === 'talents' ? { ...column, label: 'Ranks' } : column);
     return { ...family, rows, count, columns: planColumns(columns, rows).columns };
   }).filter((group) => group.rows.length > 0);
   $: tabs = groups.map((group) => ({ key: group.key, label: `${group.label} ${formatNumber(group.count)}` }));
