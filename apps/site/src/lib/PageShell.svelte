@@ -13,6 +13,7 @@
   import KofiGlyph from './KofiGlyph.svelte';
   import { kindGlyphSvg } from './kind-icon';
   import { KOFI_URL, siteNavigation } from './site-navigation';
+  import { jsonLdScript, SITE_ORIGIN, UNOFFICIAL_NOTICE } from './seo';
   import './compendium.css';
 
   export let registry: PublicKindEntry[] = [];
@@ -63,7 +64,16 @@
   });
   // The first load also counts as a navigation. It keeps a menu that a reader opened before the page became interactive.
   afterNavigate((navigated) => { if (navigated.type !== 'enter') closeBrowse(); });
+  $: breadcrumbData = crumbs.length > 1 ? jsonLdScript({
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((crumb, index) => ({
+      '@type': 'ListItem', position: index + 1, name: crumb.label,
+      item: `${SITE_ORIGIN}${crumb.href ?? $page.url.pathname}`,
+    })),
+  }) : '';
 </script>
+
+<svelte:head>{@html breadcrumbData}</svelte:head>
 
 <div class="frame">
   <header class="bar">
@@ -125,7 +135,9 @@
         {/if}
         <slot name="footer-extra" />
         <a class="c-link" href={`${base}/coverage/`}>Coverage</a>
+        <a class="c-link" href={`${base}/about/`}>About</a>
         <a class="c-link" href={KOFI_URL} rel="external">Support on Ko-fi</a>
+        <span class="footer-notice">{UNOFFICIAL_NOTICE}</span>
       </footer>
     </div>
   </main>
@@ -210,6 +222,7 @@
   .crumbs a:hover { text-decoration: underline; }
 
   footer { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--c-line); color: var(--c-text-mute); font-size: var(--c-text-small); overflow-wrap: anywhere; }
+  .footer-notice { flex-basis: 100%; margin-top: .35rem; }
 
   /* Below the width of the full bar, Support keeps only the Ko-fi cup, so the search field keeps its room. */
   @media (max-width: 1180px) {

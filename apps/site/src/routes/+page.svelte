@@ -9,6 +9,8 @@
   import { kindGlyphSvg } from '$lib/kind-icon';
   import { markerRegistry, type MarkerId } from '$lib/map/marker-registry';
   import PageShell from '$lib/PageShell.svelte';
+  import SeoHead from '$lib/SeoHead.svelte';
+  import { STEAM_URL, STEAM_GUIDE_URL } from '$lib/seo';
   import { shownRowCount } from '$lib/detail/relation-table';
   import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from '$lib/reader-levels';
   import type { PageData } from './$types';
@@ -55,27 +57,21 @@
   }
 </script>
 
-<svelte:head>
-  <title>Afallon Compendium</title>
-  <meta name="description" content="The map, places, creatures, items, quests, classes, and crafting of Afallon, read from the game data." />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Afallon Compendium" />
-  <meta property="og:title" content="Afallon Compendium" />
-  <meta property="og:description" content="The map, places, creatures, items, quests, classes, and crafting of Afallon, read from the game data." />
-  <meta property="og:url" content={`https://afallon.compendiums.org${base}/`} />
-  <meta property="og:image" content={`https://afallon.compendiums.org${base}/og-default.png`} />
-</svelte:head>
+<SeoHead title="Afallon Compendium" description="Explore Afallon's map, items, quests, classes, and crafting in this unofficial game reference." website />
 
 <PageShell registry={data.registry} release={data.release} search={false}>
   <section slot="hero" class="hero" aria-labelledby="hub-title">
     {#if data.world?.artwork}<img class="hero-art" src={artUrl(data.world.artwork)} width={data.world.artwork.width} height={data.world.artwork.height} alt="" fetchpriority="high" />{/if}
     <div class="hero-inner">
       <h1 id="hub-title">Afallon Compendium</h1>
+      <p class="hero-intro">Explore the map, items, quests, and classes in Afallon, a single-player RPG with the feel of an MMO. Choose a class, explore the open world, and run dungeons with NPC adventurers.</p>
       <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the map</a>
         {#if listHref('items')}<a class="items-action" href={listHref('items')}>Browse items</a>{/if}
+        <a class="steam-action" href={STEAM_URL} rel="external">Play Afallon on Steam</a>
       </div>
+      <p class="hero-resource">See the <a href={STEAM_GUIDE_URL} rel="external">Interactive Map on Steam</a> for an overview of map locations and filters.</p>
       <p class="release">Afallon {data.release.version} · Patched {formatCalendarDate(data.release.patchNotes.date)} · Data from {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
     </div>
     {#if data.world}
@@ -232,12 +228,17 @@
   .hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, color-mix(in srgb, var(--c-surface-deep) 95%, transparent) 0%, color-mix(in srgb, var(--c-surface-deep) 82%, transparent) 30%, color-mix(in srgb, var(--c-surface-deep) 30%, transparent) 60%, color-mix(in srgb, var(--c-surface-deep) 5%, transparent) 82%), linear-gradient(0deg, var(--c-surface-0) 0%, transparent 32%); }
   .hero-inner { width: min(72rem, 100%); margin: 0 auto; padding: 5rem 1.5rem 3.5rem; }
   h1 { max-width: 12ch; margin: 0 0 1.4rem; color: var(--c-text-strong); font: 600 clamp(2.5rem, 4.6vw, 3.75rem)/1.02 var(--c-serif); letter-spacing: -.01em; text-shadow: 0 2px 24px var(--c-shadow-strong); }
+  .hero-intro { max-width: 44rem; margin: -.35rem 0 1.25rem; color: var(--c-text); font-size: var(--c-text-body); line-height: 1.55; text-shadow: 0 1px 10px var(--c-shadow-strong); }
   .hero-search { max-width: 34rem; }
   .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.4rem; margin-top: 1.1rem; }
   .map-action { display: inline-flex; align-items: center; gap: .5rem; padding: .62rem 1.05rem; border-radius: 6px; background: var(--c-accent); color: var(--c-on-accent); font-size: var(--c-text-body); font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px var(--c-shadow); }
   .map-action:hover { background: var(--c-accent-strong); }
   .items-action { display: inline-flex; align-items: center; padding: .62rem 1.05rem; border: 1px solid color-mix(in srgb, var(--c-accent) 60%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--c-surface-deep) 70%, transparent); color: var(--c-accent-strong); font-size: var(--c-text-body); font-weight: 600; text-decoration: none; }
   .items-action:hover { border-color: var(--c-accent); background: color-mix(in srgb, var(--c-surface-deep) 90%, transparent); }
+  .steam-action { color: var(--c-text-strong); font-size: var(--c-text-small); text-underline-offset: .2em; }
+  .steam-action:hover { color: var(--c-accent-strong); }
+  .hero-resource { margin: .9rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); text-shadow: 0 1px 10px var(--c-shadow-strong); }
+  .hero-resource a { color: var(--c-text); text-underline-offset: .2em; }
   .glyph { display: inline-grid; flex: none; width: 1.05rem; height: 1.05rem; place-items: center; }
   .glyph :global(svg) { width: 100%; height: 100%; }
   .release { margin: 1rem 0 0; color: var(--c-text); font-size: var(--c-text-small); text-shadow: 0 1px 8px var(--c-shadow-strong); }

@@ -3,13 +3,14 @@
   import { readerNoun } from '$lib/format';
   import ListTable from '$lib/ListTable.svelte';
   import PageShell from '$lib/PageShell.svelte';
+  import SeoHead from '$lib/SeoHead.svelte';
   import type { PageData } from './$types';
   export let data: PageData;
 
   $: crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: data.kind.plural }];
 </script>
 
-<svelte:head><title>{data.kind.plural} · Afallon Compendium</title><meta name="description" content={`Browse published ${readerNoun(data.kind.plural)} in the Afallon Compendium.`} /></svelte:head>
+<SeoHead title={`${data.kind.plural} · Afallon Compendium`} description={`Browse ${readerNoun(data.kind.plural)} in Afallon. Find names, game details, and related locations in the compendium.`} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <header class="head">

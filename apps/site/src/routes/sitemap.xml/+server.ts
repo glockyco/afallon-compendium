@@ -10,7 +10,7 @@ const ORIGIN = 'https://afallon.compendiums.org';
 
 export const GET: RequestHandler = async () => {
   const [lists, entities] = await Promise.all([listPageEntries(), entityPageEntries()]);
-  const paths = ['/', '/map/', '/coverage/', ...lists.map(({ kind }) => `/${kind}/`), ...entities.map(({ kind, slug }) => `/${kind}/${slug}/`)];
+  const paths = ['/', '/map/', '/coverage/', '/about/', ...lists.map(({ kind }) => `/${kind}/`), ...entities.map(({ kind, slug }) => `/${kind}/${slug}/`)];
   const urls = paths.map((path) => `  <url><loc>${escapeXml(`${ORIGIN}${base}${path}`)}</loc></url>`).join('\n');
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, {
     headers: { 'Content-Type': 'application/xml; charset=utf-8' },

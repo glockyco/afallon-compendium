@@ -490,23 +490,6 @@
 
 </script>
 
-<svelte:head>
-  <title>Map · Afallon Compendium</title>
-  <meta name="description" content="Find bosses, dungeons, merchants, quests, resources, travel points, and item sources on the Afallon interactive map." />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Afallon Compendium" />
-  <meta property="og:title" content="Afallon Compendium · Interactive Map" />
-  <meta property="og:description" content="Find bosses, dungeons, merchants, quests, resources, travel points, and more across Afallon." />
-  <meta property="og:url" content={`https://afallon.compendiums.org${base}/map/`} />
-  <meta property="og:image" content="https://afallon.compendiums.org/og-default.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Afallon Compendium · Interactive Map" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Afallon Compendium · Interactive Map" />
-  <meta name="twitter:description" content="Find bosses, dungeons, merchants, quests, resources, travel points, and more across Afallon." />
-  <meta name="twitter:image" content="https://afallon.compendiums.org/og-default.png" />
-</svelte:head>
 
 <div class="map-shell">
   {#if loading}

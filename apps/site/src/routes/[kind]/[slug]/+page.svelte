@@ -2,13 +2,13 @@
   import { base } from '$app/paths';
   import DetailPage from '$lib/detail/DetailPage.svelte';
   import PageShell from '$lib/PageShell.svelte';
+  import SeoHead from '$lib/SeoHead.svelte';
+  import { entityDescription } from '$lib/seo';
   import type { PageData } from './$types';
   export let data: PageData;
 
   $: document = data.page.document;
-  $: summary = (document.description ?? `${document.ref.name} in Afallon.`).replace(/\s+/g, ' ').trim().slice(0, 220);
-  $: socialArt = document.ref.icon ?? document.art.icon ?? document.art.portrait ?? document.art.artwork;
-  $: socialImage = socialArt ? `https://afallon.compendiums.org${base}/data/${socialArt.url}` : `https://afallon.compendiums.org${base}/og-default.png`;
+  $: summary = entityDescription(data.page);
   $: crumbs = [
     { label: 'Compendium', href: `${base}/` },
     { label: data.kind.plural, href: `${base}/${data.kind.route}/` },
@@ -16,16 +16,7 @@
   ];
 </script>
 
-<svelte:head>
-  <title>{document.ref.name} · Afallon Compendium</title>
-  <meta name="description" content={summary} />
-  <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="Afallon Compendium" />
-  <meta property="og:title" content={document.ref.name} />
-  <meta property="og:description" content={summary} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:alt" content={document.ref.name} />
-</svelte:head>
+<SeoHead title={`${document.ref.name} · Afallon Compendium`} description={summary} type="article" />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} />

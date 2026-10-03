@@ -5,6 +5,7 @@
   import EntityHeader from '$lib/EntityHeader.svelte';
   import EntityLink from '$lib/EntityLink.svelte';
   import PageShell from '$lib/PageShell.svelte';
+  import SeoHead from '$lib/SeoHead.svelte';
   import { formatNumber, readerNoun } from '$lib/format';
   import type { PageData } from './$types';
   export let data: PageData;
@@ -61,7 +62,7 @@
   ].sort((left, right) => left.noun.localeCompare(right.noun, 'en')).map((entry) => ({ label: `${formatNumber(entry.count)} ${entry.noun}`, href: entry.href }));
 </script>
 
-<svelte:head><title>Data coverage · Afallon Compendium</title><meta name="description" content="What the Afallon Compendium publishes for the current game release, and what it does not know yet." /></svelte:head>
+<SeoHead title="Data Coverage · Afallon Compendium" description="See what the Afallon Compendium publishes for this game release, including known gaps in items, NPCs, places, and recipes." />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <EntityHeader name="Data coverage" />
