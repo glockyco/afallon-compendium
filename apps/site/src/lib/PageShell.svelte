@@ -235,7 +235,8 @@
   @media (max-width: 1023px) {
     .bar-inner { flex-wrap: wrap; gap: 0 1rem; padding: 0 1rem .7rem; }
     .brand, .site-nav { min-height: 3.75rem; }
-    .bar-search { flex-basis: 100%; min-width: 0; max-width: none; margin-left: 0; order: 3; }
+    /* The wrapped search row keeps clear space below the Browse underline. */
+    .bar-search { flex-basis: 100%; min-width: 0; max-width: none; margin-top: .6rem; margin-left: 0; order: 3; }
     .bar-search :global(.compendium-search) { max-width: none; }
     .bar-search + .divider { margin-left: auto; }
   }
