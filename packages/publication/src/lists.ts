@@ -168,17 +168,17 @@ function abilityRow(document: PublicAbility): ListRow {
   const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
   const actions = (document as AbilitySources).versions.flatMap((version) => version.unlockedByActions ?? []);
   const interactionNames = [...new Set(actions.map((action) => refName(action.owner) ?? action.label))].sort();
-  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : actions.length ? "Interaction" : "Nobody Uses It";
+  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : actions.length ? "Interaction" : null;
   const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ")
     : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ")
-      : items.length ? items.join(", ") : interactionNames.join(", ") || "Nobody Uses It";
+      : items.length ? items.join(", ") : interactionNames.join(", ") || null;
   const shownNames = classes.length ? classes : creatures.length ? creatures : items;
   const sourceRefs = classes.length ? learners.map((learner) => learner.class)
     : creatures.length ? document.versions.flatMap((version) => version.usedBy)
       : document.versions.flatMap((version) => version.usedByItems);
   const linked = shownNames.length <= 2 ? shownNames.map((name) => sourceRefs.find((ref) => refName(ref) === name)!) : [];
   return { ref: document.ref, values: { source },
-    facets: { sourceKind: [sourceKind], class: classes, knownWay: [abilityHasKnownWay(document) ? "known" : "unknown"] },
+    facets: { sourceKind: sourceKind ? [sourceKind] : [], class: classes, knownWay: [abilityHasKnownWay(document) ? "known" : "unknown"] },
     ...(linked.length ? { relations: { source: linked },
       ...(classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) } : {}) };
 }

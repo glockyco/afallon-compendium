@@ -70,8 +70,8 @@ test('boss role omits redundant enemy and an action unlock is a known ability us
   const unlocked = { ...ability('Summon Ally'), versions: [{ ...ability('Summon Ally').versions[0]!, unlockedByActions: [{ label: 'Dialogue' }] }] };
   const result = rows([boss, shout, unlocked]);
   expect(result.get('npcs')?.[0]).toMatchObject({ values: { role: 'boss', level: '21' }, facets: { role: ['boss'] } });
-  expect(result.get('abilities')?.map((row) => [row.ref.name, row.facets.knownWay, row.values.source])).toEqual([
-    ['Shout', ['unknown'], 'Nobody Uses It'], ['Summon Ally', ['known'], 'Dialogue'],
+  expect(result.get('abilities')?.map((row) => [row.ref.name, row.facets.knownWay, row.facets.sourceKind, row.values.source])).toEqual([
+    ['Shout', ['unknown'], [], null], ['Summon Ally', ['known'], ['Interaction'], 'Dialogue'],
   ]);
 });
 

@@ -77,8 +77,8 @@ test('a Shout search counts only its matching hidden ability and reveal retains 
   ] };
   const ability = (name: string, known: boolean): ListRow => ({
     ref: { key: `abilities:${name}`, kind: 'abilities', name, slug: name.toLowerCase() },
-    values: { source: known ? 'Guardian' : 'Nobody Uses It' },
-    facets: { sourceKind: [known ? 'Creature' : 'Nobody Uses It'], knownWay: [known ? 'known' : 'unknown'] },
+    values: { source: known ? 'Guardian' : null },
+    facets: { sourceKind: known ? ['Creature'] : [], knownWay: [known ? 'known' : 'unknown'] },
   });
   const entries = [ability('Defiant Shout', true), ability('Shout', false),
     ...Array.from({ length: 53 }, (_, index) => ability(`Unused Ability ${index}`, false))];
