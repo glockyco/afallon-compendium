@@ -220,7 +220,7 @@
                     <svelte:fragment slot="cell" let:row let:column>
                       {#if column === 'item'}<EntityLink ref={row.item} {registry} />
                       {:else if column === 'quantity'}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}
-                      {:else}{formatNumber(row.chance)}% per open{/if}
+                      {:else}{formatNumber(row.chance)}%{/if}
                     </svelte:fragment>
                   </RelationTable>
                 </div>
@@ -363,7 +363,7 @@
             {#if column === 'source'}<EntityLink ref={row.source} {registry} />
             {:else if column === 'band'}{#if row.kind === 'pack'}{packBandText(row)}{/if}
             {:else if column === 'quantity'}{row.min === row.max ? formatNumber(row.min) : `${formatNumber(row.min)}–${formatNumber(row.max)}`}
-            {:else if column === 'chance'}{#if row.kind === 'chest'}{formatNumber(row.chance)}% per open{/if}{/if}
+            {:else if column === 'chance'}{#if row.kind === 'chest'}{formatNumber(row.chance)}%{/if}{/if}
           </svelte:fragment>
         </RelationTable>
       </Section>

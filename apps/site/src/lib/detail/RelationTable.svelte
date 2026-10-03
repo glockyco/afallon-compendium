@@ -233,6 +233,8 @@
     .quantityUnderName thead tr,
     .quantityUnderName tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 0 .6rem; }
     .quantityUnderName thead th:nth-child(2) { display: none; }
+    /* Detail values below the pair carry their own labels, so their headings would only repeat them. */
+    .quantityUnderName thead th.detail { display: none; }
     .quantityUnderName thead th:nth-child(3) { grid-column: 2; text-align: right; white-space: nowrap; }
     .quantityUnderName tbody td.name { grid-column: 1 / -1; grid-row: 1; }
     .quantityUnderName tbody td.quantity { grid-column: 1; grid-row: 2; color: var(--c-text-mute); font-size: var(--c-text-small); text-align: left; white-space: nowrap; }
