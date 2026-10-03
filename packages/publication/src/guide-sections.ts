@@ -2,7 +2,7 @@ import type { MechanicsTopic } from "@afallon/contracts/catalog";
 import type { GuideSection, MechanicsRule } from "@afallon/contracts/public";
 
 /** The reader text of one guide section. The rules of the section come from the rules record. */
-export interface GuideSectionText { id: string; title: string; lead: string }
+export interface GuideSectionText { id: string; title: string; lead: string; how?: string }
 
 /** The reader text of one guide: its overview and its sections in reading order. */
 export interface GuideText { overview: string; sections: GuideSectionText[] }
@@ -25,9 +25,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "heroic-tier": {
     overview: "The Heroic tier makes the open world harder for a character who turns it on. Creatures gain health, damage, and dangerous affixes, and in return give more experience and currency, Heroic Essence, and stronger gear.",
     sections: [
-      { id: "entering", title: "Turning it on and off", lead: "A Heroic Console opens a panel that explains the tier and asks you to confirm." },
+      { id: "entering", title: "Turning it on and off", lead: "A Heroic Console opens a panel that explains the tier and asks you to confirm.", how: "How the Heroic Tier turns on and off" },
       { id: "empowered-creatures", title: "Empowered creatures", lead: "Empowered creatures are much tougher than usual, and they keep pace with your gear." },
-      { id: "affixes", title: "Affixes", lead: "An empowered creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful." },
+      { id: "affixes", title: "Affixes", lead: "An empowered creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful.", how: "How Heroic affixes work" },
       { id: "kill-experience", title: "Kill experience", lead: "An empowered creature gives more experience when you kill it. Quest experience does not change." },
       { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from empowered kills. Creature rank, affixes, and the creature's health compared with yours affect the amount." },
       { id: "currency", title: "Currency", lead: "Bosses and World Quests pay more currency." },
@@ -131,8 +131,8 @@ export function guideSections(topic: MechanicsTopic, rules: readonly { section: 
   for (const { section, rule } of rules) {
     if (!guideHasSection(topic, section)) throw new Error(`Rule ${rule.id} names section ${section}, which guide ${topic} does not define.`);
   }
-  return GUIDES[topic].sections.map((section) => ({
-    ...section,
-    rules: rules.filter((entry) => entry.section === section.id).map((entry) => entry.rule),
+  return GUIDES[topic].sections.map(({ id, title, lead }) => ({
+    id, title, lead,
+    rules: rules.filter((entry) => entry.section === id).map((entry) => entry.rule),
   }));
 }

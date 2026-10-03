@@ -11,3 +11,16 @@ A verified mechanics rule that links an effect SHALL make the effect reachable f
 #### Scenario: A content-free linked effect is withheld
 - **WHEN** a linked effect has no description, meaningful outcome, or usable relation and its reviewed exclusion evidence remains true
 - **THEN** its rule link retains its name and icon without publishing a thin effect page
+
+#### Scenario: An effect rule names its own page
+- **WHEN** an effect page displays a verified rule that names that effect
+- **THEN** its own name and icon remain visible without a link back to itself
+- **AND** links to other effects in the same rule remain navigable
+
+#### Scenario: A Heroic effect points to its explanation
+- **WHEN** an effect page displays a rule from the Heroic Tier Affixes or Turning it on and off section
+- **THEN** its section link uses a player-facing “How … works” label instead of a section slug
+
+#### Scenario: Two rules share one explanation section
+- **WHEN** two rules on an effect page both belong to the same Heroic Tier section
+- **THEN** both verified rules appear, with only one link to that section

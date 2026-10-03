@@ -1079,7 +1079,7 @@ export const PublicEffectSchema = Type.Object({
     group: optional(text), count: optional(count) }, { additionalProperties: false })),
   worldSources: Type.Array(Type.Object({ family: text, place: optional(RefSchema), sourceCount: count,
     labels: Type.Array(text) }, { additionalProperties: false })),
-  explainedBy: Type.Array(Type.Object({ guide: EntityRefSchema, section: anchor, title: text, rule: MechanicsRuleSchema }, { additionalProperties: false })),
+  explainedBy: Type.Array(Type.Object({ guide: EntityRefSchema, section: anchor, label: text, rule: MechanicsRuleSchema }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type PublicEffect = Static<typeof PublicEffectSchema>;
 

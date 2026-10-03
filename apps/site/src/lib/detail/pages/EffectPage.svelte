@@ -64,6 +64,7 @@
     ...(document.pulses > 1 ? [{ label: 'Pulses', value: formatNumber(document.pulses) }] : []),
   ];
   $: side = facts.length > 1;
+  $: howLinks = [...new Map(document.explainedBy.map(({ guide, section, label }) => [`${guide.key}#${section}`, { guide, section, label }])).values()];
   $: condition = !impact ? document.checkedBy.find((row) => row.owner?.key && ['abilities', 'items'].includes(row.owner.kind)) : undefined;
 </script>
 
@@ -74,7 +75,7 @@
       {#if condition}<p><EntityLink ref={condition.owner!} {registry} /> checks whether {document.ref.name} is {condition.state.toLowerCase()} before it can be used.</p>
       {:else if document.explainedBy.length}
         {#each document.explainedBy as explanation (explanation.rule.id)}
-          <p class="impact"><RulePhrase rule={explanation.rule} {registry} /></p>
+          <p class="impact"><RulePhrase rule={explanation.rule} {registry} self={document.ref.key} /></p>
         {/each}
       {:else if summon?.target}<p class="impact">Summons {summonCount && summonCount > 1 ? `${formatNumber(summonCount)} ` : ''}<EntityLink ref={summon.target} {registry} />{summonDuration ? ` for ${durationWords(summonDuration)}` : ''}.</p>
       {:else if leadImpact}<p class="impact">{leadImpact}</p>{/if}
@@ -89,8 +90,8 @@
       {#if duration && !side}<p>Lasts {duration.toLowerCase()}.</p>{/if}
       {#if first?.requiredEffect}<p>Damage depends on <EntityLink ref={first.requiredEffect} {registry} />.</p>{/if}
       {#if document.explainedBy.length}
-        {#each document.explainedBy as explanation (explanation.rule.id)}
-          <HowItWorks guide={explanation.guide} section={explanation.section} label={`${explanation.guide.name}: ${explanation.title.toLowerCase()}`} />
+        {#each howLinks as explanation (`${explanation.guide.key}#${explanation.section}`)}
+          <HowItWorks guide={explanation.guide} section={explanation.section} label={explanation.label} />
         {/each}
       {:else}
         <HowItWorks guide={combat} section="effects" label="How combat effects work" />

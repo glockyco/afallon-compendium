@@ -317,8 +317,8 @@ export function projectEffectPage(page: PublishedPage, input: EffectInput, _cond
   const explainedBy: PublicEffect["explainedBy"] = input.facts.progression.mechanicsRules.flatMap((rule) => {
     if (rule.status !== "verified" || !rule.topic || !rule.links.some((link) => link.entityKey === key)) return [];
     const section = GUIDES[rule.topic].sections.find((entry) => entry.id === rule.section);
-    if (!section) throw new Error(`Rule ${rule.ruleId} names section ${rule.section}, which guide ${rule.topic} does not define.`);
-    return [{ guide: topicRef(rule.topic), section: rule.section, title: section.title, rule: projectRule(rule, input.resolve) }];
+    if (!section?.how) throw new Error(`Rule ${rule.ruleId} has no How link for ${rule.topic} section ${rule.section}.`);
+    return [{ guide: topicRef(rule.topic), section: rule.section, label: section.how, rule: projectRule(rule, input.resolve) }];
   });
   return {
     ...pageBase(page, input), type: readable(effect.effectType.name), isState: effect.isState,
