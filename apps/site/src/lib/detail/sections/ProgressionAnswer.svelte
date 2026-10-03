@@ -32,7 +32,7 @@
         <p>You have reached the last level on this curve. There is no next-level experience requirement.</p>
       {:else}
         <p class="amount">{formatNumber(example.toNext)} experience</p>
-        <p>From level&nbsp;{formatNumber(level)} to level&nbsp;{formatNumber(level + 1)} takes {formatNumber(example.toNext)} experience.</p>
+        <p>To reach level&nbsp;{formatNumber(level + 1)} from level&nbsp;{formatNumber(level)}.</p>
         {#if example.kills}
           <p class="kill-estimate">About {count(example.kills.low, example.kills.high)} kills of <EntityLink ref={example.entry.creature} {registry} /> <span class="no-break">at creature level&nbsp;{formatNumber(example.creatureLevel)}</span>, for {award(example.award.low, example.award.high)} experience per kill.</p>
         {/if}

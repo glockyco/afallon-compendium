@@ -27,7 +27,6 @@
   $: top = compact ? 12 : narrow ? 18 : 24;
   $: bottom = compact ? 30 : narrow ? 38 : 52;
   $: tickSize = 13 * width / renderedWidth;
-  $: axisSize = 12 * width / renderedWidth;
   onMount(() => {
     const observer = new ResizeObserver(() => {
       const available = chartContainer.getBoundingClientRect().width;
@@ -92,8 +91,6 @@
       <line class="axis" x1={tick.position} x2={tick.position} y1={top + plotHeight} y2={top + plotHeight + 5} />
       <text class="tick" style:font-size={`${tickSize}px`} x={tick.position} y={top + plotHeight + 22} text-anchor="middle">{format(tick.value)}</text>
     {/each}
-    {#if !compact}<text class="axis-label" style:font-size={`${axisSize}px`} x={left + plotWidth / 2} y={height - 4} text-anchor="middle">Level</text>{/if}
-    {#if !compact}<text class="axis-label" style:font-size={`${axisSize}px`} transform={`translate(18 ${top + plotHeight / 2}) rotate(-90)`} text-anchor="middle">Experience to next level (logarithmic)</text>{/if}
   </svg>
 </div>
 {#if !chartOnly}
@@ -118,7 +115,7 @@
   .curve { fill: none; stroke: var(--c-accent); stroke-width: 2.5; stroke-linejoin: round; }
   .marker { stroke: var(--c-text-strong); stroke-width: 1.5; stroke-dasharray: 4 3; }
   .marker-point { fill: var(--c-text-strong); stroke: var(--c-surface-sunken); stroke-width: 2; }
-  .tick, .axis-label { fill: var(--c-text-dim); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  .tick { fill: var(--c-text-dim); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .selector { display: grid; gap: .6rem; }
   .totals { display: grid; gap: .5rem; }
   .totals div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem 1rem; border-bottom: 1px solid var(--c-line-soft); padding-bottom: .5rem; }

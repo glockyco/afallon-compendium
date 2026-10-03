@@ -80,14 +80,17 @@
       <div class="score"><LevelSlider id="heroic-gear-score" label="Your equipped gear score" min={0} max={1250} level={score} onSelect={setReaderGearScore} /></div>
     </div>
     <p class="source"><EntityLink ref={chosen.entry.creature} {registry} /> in <EntityLink ref={chosen.place} {registry} /> at level&nbsp;{formatNumber(creatureLevel)}.</p>
-    <div class="cards" aria-live="polite" aria-atomic="true">
-      <div class="card"><h4>Normal</h4><dl>
-        <div><dt>Kill Experience</dt><dd>{characterLevel >= progression.curve.cap ? 'Level cap' : normal ? xp(normal) : 'Unavailable'}</dd></div>
-      </dl></div>
-      <div class="card changed"><h4>Heroic</h4><p class="relative">Compared with the normal creature:</p><dl>
-        <div><dt>Maximum Health</dt><dd>{exact.format(strength.health)}×</dd></div><div><dt>Damage</dt><dd>{exact.format(strength.damage)}×</dd></div>
-        <div><dt>Kill Experience</dt><dd>{characterLevel >= progression.curve.cap ? 'Level cap' : empowered ? xp(empowered) : 'Unavailable'}{characterLevel < progression.curve.cap && empowered ? ` (${exact.format(settings.killExperienceMultiplier)}×)` : ''}</dd></div>
-      </dl><p><a class="c-link" href="#affixes">Affixes</a> may further change combat. Rare and Boss creatures always get at least one. With Essence points, Heroic kills add <a class="c-link" href="#essence">Heroic Essence</a> toward your Heroic Ascension talents. If this creature drops eligible equipment, it may be <a class="c-link" href="#heroic-gear">Heroic gear</a>. No particular item is guaranteed.</p></div>
+    <div class="comparison-card" aria-live="polite" aria-atomic="true">
+      <div class="c-table-scroll"><table class="c-table c-table--calculator" aria-label="Normal and Heroic creature comparison">
+        <colgroup><col style="width: 45%" /><col style="width: 27.5%" /><col style="width: 27.5%" /></colgroup>
+        <thead><tr><th scope="col">Comparison</th><th scope="col" class="c-num">Normal</th><th scope="col" class="c-num">Heroic</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Kill experience</th><td class="c-num">{characterLevel >= progression.curve.cap ? 'Level cap' : normal ? xp(normal) : 'Unavailable'}</td><td class="c-num">{characterLevel >= progression.curve.cap ? 'Level cap' : empowered ? `${xp(empowered)} (${exact.format(settings.killExperienceMultiplier)}×)` : 'Unavailable'}</td></tr>
+          <tr><th scope="row">Maximum health</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.health)}×</td></tr>
+          <tr><th scope="row">Damage</th><td class="c-num">—</td><td class="c-num">{exact.format(strength.damage)}×</td></tr>
+        </tbody>
+      </table></div>
+      <p>Heroic health and damage are relative to the normal creature. <a class="c-link" href="#affixes">Affixes</a> may further change combat. Rare and Boss creatures always get at least one. With Essence points, Heroic kills add <a class="c-link" href="#essence">Heroic Essence</a> toward your Heroic Ascension talents. If this creature drops eligible equipment, it may be <a class="c-link" href="#heroic-gear">Heroic gear</a>. No particular item is guaranteed.</p>
     </div>
     <p class="note">Experience assumes no living followers or Experience Bonus and excludes world and other game modifiers. Quest experience does not gain the kill multiplier. The tier pauses in {#each excluded as place, index}{index ? ', ' : ''}<EntityLink ref={place} {registry} />{/each} and in dungeons with a timer or corruption, then resumes when you leave.</p>
   {/if}
@@ -104,14 +107,9 @@
   .character-control { min-width: 0; }
   .character-control :global(.reader-level) { max-width: none; }
   .score { min-width: 0; }
-  .cards { display: grid; align-items: start; gap: 1rem; }
-  .card { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface); }
-  .changed { border-color: var(--c-frame); background: var(--c-surface-sunken); }
-  h4 { margin: 0 0 .7rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  dl { margin: 0; } dl div { display: flex; justify-content: space-between; align-items: baseline; gap: .7rem; padding: .45rem 0; border-bottom: 1px solid var(--c-line-soft); }
-  .card .relative { margin: 0 0 .45rem; color: var(--c-text-dim); }
-  dt { color: var(--c-text-dim); } dd { margin: 0; color: var(--c-text-strong); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-  .card p { margin: .8rem 0 0; line-height: 1.5; font-size: var(--c-text-small); }
-  @media (min-width: 700px) { .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .comparison-card { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-1); }
+  .comparison-card :global(.c-table td.c-num) { white-space: normal; }
+  .comparison-card p { margin: .8rem 0 0; line-height: 1.5; font-size: var(--c-text-small); }
+  @media (min-width: 700px) { .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 699px) { .heroic-creature.loading { min-height: 45rem; } }
 </style>

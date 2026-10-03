@@ -22,3 +22,8 @@
 
 - [x] 5.1 Put the only curve beside the answer, remove Normal 1× rows, and keep the journey percentage and creature-level phrase together.
 - [x] 5.2 Align the Heroic creature-level selector with its column, review Firefox and Chromium at three widths, validate the change, build the publication, and verify the staged change. Shared stepper migration is tracked by the separate level-control change.
+
+## 6. Final Comparison Layout
+
+- [x] 6.1 Remove redundant chart axis titles and next-level XP repetition; consolidate Normal/Heroic creature values into one shared-style table.
+- [x] 6.2 Verify the production build, responsive comparison table and chart in Firefox and Chromium, strict OpenSpec, and the staged repository.
