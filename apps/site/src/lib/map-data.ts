@@ -40,7 +40,7 @@ export interface LoadedMapData {
   mapSpaceId: string;
   placements: PublicPlacement[];
   regions: PublicationData["regions"];
-  imagery: StaticImagery;
+  imagery: StaticImagery | null;
 }
 
 export interface MapIndexes {
@@ -61,7 +61,7 @@ export function mapPublicationData(root: StaticRootManifest, maps: readonly Load
     maps: root.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
     placements: maps.flatMap((map) => map.placements),
     regions: maps.flatMap((map) => map.regions),
-    tileLayers: maps.flatMap(({ imagery }) => imagery.layers),
+    tileLayers: maps.flatMap(({ imagery }) => imagery?.layers ?? []),
   };
 }
 
@@ -125,15 +125,15 @@ export class MapDataLoader {
     return this.loadDocument(ref.kind, ref.slug);
   }
 
-  async loadMap(mapSpaceId: string): Promise<LoadedMapData> {
+  async loadMap(mapSpaceId: string, withImagery = true): Promise<LoadedMapData> {
     const root = await this.loadRoot();
     const summary = root.maps.find((map) => map.mapSpaceId === mapSpaceId);
     if (!summary) throw new Error(`Publication has no map ${mapSpaceId}.`);
     const [parts, imagery] = await Promise.all([
       Promise.all(summary.parts.map((reference) => this.#loadReference(reference, StaticMapShardSchema, root))),
-      this.#loadReference(summary.imagery, StaticImagerySchema, root),
+      withImagery ? this.loadImagery(mapSpaceId) : Promise.resolve(null),
     ]);
-    if (imagery.mapSpaceId !== mapSpaceId) throw new Error(`Imagery identity mismatch for ${mapSpaceId}.`);
+    if (imagery && imagery.mapSpaceId !== mapSpaceId) throw new Error(`Imagery identity mismatch for ${mapSpaceId}.`);
     const ids = new Set<string>();
     const placements = parts.flatMap((part, index) => {
       if (part.mapSpaceId !== mapSpaceId || part.part !== index) throw new Error(`Map part identity mismatch for ${mapSpaceId}:${index}.`);
@@ -148,25 +148,34 @@ export class MapDataLoader {
       mapSpaceId,
       placements,
       regions: parts.flatMap((part) => part.regions),
-      imagery: {
-        ...imagery,
-        layers: imagery.layers.map((layer) => ({
-          ...layer,
-          tiles: layer.tiles.map((tile) => ({ ...tile, url: new URL(tile.url, this.#base).href })),
-        })),
-      },
+      imagery,
     };
   }
 
-  async loadMaps(): Promise<LoadedMapData[]> {
+  async loadMaps(imagerySpaces?: ReadonlySet<string>): Promise<LoadedMapData[]> {
     const root = await this.loadRoot();
-    const maps = await Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId)));
+    const maps = await Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId, !imagerySpaces || imagerySpaces.has(map.mapSpaceId))));
     const ids = new Set<string>();
     for (const map of maps) for (const placement of map.placements) {
       if (ids.has(placement.placementId)) throw new Error(`Duplicate placement ${placement.placementId} across maps.`);
       ids.add(placement.placementId);
     }
     return maps;
+  }
+
+  async loadImagery(mapSpaceId: string): Promise<StaticImagery> {
+    const root = await this.loadRoot();
+    const summary = root.maps.find((map) => map.mapSpaceId === mapSpaceId);
+    if (!summary) throw new Error(`Publication has no map ${mapSpaceId}.`);
+    const imagery = await this.#loadReference(summary.imagery, StaticImagerySchema, root);
+    if (imagery.mapSpaceId !== mapSpaceId) throw new Error(`Imagery identity mismatch for ${mapSpaceId}.`);
+    return {
+      ...imagery,
+      layers: imagery.layers.map((layer) => ({
+        ...layer,
+        tiles: layer.tiles.map((tile) => ({ ...tile, url: new URL(tile.url, this.#base).href })),
+      })),
+    };
   }
 
   async loadGeometry(mapSpaceId: string): Promise<StaticGeometry[]> {

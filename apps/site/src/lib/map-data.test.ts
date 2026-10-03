@@ -158,6 +158,36 @@ test('loads all geometry before first render and retries a failed geometry resou
   } finally { controller.dispose(); }
 });
 
+test('an explicit camera loads imagery only for maps in view, then fetches newly visible maps', async () => {
+  const data = fixture();
+  const original = data.root.maps[0]!;
+  const distantPart = data.register({ schemaVersion: 'compendium.static-map.v4', ...data.identity, mapSpaceId: 'distant', part: 0,
+    itemSets: [], placements: [], regions: [] });
+  const distantImagery = JSON.parse(data.bodies.get(original.imagery.path)!);
+  distantImagery.mapSpaceId = 'distant';
+  distantImagery.layers[0].mapSpaceId = 'distant';
+  distantImagery.layers[0].id = 'distant-game';
+  const distant = { ...original, mapSpaceId: 'distant', bounds: { min: { x: 1000, y: 0 }, max: { x: 1256, y: 256 } },
+    parts: [distantPart], imagery: data.register(distantImagery) };
+  data.root.maps.push(distant);
+  data.root.world.offsets.push({ mapSpaceId: 'distant', worldX: 1000, worldY: 0, source: 'reviewed', status: 'placed' });
+  data.bodies.set('publication.json', JSON.stringify(data.root));
+  const { controller, until } = observe(data.loader);
+  try {
+    controller.start({ ...readMapUrl(''), view: { target: [128, 128, 0], zoom: 0 } });
+    const loaded = await until((snapshot) => snapshot.map.status === 'loaded');
+    expect(loaded.publication?.tileLayers.map((layer) => layer.id)).toEqual(['game']);
+    expect(data.counts.get(distant.imagery.path)).toBeUndefined();
+    expect(data.counts.get(data.search.path)).toBeUndefined();
+    controller.ensureImagery([1000, 0, 1256, 256]);
+    const moved = await until((snapshot) => snapshot.publication?.tileLayers.length === 2);
+    expect(moved.publication?.tileLayers.map((layer) => layer.id)).toEqual(['game', 'distant-game']);
+    expect(data.counts.get(distant.imagery.path)).toBe(1);
+    controller.ensureImagery([1000, 0, 1256, 256]);
+    expect(data.counts.get(distant.imagery.path)).toBe(1);
+  } finally { controller.dispose(); }
+});
+
 test('verified requests deduplicate failures and allow explicit retry without refetching successful resources', async () => {
   const data = fixture();
   const path = data.documents.get('item:a')!.path;
@@ -178,16 +208,18 @@ test('verified requests deduplicate failures and allow explicit retry without re
   expect(data.counts.get('publication.json')).toBe(1);
 });
 
-test('essential multipart maps become usable while search is delayed, and navigation loads an uncached document', async () => {
+test('essential multipart maps load without search until a selection needs an uncached document', async () => {
   const data = fixture();
   const search = responseGate();
   data.overrides.set(data.search.path, () => search.promise);
   const { controller, until } = observe(data.loader);
   controller.start(readMapUrl(''));
   const map = await until((snapshot) => snapshot.map.status === 'loaded');
-  expect(map.search.status).toBe('loading');
+  expect(map.search.status).toBe('idle');
+  expect(data.counts.get(data.search.path)).toBeUndefined();
   expect(map.publication?.placements.map((placement) => placement.placementId)).toEqual(['place:a', 'place:b']);
   controller.navigate(readMapUrl('?item=item%3Ab'));
+  await until((snapshot) => snapshot.search.status === 'loading');
   search.resolve(new Response(data.bodies.get(data.search.path)));
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
   expect(restored.documents.get('item:b')?.document.ref.key).toBe('item:b');
@@ -258,7 +290,9 @@ test('history restoration invalidates pending query and camera persistence', asy
   const { controller, until, navigations, restoredViews } = observe(data.loader);
   try {
     controller.start(readMapUrl(''));
-    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    await until((snapshot) => snapshot.map.status === 'loaded');
+    controller.ensureSearch();
+    await until((snapshot) => snapshot.search.status === 'loaded');
     jest.useFakeTimers();
     controller.setQuery('query', 'pending');
     controller.scheduleView({ target: [90, 30, 0], zoom: 3 });
@@ -276,7 +310,9 @@ test('pending persistence keeps a new item selection and never restores a cleare
   const { controller, until, navigations, restoredViews } = observe(data.loader);
   try {
     controller.start(readMapUrl(''));
-    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    await until((snapshot) => snapshot.map.status === 'loaded');
+    controller.ensureSearch();
+    await until((snapshot) => snapshot.search.status === 'loaded');
     jest.useFakeTimers();
     controller.setQuery('query', 'merchant');
     const view: MapView = { target: [60, 40, 0], zoom: 2 };
@@ -296,7 +332,7 @@ test('explicit camera commands supersede pending movement and disposal cancels p
   const { controller, until, navigations } = observe(data.loader);
   try {
     controller.start(readMapUrl(''));
-    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    await until((snapshot) => snapshot.map.status === 'loaded');
     jest.useFakeTimers();
     controller.scheduleView({ target: [60, 40, 0], zoom: 2 });
     const fitted: MapView = { target: [128, 128, 0], zoom: 0 };

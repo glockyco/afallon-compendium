@@ -38,6 +38,8 @@ export class MapController {
   #disposed = false;
   #viewTimer: ReturnType<typeof setTimeout> | undefined;
   #queryTimer: ReturnType<typeof setTimeout> | undefined;
+  #imageryBounds: readonly [number, number, number, number] | null = null;
+  readonly #pendingImagery = new Set<string>();
   #snapshot: MapSnapshot = {
     state: DEFAULT_MAP_STATE,
     publication: null,
@@ -56,8 +58,10 @@ export class MapController {
   start(state: MapState): void {
     this.navigate(state);
     void this.#loadMap();
-    void this.#loadSearch();
   }
+
+  /** Search data is independent of map readiness and is fetched only when needed. */
+  ensureSearch(): void { void this.#loadSearch(); }
 
   navigate(state: MapState): void {
     if (this.#disposed) return;
@@ -77,6 +81,7 @@ export class MapController {
       state = transitionMapState(state, { type: 'select-layers', layerIds: resolveLayerIds(state.layerIds, this.#base.tileLayers) });
     }
     this.#snapshot = { ...this.#snapshot, state };
+    if (state.query || state.itemSourceQuery || state.detailQuery || state.selectedPlacementId || state.entityKey || state.itemKey || state.placeKey) this.ensureSearch();
     this.#selectionEffects();
     this.#emit();
     if (mode) this.#options.onNavigate(this.#snapshot.state, mode);
@@ -101,6 +106,30 @@ export class MapController {
     }, 220);
   }
 
+  /** Fetch a map's imagery manifest only when its published bounds enter the live camera. */
+  ensureImagery(bounds: readonly [number, number, number, number]): void {
+    this.#imageryBounds = bounds;
+    if (this.#disposed || !this.#root || !this.#maps) return;
+    for (const map of this.#root.maps) {
+      const { min, max } = map.bounds;
+      if (min.x > bounds[2] || max.x < bounds[0] || min.y > bounds[3] || max.y < bounds[1]) continue;
+      if (this.#maps.find((loaded) => loaded.mapSpaceId === map.mapSpaceId)?.imagery || this.#pendingImagery.has(map.mapSpaceId)) continue;
+      this.#pendingImagery.add(map.mapSpaceId);
+      void this.#loader.loadImagery(map.mapSpaceId).then((imagery) => {
+        if (this.#disposed || !this.#maps || !this.#root) return;
+        this.#maps = this.#maps.map((loaded) => loaded.mapSpaceId === map.mapSpaceId ? { ...loaded, imagery } : loaded);
+        this.#base = mapPublicationData(this.#root, this.#maps);
+        this.#compose();
+        this.#emit();
+      }, (error: unknown) => {
+        if (!this.#disposed) {
+          this.#snapshot = { ...this.#snapshot, map: failed(error) };
+          this.#emit();
+        }
+      }).finally(() => this.#pendingImagery.delete(map.mapSpaceId));
+    }
+  }
+
   #cancelPersistence(): void {
     clearTimeout(this.#viewTimer);
     clearTimeout(this.#queryTimer);
@@ -123,8 +152,16 @@ export class MapController {
     this.#emit();
     try {
       const root = await this.#loader.loadRoot();
+      const state = this.#snapshot.state;
+      const customLayers = state.layerIds.some((id) => !['game-maps', 'captured', 'none'].includes(id));
+      const zoom = state.view?.zoom;
+      const scale = zoom === undefined ? 1 : 2 ** zoom;
+      const bounds: readonly [number, number, number, number] | null = this.#imageryBounds ?? (state.view && !customLayers
+        ? [state.view.target[0] - 720 / scale, state.view.target[1] - 450 / scale, state.view.target[0] + 720 / scale, state.view.target[1] + 450 / scale]
+        : null);
+      const visibleSpaces = bounds ? new Set(root.maps.filter(({ bounds: map }) => map.min.x <= bounds[2] && map.max.x >= bounds[0] && map.min.y <= bounds[3] && map.max.y >= bounds[1]).map(({ mapSpaceId }) => mapSpaceId)) : undefined;
       const [maps, geometry] = await Promise.all([
-        this.#loader.loadMaps(),
+        this.#loader.loadMaps(visibleSpaces),
         Promise.all(root.maps.map(async ({ mapSpaceId }) => [mapSpaceId, await this.#loader.loadGeometry(mapSpaceId)] as const)),
       ]);
       if (this.#disposed) return;
@@ -146,6 +183,7 @@ export class MapController {
       this.#compose();
       this.#selectionKey = '';
       this.#selectionEffects();
+      if (this.#imageryBounds) this.ensureImagery(this.#imageryBounds);
     } catch (error) {
       if (!this.#disposed) this.#snapshot = { ...this.#snapshot, map: failed(error) };
     }
