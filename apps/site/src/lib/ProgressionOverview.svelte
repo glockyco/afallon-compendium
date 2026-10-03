@@ -13,7 +13,7 @@
   export let groupTitles: Readonly<Record<string, string>> = {};
   /** The same renderer can show a skill's gathering progression with its skill-level key. */
   export let levelId = CHARACTER_LEVEL;
-  export let levelLabel = 'Your Level';
+  export let levelLabel = 'Your level';
   export let description = 'Highlighted places include your level. Ranges can overlap.';
 
   $: selectedLevel = $readerLevels[levelId];
@@ -87,7 +87,7 @@
                     <span class="flag-arrow" style:left={`${marker}%`} aria-hidden="true"></span>
                   {/if}
                 {/if}
-                {#if index === 0}<div class="axis-drag" role="slider" tabindex="0" aria-label={`${levelLabel} on Level Axis`} aria-valuemin="1" aria-valuemax={axisEnd} aria-valuenow={selectedLevel ?? 1} on:pointerdown={startDrag} on:pointermove={moveDrag} on:pointerup={stopDrag} on:pointercancel={stopDrag} on:keydown={moveMarker}></div>{/if}
+                {#if index === 0}<div class="axis-drag" role="slider" tabindex="0" aria-label={`${levelLabel} on level axis`} aria-valuemin="1" aria-valuemax={axisEnd} aria-valuenow={selectedLevel ?? 1} on:pointerdown={startDrag} on:pointermove={moveDrag} on:pointerup={stopDrag} on:pointercancel={stopDrag} on:keydown={moveMarker}></div>{/if}
               </div>
             </div>
           {/if}

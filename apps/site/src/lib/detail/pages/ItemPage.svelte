@@ -169,7 +169,7 @@
             <p>Creatures drop it as Heroic gear while the Heroic tier is live, with {formatNumber(facts.heroic?.statBonusPercent ?? 0)}% higher fixed stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}.</p>
             {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
           {:else if version === 'corrupted' && facts.corruption}
-            <LevelControl id="corruption-level" label="Corruption Level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} valueText={(level) => `+${level}`} />
+            <LevelControl id="corruption-level" label="Corruption level" min={1} max={facts.corruption.maxLevel} bind:level={corruptedLevel} valueText={(level) => `+${level}`} />
             {#if facts.dungeonRewards?.length}<p>From the reward bags of {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
             {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
           {/if}

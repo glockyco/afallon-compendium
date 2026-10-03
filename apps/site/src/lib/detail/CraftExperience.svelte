@@ -17,7 +17,7 @@
 </script>
 
 <div class="craft-experience">
-  <LevelControl {id} readerId={skillLevelId(skill ?? { key: null, label: 'crafting' })} label={`${skill ? nameOf(skill) : 'Skill'} Level`} max={rank.highestLevel} min={1} fallback={rank.requiredLevel} bind:level />
+  <LevelControl {id} readerId={skillLevelId(skill ?? { key: null, label: 'crafting' })} label={`${skill ? nameOf(skill) : 'Skill'} level`} max={rank.highestLevel} min={1} fallback={rank.requiredLevel} bind:level />
   <p>
     {#if state.kind === 'locked'}You can craft it from {skillName} level {formatNumber(rank.requiredLevel)}.
     {:else}<strong>{state.band.experience ? formatNumber(state.band.experience) : 'No'}</strong> {skillName} experience per craft at your level{#if state.next}, and {state.next.experience ? formatNumber(state.next.experience) : 'none'} from level {formatNumber(state.next.from)}{/if}.{/if}

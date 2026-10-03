@@ -95,7 +95,7 @@
 </div>
 {#if !chartOnly}
   <div class="selector">
-    <LevelControl id={`${uid}-level`} label={`${subject} Level`} min={1} max={curve.cap} bind:level />
+    <LevelControl id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level />
     <dl class="totals">
       <div><dt>Experience to the next level</dt><dd>{format(next)}</dd></div>
       <div><dt>Total experience to reach level {format(level)}</dt><dd>{format(earned)}</dd></div>

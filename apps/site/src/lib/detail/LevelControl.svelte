@@ -88,21 +88,29 @@
     stopRepeat();
     repeatDelay = setTimeout(() => { repeatTimer = setInterval(() => select((level ?? min) + delta), 85); }, 380);
   }
+  function buttonSubject(label: string): string {
+    if (label === 'From') return 'starting corruption level';
+    if (label === 'To') return 'target corruption level';
+    const subject = label.startsWith('Your ') ? label.slice(5) : label;
+    return /^(Character|Creature|Corruption|Living|Experience|Skill) /.test(subject)
+      ? subject[0]!.toLowerCase() + subject.slice(1) : subject;
+  }
 
+  $: buttonNoun = buttonSubject(label);
   onDestroy(stopRepeat);
 </script>
 
 <div class="level-control" class:compact={!slider}>
   <label for={id}>{label}</label>
   <div class="stepper">
-    <button type="button" aria-label={`Lower ${label}`} disabled={shown !== undefined && shown <= min} on:pointerdown={(event) => press(event, -1)} on:pointerup={stopRepeat} on:pointercancel={stopRepeat} on:pointerleave={stopRepeat} on:click={() => { if (!pointerHandled) select((shown ?? max + 1) - 1); pointerHandled = false; }}>−</button>
+    <button type="button" aria-label={`Lower ${buttonNoun}`} disabled={shown !== undefined && shown <= min} on:pointerdown={(event) => press(event, -1)} on:pointerup={stopRepeat} on:pointercancel={stopRepeat} on:pointerleave={stopRepeat} on:click={() => { if (!pointerHandled) select((shown ?? max + 1) - 1); pointerHandled = false; }}>−</button>
     {#if shown !== undefined && valueText?.(shown).startsWith('+')}<span class="prefix" aria-hidden="true">+</span>{/if}
     <input bind:this={numberInput} {id} type="number" inputmode={allowFraction ? 'decimal' : 'numeric'} {min} {max} step={allowFraction ? 'any' : '1'} value={shown ?? ''} placeholder={optional ? 'Any' : undefined} aria-label={label} aria-valuetext={shown === undefined ? undefined : valueText?.(shown) ?? (suffix ? `${shown}${suffix}` : undefined)} class:suffixed={suffix !== undefined} on:input={typeInput} on:change={commitInput} on:blur={commitInput} on:keydown={keydown} />
     {#if suffix}<span class="suffix" aria-hidden="true">{suffix}</span>{/if}
-    <button type="button" aria-label={`Raise ${label}`} disabled={shown !== undefined && shown >= max} on:pointerdown={(event) => press(event, 1)} on:pointerup={stopRepeat} on:pointercancel={stopRepeat} on:pointerleave={stopRepeat} on:click={() => { if (!pointerHandled) select((shown ?? min - 1) + 1); pointerHandled = false; }}>+</button>
+    <button type="button" aria-label={`Raise ${buttonNoun}`} disabled={shown !== undefined && shown >= max} on:pointerdown={(event) => press(event, 1)} on:pointerup={stopRepeat} on:pointercancel={stopRepeat} on:pointerleave={stopRepeat} on:click={() => { if (!pointerHandled) select((shown ?? min - 1) + 1); pointerHandled = false; }}>+</button>
   </div>
   {#if slider}
-    <input class="slider" type="range" {min} max={sliderMax === undefined ? max : Math.max(sliderMax, shown ?? min)} step="1" value={shown ?? min} aria-label={`${label} Slider`} aria-valuetext={shown === undefined ? undefined : valueText?.(shown) ?? (suffix ? `${shown}${suffix}` : undefined)} on:input={(event) => select(event.currentTarget.valueAsNumber)} on:keydown={keydown} />
+    <input class="slider" type="range" {min} max={sliderMax === undefined ? max : Math.max(sliderMax, shown ?? min)} step="1" value={shown ?? min} aria-label={`${label} slider`} aria-valuetext={shown === undefined ? undefined : valueText?.(shown) ?? (suffix ? `${shown}${suffix}` : undefined)} on:input={(event) => select(event.currentTarget.valueAsNumber)} on:keydown={keydown} />
   {/if}
 </div>
 
