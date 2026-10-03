@@ -3,7 +3,7 @@ import { isEntityRef, type PublicAbility } from "@afallon/contracts/public";
 import { phaseAbilities } from "../adventurers";
 import type { PublishedPage } from "../references";
 import { learnersOf } from "./classes";
-import { appliedEffectsByAbility } from "./effects";
+import { appliedEffectsByAbility, rankScaling } from "./effects";
 import { type DocumentProjectionInput, grantedByActions, mergeRefs, pageBase, requirementsFor } from "./projection";
 
 // An ability page shows one version for each set of records that share their rank texts, with creatures that use
@@ -39,11 +39,17 @@ export function projectAbilityPage(page: PublishedPage, input: DocumentProjectio
       const effectFact = progression.get(row.effectKey);
       const duration = effectFact?.kind === "effects" ? effectFact.details.duration : 0;
       const endless = effectFact?.kind === "effects" && effectFact.details.endless;
+      const effectRank = effectFact?.kind === "effects" ? effectFact.details.ranks.find((entry) => entry.rank === row.effectRank) : undefined;
+      const scaling = effectFact?.kind === "effects" && effectRank ? rankScaling(effectFact.details, effectRank, input) : undefined;
       appliedEffects.push({ effect, ...(row.rank === undefined ? {} : { rank: row.rank }),
+        ...(row.effectRank === undefined ? {} : { effectRank: row.effectRank }),
         ...(row.chance === undefined ? {} : { chance: row.chance }), ...(row.target ? { target: row.target } : {}),
-        ...(duration > 0 ? { durationSeconds: duration } : {}), ...(endless ? { endless: true } : {}) });
+        ...(duration > 0 ? { durationSeconds: duration } : {}), ...(endless ? { endless: true } : {}),
+        ...(scaling ? { scaling } : {}) });
     }
-    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, usedByItems, taughtBy, unlockedByActions: grantedByActions(input, keySet, "Ability"), appliedEffects };
+    const scalesWith = mergeRefs(appliedEffects.flatMap((row) => row.scaling?.stats.map((entry) => entry.stat) ?? []), input);
+    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, usedByItems, taughtBy, unlockedByActions: grantedByActions(input, keySet, "Ability"), appliedEffects, scalesWith };
   });
   return { ...base, versions };
 }
+

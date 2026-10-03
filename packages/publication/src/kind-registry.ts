@@ -28,7 +28,7 @@ const kindEntries = [
   { kind: "properties", label: "Property", plural: "Properties", route: "properties", icon: "property", pages: true, list: true, searchable: true,
     columns: [column("type", "Type"), column("place", "Place"), column("price", "Price", true), column("income", "Income", true)], facets: [facet("type", "Type"), facet("place", "Place")] },
   { kind: "abilities", label: "Ability", plural: "Abilities", route: "abilities", icon: "ability", pages: true, list: true, searchable: true,
-    columns: [column("source", "Source")], facets: [facet("sourceKind", "Source"), facet("class", "Class"), availability(["Used", "Nobody uses it"])] },
+    columns: [column("source", "Source"), column("scalesWith", "Scales With")], facets: [facet("sourceKind", "Source"), facet("class", "Class"), facet("scalesWith", "Scales With"), availability(["Used", "Nobody uses it"])] },
   { kind: "recipes", label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe", pages: false, list: true, searchable: false,
     // A recipe row links its product, so the product needs no column of its own.
     columns: [column("station", "Station"), column("skill", "Skill")],

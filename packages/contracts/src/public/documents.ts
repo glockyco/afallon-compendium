@@ -743,16 +743,29 @@ export type LearnerRow = Static<typeof LearnerRowSchema>;
 
 // `useRequirements` are what a character needs to use the version: costs, such as "Costs 9 Mana", and conditions, such
 // as "Ursine Aspect is active". The ability tooltip shows neither.
+// A rank's contributions remain separate so a base amount is not mistaken for the whole result.
+export const EffectScalingSchema = Type.Object({
+  stats: Type.Array(Type.Object({ stat: RefSchema, coefficientPercent: number, source: Type.Union([
+    Type.Literal("damageType"), Type.Literal("healing"), Type.Literal("globalHealing"), Type.Literal("explicit"),
+  ]) }, { additionalProperties: false })),
+  baseAmount: number, baseKind: Type.Union([Type.Literal("flat"), Type.Literal("percentMax"),
+    Type.Literal("percentCurrent"), Type.Literal("unknown")]), baseStat: optional(RefSchema),
+  category: optional(text), mainType: optional(text), healing: Type.Boolean(), weaponPercent: number,
+  weapons: Type.Array(Type.Union([Type.Literal("main hand"), Type.Literal("off hand"), Type.Literal("ranged")]), { uniqueItems: true }),
+}, { additionalProperties: false });
+export type EffectScaling = Static<typeof EffectScalingSchema>;
+
 export const AbilityAppliedEffectSchema = Type.Object({
-  effect: EntityRefSchema, rank: optional(count), chance: optional(number), target: optional(text),
+  effect: EntityRefSchema, rank: optional(count), effectRank: optional(count), chance: optional(number), target: optional(text),
   durationSeconds: optional(number), endless: optional(Type.Boolean()),
+  scaling: optional(EffectScalingSchema),
 }, { additionalProperties: false });
 export type AbilityAppliedEffect = Static<typeof AbilityAppliedEffectSchema>;
 
 export const AbilityVersionSchema = Type.Object({
   keys: Type.Array(text, { minItems: 1, uniqueItems: true }), anchor, icon: optional(ArtRefSchema),
   ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, usedByItems: refs, taughtBy: refs,
-  unlockedByActions: Type.Array(SourceActionSchema), appliedEffects: Type.Array(AbilityAppliedEffectSchema),
+  unlockedByActions: Type.Array(SourceActionSchema), appliedEffects: Type.Array(AbilityAppliedEffectSchema), scalesWith: refs,
 }, { additionalProperties: false });
 export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 
@@ -1082,6 +1095,8 @@ export const PublicStatSchema = Type.Object({
     talents: Type.Array(Type.Object({ talent: RefSchema, class: RefSchema }, { additionalProperties: false })),
     effects: refs, classes: Type.Array(Type.Object({ class: RefSchema, starting: number, growth: number }, { additionalProperties: false })),
     enchantments: refs }, { additionalProperties: false }),
+  scalesWith: Type.Object({ playerAbilities: refs, creatureAbilities: refs, otherAbilities: refs,
+    playerEffects: refs, creatureEffects: refs, otherEffects: refs }, { additionalProperties: false }),
 }, { additionalProperties: false });
 export type PublicStat = Static<typeof PublicStatSchema>;
 
@@ -1092,7 +1107,7 @@ export const EffectRankActionSchema = Type.Object({
 export const PublicEffectSchema = Type.Object({
   ...documentBase, type: text, isState: Type.Boolean(), durationSeconds: number, endless: Type.Boolean(),
   pulses: count, stackLimit: count, persistent: Type.Boolean(), canBeManuallyRemoved: Type.Boolean(),
-  ranks: Type.Array(Type.Object({ rank: count, actions: Type.Array(EffectRankActionSchema), requiredEffect: optional(RefSchema),
+  ranks: Type.Array(Type.Object({ rank: count, actions: Type.Array(EffectRankActionSchema), scaling: optional(EffectScalingSchema), requiredEffect: optional(RefSchema),
     requiredEffectDamageModifier: optional(number) }, { additionalProperties: false })),
   appliedBy: Type.Array(Type.Object({ source: RefSchema, via: text, rank: optional(count), chance: optional(number),
     target: optional(text) }, { additionalProperties: false })),

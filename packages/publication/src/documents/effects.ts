@@ -78,7 +78,7 @@ export function appliedAbilityTargets(applier: CatalogProgressionApplier, facts:
       .filter((entry) => entry.effect.entityKey === applier.effect).map((entry) => readable(entry.target.name)));
   return targets.length ? [...new Set(targets)] : [undefined];
 }
-export interface AppliedAbilityEffect { effectKey: string; rank?: number; chance?: number; target?: string }
+export interface AppliedAbilityEffect { effectKey: string; rank?: number; effectRank?: number; chance?: number; target?: string }
 const appliedAbilityCache = new WeakMap<CatalogFacts, Map<string, AppliedAbilityEffect[]>>();
 
 
@@ -92,7 +92,17 @@ export function appliedEffectsByAbility(facts: CatalogFacts, abilityKey: string 
       const key = applier.source.entityKey;
       if (!key || (applier.via !== "ability" && applier.via !== "casterAbility") || abilityFacts(facts).get(key)?.kind !== "abilities") continue;
       const rows = byAbility.get(key) ?? [];
-      for (const target of appliedAbilityTargets(applier, facts)) rows.push({
+      const ability = abilityFacts(facts).get(key);
+      const rank = ability?.kind === "abilities" ? ability.details.ranks.find((entry) => entry.rank === applier.rank) : undefined;
+      const applied = rank ? (applier.via === "casterAbility" ? rank.casterEffectsApplied : rank.effectsApplied)
+        .filter((entry) => entry.effect.entityKey === applier.effect) : [];
+      for (const effect of applied) rows.push({
+        effectKey: applier.effect, ...(applier.rank !== null ? { rank: applier.rank } : {}),
+        effectRank: effect.rank,
+        ...(applier.chance < 100 ? { chance: applier.chance } : {}),
+        target: readable(effect.target.name),
+      });
+      if (!applied.length) for (const target of appliedAbilityTargets(applier, facts)) rows.push({
         effectKey: applier.effect, ...(applier.rank !== null ? { rank: applier.rank } : {}),
         ...(applier.chance < 100 ? { chance: applier.chance } : {}), ...(target ? { target } : {}),
       });
@@ -170,6 +180,29 @@ function readable(name: string): string {
   return name.replaceAll(/([a-z])([A-Z])/g, "$1 $2").replaceAll(/_/g, " ").replaceAll(/\s+/g, " ").trim().replace(/^./, (first) => first.toUpperCase());
 }
 
+/** Only damage and healing ranks enter the combat scaling calculation. */
+export function rankScaling(effect: ProgressionEffect, rank: ProgressionEffectRank, input: DocumentProjectionInput): PublicEffect["ranks"][number]["scaling"] {
+  if (!["InstantDamage", "DamageOverTime", "InstantHeal", "HealOverTime"].includes(effect.effectType.name)) return undefined;
+  const healing = effect.effectType.name === "InstantHeal" || effect.effectType.name === "HealOverTime";
+  const basis = rank.hitValueType;
+  const baseKind = basis?.value === 0 ? "flat" : rank.alteredStat && basis?.value === 1 ? "percentMax"
+    : rank.alteredStat && basis?.value === 2 ? "percentCurrent" : "unknown";
+  return {
+    stats: (rank.scaling ?? []).filter((entry) => entry.coefficientPercent !== 0)
+      .map((entry) => ({ stat: input.resolve(entry.stat), coefficientPercent: entry.coefficientPercent, source: entry.source })),
+    baseAmount: rank.damage, baseKind,
+    ...(baseKind !== "unknown" && rank.alteredStat && (healing || baseKind !== "flat") ? { baseStat: input.resolve(rank.alteredStat) } : {}),
+    ...(healing ? {} : { category: readable(rank.customDamageType?.trim() || rank.damageType.name),
+      ...(rank.damageType.name !== "None" ? { mainType: readable(rank.damageType.name) } : {}) }),
+    healing, weaponPercent: rank.weaponDamageModifier,
+    weapons: [
+      ...(rank.useWeapon1Damage ? ["main hand" as const] : []),
+      ...(rank.useWeapon2Damage ? ["off hand" as const] : []),
+      ...(rank.useRangedWeaponDamage ? ["ranged" as const] : []),
+    ],
+  };
+}
+
 export function rankActions(effect: ProgressionEffect, rank: ProgressionEffectRank, input: DocumentProjectionInput) {
   const type = effect.effectType.name;
   const actions: PublicEffect["ranks"][number]["actions"] = [];
@@ -181,9 +214,7 @@ export function rankActions(effect: ProgressionEffect, rank: ProgressionEffectRa
     if (!healing && rank.damageType.name !== "None") actions.push(action("Damage Type", undefined, undefined, undefined, readable(rank.damageType.name)));
     if (!healing && rank.customDamageType?.trim()) actions.push(action("Damage Category", undefined, undefined, undefined, readable(rank.customDamageType)));
     if (healing && rank.customHealingType?.trim()) actions.push(action("Healing Category", undefined, undefined, undefined, readable(rank.customHealingType)));
-    if (rank.damageStat && rank.damageStatModifier !== 0) actions.push(action("Damage Scaling", ref(rank.damageStat, input), rank.damageStatModifier));
-    if (rank.skillModifierStat && rank.skillModifier !== 0) actions.push(action("Skill Scaling", ref(rank.skillModifierStat, input), rank.skillModifier));
-    if (rank.weaponDamageModifier !== 0) actions.push(action("Weapon Damage Modifier", undefined, rank.weaponDamageModifier));
+    if (rank.skillModifierSkill && rank.skillModifier !== 0) actions.push(action("Skill Modifier", ref(rank.skillModifierSkill, input), rank.skillModifier));
     if (rank.maxHealthModifier !== 0) actions.push(action("Maximum Health Modifier", undefined, rank.maxHealthModifier));
     if (rank.missingHealthModifier !== 0) actions.push(action("Missing Health Modifier", undefined, rank.missingHealthModifier));
     if (rank.lifesteal !== 0) actions.push(action("Life Steal Modifier", undefined, rank.lifesteal));
@@ -330,7 +361,12 @@ export function projectEffectPage(page: PublishedPage, input: EffectInput, _cond
     ...pageBase(page, input), type: readable(effect.effectType.name), isState: effect.isState,
     durationSeconds: effect.duration, endless: effect.endless, pulses: effect.pulses, stackLimit: effect.stackLimit,
     persistent: effect.isPersistent, canBeManuallyRemoved: effect.canBeManuallyRemoved,
-    ranks: effect.ranks.map((rank) => ({ rank: rank.rank, actions: rankActions(effect, rank, input), ...(rank.requiredEffect ? { requiredEffect: ref(rank.requiredEffect, input), requiredEffectDamageModifier: rank.requiredEffectDamageModifier } : {}) })),
+    ranks: effect.ranks.map((rank) => {
+      const scaling = rankScaling(effect, rank, input);
+      return { rank: rank.rank, actions: rankActions(effect, rank, input),
+        ...(scaling ? { scaling } : {}),
+        ...(rank.requiredEffect ? { requiredEffect: ref(rank.requiredEffect, input), requiredEffectDamageModifier: rank.requiredEffectDamageModifier } : {}) };
+    }),
     appliedBy: applicationSources(key, input), checkedBy: checkedSources(key, input), worldSources: worldGroups(key, input), explainedBy,
   };
 }

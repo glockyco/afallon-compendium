@@ -29,7 +29,7 @@ const LevelSchema = Type.Object({ levels: integer, baseExperience: integer, incr
 const EffectSchema = Type.Object({
   effectType: valueEnum, effectTag: record, isState: boolean, isBuffOnSelf: boolean, stackLimit: integer, allowMultiple: boolean, allowMixedCaster: boolean, pulses: integer, duration: number, endless: boolean, canBeManuallyRemoved: boolean, isPersistent: boolean,
   ranks: list(Type.Object({
-    rankIndex: integer, mainDamageType: valueEnum, customDamageType: record, customHealingType: record, damage: integer, alteredStatId: integer, flatCalculation: boolean, cannotCrit: boolean,
+    rankIndex: integer, mainDamageType: valueEnum, customDamageType: record, customHealingType: record, damage: integer, hitValueType: Type.Optional(valueEnum), alteredStatId: integer, flatCalculation: boolean, cannotCrit: boolean,
     skillModifier: number, skillModifierId: integer, weaponDamageModifier: number, useWeapon1Damage: boolean, useWeapon2Damage: boolean, useRangedWeaponDamage: boolean, lifesteal: number, maxHealthModifier: number, missingHealthModifier: number, delay: number,
     requiredEffectId: integer, requiredEffectDamageModifier: number, damageStatId: integer, damageStatModifier: number, teleportType: valueEnum, gameSceneId: integer, lootTableId: integer,
     petNpcId: integer, petDuration: number, petSpawnCount: integer, knockbackDistance: number, motionDistance: number,
@@ -175,10 +175,11 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       pulses: value.pulses, duration: value.duration, endless: value.endless, canBeManuallyRemoved: value.canBeManuallyRemoved, isPersistent: value.isPersistent,
       ranks: rows(value.ranks, `${path}/ranks`).map(({ row, path: rankPath }) => ({
         rank: row.rankIndex, damageType: named(row.mainDamageType, `${rankPath}/mainDamageType`), customDamageType: recordName(row.customDamageType), customHealingType: recordName(row.customHealingType),
-        damage: row.damage, alteredStat: ref("stats", row.alteredStatId, `${rankPath}/alteredStatId`), flatCalculation: row.flatCalculation, cannotCrit: row.cannotCrit,
-        skillModifier: row.skillModifier, skillModifierStat: ref("stats", row.skillModifierId, `${rankPath}/skillModifierId`), weaponDamageModifier: row.weaponDamageModifier, useWeapon1Damage: row.useWeapon1Damage, useWeapon2Damage: row.useWeapon2Damage, useRangedWeaponDamage: row.useRangedWeaponDamage,
+        damage: row.damage, hitValueType: row.hitValueType ? named(row.hitValueType, `${rankPath}/hitValueType`) : null, alteredStat: ref("stats", row.alteredStatId, `${rankPath}/alteredStatId`), flatCalculation: row.flatCalculation, cannotCrit: row.cannotCrit,
+        skillModifier: row.skillModifier, skillModifierSkill: ref("skills", row.skillModifierId, `${rankPath}/skillModifierId`), weaponDamageModifier: row.weaponDamageModifier, useWeapon1Damage: row.useWeapon1Damage, useWeapon2Damage: row.useWeapon2Damage, useRangedWeaponDamage: row.useRangedWeaponDamage,
         lifesteal: row.lifesteal, maxHealthModifier: row.maxHealthModifier, missingHealthModifier: row.missingHealthModifier, delay: row.delay,
         requiredEffect: ref("effects", row.requiredEffectId, `${rankPath}/requiredEffectId`), requiredEffectDamageModifier: row.requiredEffectDamageModifier, damageStat: ref("stats", row.damageStatId, `${rankPath}/damageStatId`), damageStatModifier: row.damageStatModifier,
+        scaling: [],
         teleportType: named(row.teleportType, `${rankPath}/teleportType`), teleportScene: ref("scenes", row.gameSceneId, `${rankPath}/gameSceneId`), lootTable: ref("lootTables", row.lootTableId, `${rankPath}/lootTableId`),
         pet: ref("npcs", row.petNpcId, `${rankPath}/petNpcId`), petDuration: row.petDuration, petSpawnCount: row.petSpawnCount, knockbackDistance: row.knockbackDistance, motionDistance: row.motionDistance,
         dispelType: named(row.dispelType, `${rankPath}/dispelType`), dispelEffectType: named(row.dispelEffectType, `${rankPath}/dispelEffectType`), dispelEffectTag: recordName(row.dispelEffectTag), dispelEffect: ref("effects", row.dispelEffectId, `${rankPath}/dispelEffectId`),
@@ -211,6 +212,33 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       onHitEffects: rows(value.onHitEffects, `${path}/onHitEffects`).map(({ row, path: rowPath }) => ({ effect: required("effects", row.effectId, `${rowPath}/effectId`), rank: row.effectRank, target: named(row.target, `${rowPath}/target`), tag: named(row.tag, `${rowPath}/tag`), chance: row.chance })),
     } }, path);
   });
+  // Native AddBaseDamage matches a caster stat's BASE_DAMAGE_TYPE to the effect's main damage
+  // type. AddBaseHealing matches HEALING to the altered stat, and GLOBAL_HEALING to the
+  // configured HealthStatID. An explicit damageStat is an additional percent-of-stat term.
+  const bonuses = out.progressionFacts.flatMap((fact) => fact.kind === "stats"
+    ? fact.details.statBonuses.map((bonus) => ({ stat: { entityKey: fact.entityKey, label: fact.name ?? fact.entityKey }, bonus }))
+    : []);
+  for (const effect of out.progressionFacts) {
+    if (effect.kind !== "effects") continue;
+    const type = effect.details.effectType.name;
+    const damage = type === "InstantDamage" || type === "DamageOverTime";
+    const healing = type === "InstantHeal" || type === "HealOverTime";
+    if (!damage && !healing) continue;
+    for (const rank of effect.details.ranks) {
+      const scaling = rank.scaling!;
+      if (!rank.flatCalculation) for (const { stat, bonus } of bonuses) {
+        if (bonus.modifyValue === 0) continue;
+        if (damage && bonus.statType.name === "BASE_DAMAGE_TYPE" && bonus.damageType.value === rank.damageType.value) {
+          scaling.push({ stat, coefficientPercent: bonus.modifyValue * 100, source: "damageType" });
+        } else if (healing && bonus.statType.name === "HEALING" && rank.alteredStat?.entityKey === entityKey("stats", bonus.damageType.value)) {
+          scaling.push({ stat, coefficientPercent: bonus.modifyValue * 100, source: "healing" });
+        } else if (healing && bonus.statType.name === "GLOBAL_HEALING" && support.healthStatId !== null && rank.alteredStat?.entityKey === entityKey("stats", support.healthStatId)) {
+          scaling.push({ stat, coefficientPercent: bonus.modifyValue * 100, source: "globalHealing" });
+        }
+      }
+      if (rank.damageStat !== null && rank.damageStatModifier > 0) scaling.push({ stat: rank.damageStat, coefficientPercent: rank.damageStatModifier, source: "explicit" });
+    }
+  }
   each("factions", (key, gameplay, path) => {
     const value = decode(FactionSchema, gameplay, path);
     fact({ entityKey: key, kind: "factions", details: {

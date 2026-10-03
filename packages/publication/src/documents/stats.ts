@@ -1,6 +1,8 @@
 import type { CatalogEntityRow, CatalogProgressionFact } from "@afallon/contracts/catalog";
 import { type EntityRef, isEntityRef, type PublicStat, type Ref } from "@afallon/contracts/public";
 import { displayName } from "../text";
+import { phaseAbilities } from "../adventurers";
+import { appliedEffectsByAbility } from "./effects";
 import { talentAnchor } from "./classes";
 import { baseDocument, type DocumentProjectionInput } from "./projection";
 
@@ -123,6 +125,41 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   // The raw vitality flag also marks zero-base Item Power and Armor Penetration. In this catalog,
   // only Health, Mana, Energy, and Endurance have both a starting pool and active recovery.
   const vitality = details.isVitalityStat && details.baseValue > 0 && recovery.length > 0;
+  const playerAbilities: Ref[] = [], creatureAbilities: Ref[] = [], otherAbilities: Ref[] = [];
+  const playerEffects: Ref[] = [], creatureEffects: Ref[] = [], otherEffects: Ref[] = [];
+  const effectByKey = new Map(progressing("effects").flatMap((row) => row.kind === "effects" ? [[row.entityKey, row] as const] : []));
+  const scaledEffects = new Set([...effectByKey].flatMap(([effectKey, row]) =>
+    row.kind === "effects" && row.details.ranks.some((rank) => rank.scaling?.some((entry) => entry.coefficientPercent !== 0 && resolves(entry.stat))) ? [effectKey] : []));
+  const creatureUsers = new Set(input.facts.npcs.flatMap((npc) => phaseAbilities(npc).flatMap((phase) =>
+    phase.abilities.flatMap((ability) => ability.ability.entityKey ? [ability.ability.entityKey] : []))));
+  const playerLearners = new Set(progress.learners.flatMap((learner) => learner.owner.entityKey
+    && input.references.refs.get(learner.owner.entityKey)?.kind === "classes"
+    && input.references.refs.get(learner.owner.entityKey)?.slug ? [learner.ability] : []));
+  const actorByEffect = new Map<string, { player: boolean; creature: boolean }>();
+  for (const ability of progressing("abilities")) {
+    if (ability.kind !== "abilities") continue;
+    const matching = appliedEffectsByAbility(input.facts, ability.entityKey).filter((row) =>
+      effectByKey.get(row.effectKey)?.details.ranks.some((rank) => rank.rank === row.effectRank
+        && rank.scaling?.some((entry) => entry.coefficientPercent !== 0 && resolves(entry.stat))));
+    if (!matching.length) continue;
+    const player = playerLearners.has(ability.entityKey), creature = creatureUsers.has(ability.entityKey);
+    const abilityRef = refOf(ability);
+    if (player) playerAbilities.push(abilityRef);
+    if (creature) creatureAbilities.push(abilityRef);
+    if (!player && !creature) otherAbilities.push(abilityRef);
+    for (const row of matching) {
+      const actors = actorByEffect.get(row.effectKey) ?? { player: false, creature: false };
+      actorByEffect.set(row.effectKey, { player: actors.player || player, creature: actors.creature || creature });
+    }
+  }
+  for (const effectKey of scaledEffects) {
+    const effectRef = input.resolve({ entityKey: effectKey, label: effectKey });
+    if (!isEntityRef(effectRef) || !effectRef.slug) continue;
+    const actors = actorByEffect.get(effectKey);
+    if (actors?.player) playerEffects.push(effectRef);
+    if (actors?.creature) creatureEffects.push(effectRef);
+    if (!actors?.player && !actors?.creature) otherEffects.push(effectRef);
+  }
   return {
     ...baseDocument(entity, ref, input),
     ...(STAT_NOTES[key] ? { note: STAT_NOTES[key].text, ...(STAT_NOTES[key].replaceDescription ? { description: null } : {}) } : {}),
@@ -136,6 +173,10 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     ...(vitality ? { startPercentage: details.startPercentage } : {}),
     recovery,
     grants,
+    scalesWith: {
+      playerAbilities: distinctRefs(playerAbilities), creatureAbilities: distinctRefs(creatureAbilities), otherAbilities: distinctRefs(otherAbilities),
+      playerEffects: distinctRefs(playerEffects), creatureEffects: distinctRefs(creatureEffects), otherEffects: distinctRefs(otherEffects),
+    },
     bonuses: details.statBonuses.flatMap((bonus) => {
       const type = BONUS_NAMES[bonus.statType.name];
       if (!type) return [];

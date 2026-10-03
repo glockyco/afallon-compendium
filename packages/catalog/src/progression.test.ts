@@ -33,7 +33,7 @@ const heroicTierSettings = {
 };
 
 function support(tables: Support["tables"], heroic: Support["heroicTierSettings"] = heroicTierSettings): Support {
-  return { schemaVersion: "compendium.support.v4", language: "English", requirementIssues: [], sourceTotals: {}, tables, heroicTierSettings: heroic };
+  return { schemaVersion: "compendium.support.v5", language: "English", requirementIssues: [], sourceTotals: {}, tables, heroicTierSettings: heroic, healthStatId: 0 };
 }
 
 const fixture = support({
@@ -67,6 +67,53 @@ test("decodes effects, bonus ranks, and node requirements", () => {
   expect(rows.conditions.map((row) => [row.ownerType, row.ownerKey, row.conditionId])).toEqual([["talentTreeNode", "talentTrees:0:0", guarded?.conditionId ?? ""]]);
   // A native enum value without a name keeps its number and becomes a coverage issue.
   expect(blockers.filter((row) => row.kind === "unsupported-enum").map((row) => row.detail)).toEqual(["Unsupported enum value 99 (99)."]);
+});
+
+test("main damage type, explicit stat, and health healing keep separate contributions", () => {
+  const source = fixture.tables.effects?.[0];
+  if (!source || !("gameplay" in source) || !source.gameplay || !Array.isArray(source.gameplay.ranks)) throw new Error("Missing effect rank fixture.");
+  const baseRank = source.gameplay.ranks[0] as Record<string, unknown>;
+  const damage = { ...baseRank, mainDamageType: named(2, "Magical"), alteredStatId: 0, damage: 25,
+    hitValueType: named(0, "FLAT"), damageStatId: 135, damageStatModifier: 30, weaponDamageModifier: 200, skillModifierId: 5, skillModifier: 2 };
+  const healing = { ...damage, mainDamageType: named(0, "Neutral"), damageStatId: -1, damageStatModifier: 0, weaponDamageModifier: 0 };
+  const statBonus = (statType: [number, string], mainDamageType: [number, string]) => ({
+    sourceIndex: 0, statType: named(...statType), modifyValue: 1, mainDamageType: named(...mainDamageType),
+    customDamageType: null, customHealingType: null, resistanceStatId: -1, penetrationStatId: -1,
+    statId: -1, creatureType: named(0, "NONE"),
+  });
+  const statGameplay = (statBonuses: unknown[]) => ({
+    minCheck: false, minValue: 0, maxCheck: false, maxValue: 0, baseValue: 0, isPercentStat: false, isVitalityStat: false, isPersistent: false, startPercentage: 100,
+    shiftsInSprint: false, shiftsInBlock: false, shiftsOutsideCombat: false, shiftsInCombat: false,
+    shiftAmountOutsideCombat: 0, shiftIntervalOutsideCombat: 0, shiftAmountInCombat: 0, shiftIntervalInCombat: 0,
+    uiCategory: null, statCategory: null, procCooldown: 0, statBonuses, onHitEffects: [],
+  });
+  const tables = { ...fixture.tables,
+    stats: table([
+      { id: 0, name: "Health", gameplay: statGameplay([]) },
+      { id: 27, name: "Strength", gameplay: statGameplay([statBonus([14, "BASE_DAMAGE_TYPE"], [1, "Physical"])]) },
+      { id: 28, name: "Intellect", gameplay: statGameplay([statBonus([14, "BASE_DAMAGE_TYPE"], [2, "Magical"]), statBonus([4, "HEALING"], [0, "Neutral"])]) },
+      { id: 41, name: "Healing Power", gameplay: statGameplay([statBonus([18, "GLOBAL_HEALING"], [0, "Neutral"])]) },
+      { id: 135, name: "Agility", gameplay: statGameplay([]) },
+    ]),
+    effects: table([
+      { id: 394, name: "Brutal Slice", gameplay: { ...source.gameplay, effectType: named(0, "InstantDamage"), ranks: [damage] } },
+      { id: 395, name: "Flat Slice", gameplay: { ...source.gameplay, effectType: named(0, "InstantDamage"), ranks: [{ ...damage, flatCalculation: true }] } },
+      { id: 396, name: "Double Intellect", gameplay: { ...source.gameplay, effectType: named(0, "InstantDamage"), ranks: [{ ...damage, damageStatId: 28 }] } },
+      { id: 499, name: "Bloom", gameplay: { ...source.gameplay, effectType: named(1, "InstantHeal"), ranks: [healing] } },
+    ]),
+  };
+  const labels = new Map<string, string | null>([...entityNames, ["stats:0", "Health"], ["stats:27", "Strength"], ["stats:28", "Intellect"], ["stats:41", "Healing Power"], ["stats:135", "Agility"], ["effects:394", "Brutal Slice"], ["effects:395", "Flat Slice"], ["effects:396", "Double Intellect"], ["effects:499", "Bloom"]]);
+  const facts = normalizeProgression(support(tables), reference, labels, noPercentStats, []).progressionFacts;
+  const scaling = (key: string) => {
+    const effect = facts.find((fact) => fact.entityKey === key);
+    return effect?.kind === "effects" ? effect.details.ranks[0]?.scaling?.map((row) => [row.stat.entityKey, row.coefficientPercent, row.source]) : undefined;
+  };
+  expect(scaling("effects:394")).toEqual([["stats:28", 100, "damageType"], ["stats:135", 30, "explicit"]]);
+  expect(scaling("effects:395")).toEqual([["stats:135", 30, "explicit"]]);
+  expect(scaling("effects:396")).toEqual([["stats:28", 100, "damageType"], ["stats:28", 30, "explicit"]]);
+  const slice = facts.find((fact) => fact.entityKey === "effects:394");
+  expect(slice?.kind === "effects" ? slice.details.ranks[0]?.skillModifierSkill?.entityKey : null).toBe("skills:5");
+  expect(scaling("effects:499")).toEqual([["stats:28", 100, "healing"], ["stats:41", 100, "globalHealing"]]);
 });
 
 test("a talent change is a percentage when the change or its stat is a percentage", () => {

@@ -183,10 +183,13 @@ function abilityRow(document: PublicAbility): ListRow {
     : creatures.length ? document.versions.flatMap((version) => version.usedBy)
       : document.versions.flatMap((version) => version.usedByItems);
   const linked = shownNames.length <= 2 ? shownNames.map((name) => sourceRefs.find((ref) => refName(ref) === name)!) : [];
-  return { ref: document.ref, values: { source },
-    facets: { sourceKind: sourceKind ? [sourceKind] : [], class: classes, knownWay: [abilityHasKnownWay(document) ? "known" : "unknown"] },
-    ...(linked.length ? { relations: { source: linked },
-      ...(classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) } : {}) };
+  const stats = [...new Map(document.versions.flatMap((version) => version.scalesWith)
+    .map((stat) => [stat.key, stat] as const))].map(([, stat]) => stat)
+    .sort((a, b) => (refName(a) ?? '').localeCompare(refName(b) ?? ''));
+  return { ref: document.ref, values: { source, scalesWith: stats.map(refName).join(", ") || null },
+    facets: { sourceKind: sourceKind ? [sourceKind] : [], class: classes, scalesWith: stats.flatMap((stat) => refName(stat) ? [refName(stat)!] : []), knownWay: [abilityHasKnownWay(document) ? "known" : "unknown"] },
+    relations: { ...(linked.length ? { source: linked } : {}), ...(stats.length ? { scalesWith: stats } : {}) },
+    ...(linked.length && classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) };
 }
 
 function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined): ListRow {

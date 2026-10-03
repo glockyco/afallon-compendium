@@ -3,7 +3,7 @@ import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
 import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, CanonicalV5Schema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, WorldSourcesV8Schema, WorldSourcesV9Schema, WorldSourcesV10Schema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, decodeContract, schemaRegistry, validateScanTargetEnvelope, type ArtifactRunManifest, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type WorldInventory, type WorldSources, type WorldSourcesV10 } from "@afallon/contracts";
-import { CanonicalV6Schema } from "@afallon/contracts";
+import { CanonicalV6Schema, SupportV4Schema } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type MechanicsRules, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
@@ -17,7 +17,7 @@ const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers", "compendium.world-sources.v9": "producers", "compendium.world-sources.v10": "producers", "compendium.world-sources.v11": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
-  "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.relationships.v3": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships",
+  "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.relationships.v3": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships", "compendium.support.v5": "relationships",
   "compendium.scene-catalog.v1": "spatial", "compendium.map-geometry.v3": "spatial", "compendium.navigation-geometry.v2": "spatial",
   "compendium.scan-coverage.v1": "coverage", "compendium.coverage.v2": "coverage",
 };
@@ -225,7 +225,9 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   }
   const relationships = await load(canonicalTarget, "relationships", RelationshipsSchema);
   const lootRules = await load(canonicalTarget, "relationships", LootRulesSchema);
-  const support = await load(canonicalTarget, "relationships", SupportSchema);
+  const supportV5 = await loadOptional(canonicalTarget, "relationships", SupportSchema);
+  const supportV4 = supportV5 === null ? await load(canonicalTarget, "relationships", SupportV4Schema) : null;
+  const support = supportV5 ?? { ...supportV4!, value: { ...supportV4!.value, schemaVersion: "compendium.support.v5" as const, healthStatId: null } };
   const localization = await load(canonicalTarget, "canonical", LocalizationSchema);
   const questLevels = await loadOptional(canonicalTarget, "canonical", QuestLevelsSchema);
   const sceneCatalog = await load(canonicalTarget, "spatial", SceneCatalogSchema);

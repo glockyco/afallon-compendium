@@ -140,7 +140,7 @@ function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput, 
             || (["InstantDamage", "DamageOverTime"].includes(type) && (rank.damageType.name !== "None" || Boolean(rank.customDamageType?.trim())))
             || (["InstantHeal", "HealOverTime"].includes(type) && Boolean(rank.customHealingType?.trim()))
             || (rank.damageStat !== null && rank.damageStatModifier !== 0)
-            || (rank.skillModifierStat !== null && rank.skillModifier !== 0)
+            || (rank.skillModifierSkill !== null && rank.skillModifier !== 0)
             || rank.weaponDamageModifier !== 0 || rank.maxHealthModifier !== 0
             || rank.missingHealthModifier !== 0 || rank.lifesteal !== 0 || rank.cannotCrit))
         || (type === "Pet" && (rank.pet !== null || rank.petSpawnCount > 0 || rank.petDuration > 0))

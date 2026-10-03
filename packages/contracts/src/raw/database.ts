@@ -144,11 +144,18 @@ export const SupportV3Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v3"), language: text, requirementIssues: rawRows,
   sourceTotals: Type.Record(text, integer), tables: supportTables, heroicTierSettings: HeroicTierSettingsSchema,
 });
-export const SupportSchema = Type.Object({
+export const SupportV4Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v4"), language: text, requirementIssues: rawRows,
   sourceTotals: Type.Record(text, integer),
   tables: supportTables,
   heroicTierSettings: HeroicTierSettingsSchema,
+});
+export const SupportSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.support.v5"), language: text, requirementIssues: rawRows,
+  sourceTotals: Type.Record(text, integer),
+  tables: supportTables,
+  heroicTierSettings: HeroicTierSettingsSchema,
+  healthStatId: Type.Union([integer, Type.Null()]),
 });
 export type Support = Static<typeof SupportSchema>;
 

@@ -18,7 +18,7 @@ function npc(name: string, roles: string[] = []): PublicNpc {
     locations: [], places: [], spotCount: 0, drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [], appliedEffects: [], summonedBy: [], spawnedBy: [], recruitedByActions: [] } as PublicNpc;
 }
 function ability(name: string): PublicAbility {
-  return { ref: abilityRef(name), description: null, art: {}, versions: [{ keys: [abilityRef(name).key], anchor: `n-${name}`, ranks: [{ rankIndex: 0, lines: [] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], appliedEffects: [], unlockedByActions: [] }] } as PublicAbility;
+  return { ref: abilityRef(name), description: null, art: {}, versions: [{ keys: [abilityRef(name).key], anchor: `n-${name}`, ranks: [{ rankIndex: 0, lines: [] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], appliedEffects: [], unlockedByActions: [], scalesWith: [] }] } as PublicAbility;
 }
 function rows(documents: PublicDocument[]) {
   const lists = buildKindLists({ buildId: 'test', catalogId: 'test' }, [PUBLIC_KIND_BY_KIND.items, PUBLIC_KIND_BY_KIND.npcs, PUBLIC_KIND_BY_KIND.abilities],

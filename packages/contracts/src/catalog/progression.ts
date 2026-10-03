@@ -42,13 +42,22 @@ export interface ProgressionSkill {
 
 export interface ProgressionLevelTemplate { levels: number; baseExperience: number; increaseAmount: number; rows: Array<{ level: number; name: string | null; experienceRequired: number }> }
 
+// A selected stat contributes its current value to one effect-rank action. The coefficient
+// is in percent: 100 means one point of action value per point of the caster's stat.
+export interface ProgressionEffectScaling {
+  stat: NormalizedReference;
+  coefficientPercent: number;
+  source: "damageType" | "healing" | "globalHealing" | "explicit";
+}
+
 export interface ProgressionEffectRank {
   rank: number;
   damageType: ProgressionEnum; customDamageType: string | null; customHealingType: string | null;
-  damage: number; alteredStat: NormalizedReference | null; flatCalculation: boolean; cannotCrit: boolean;
-  skillModifier: number; skillModifierStat: NormalizedReference | null; weaponDamageModifier: number; useWeapon1Damage: boolean; useWeapon2Damage: boolean; useRangedWeaponDamage: boolean;
+  damage: number; hitValueType: ProgressionEnum | null; alteredStat: NormalizedReference | null; flatCalculation: boolean; cannotCrit: boolean;
+  skillModifier: number; skillModifierSkill: NormalizedReference | null; weaponDamageModifier: number; useWeapon1Damage: boolean; useWeapon2Damage: boolean; useRangedWeaponDamage: boolean;
   lifesteal: number; maxHealthModifier: number; missingHealthModifier: number; delay: number;
   requiredEffect: NormalizedReference | null; requiredEffectDamageModifier: number; damageStat: NormalizedReference | null; damageStatModifier: number;
+  scaling?: ProgressionEffectScaling[];
   teleportType: ProgressionEnum; teleportScene: NormalizedReference | null; lootTable: NormalizedReference | null;
   pet: NormalizedReference | null; petDuration: number; petSpawnCount: number;
   knockbackDistance: number; motionDistance: number;

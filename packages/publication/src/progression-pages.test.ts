@@ -1,8 +1,11 @@
 import { expect, test } from "bun:test";
 import { HEROIC_TIER_KEY } from "@afallon/contracts/catalog";
-import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionBonusRank, ProgressionClass, ProgressionPetStat, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
-import type { PublicAbility, PublicClass, PublicItem, PublicSkill } from "@afallon/contracts/public";
+import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionBonusRank, ProgressionClass, ProgressionEffect, ProgressionEffectRank, ProgressionPetStat, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
+import type { PublicAbility, PublicClass, PublicEffect, PublicItem, PublicSkill, PublicStat } from "@afallon/contracts/public";
 import { readerCoverage } from "./coverage";
+import { rankScaling } from "./documents/effects";
+import type { DocumentProjectionInput } from "./documents/projection";
+import { projectStat } from "./documents/stats";
 import { projectPublicDocuments } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -222,4 +225,94 @@ test("class and skill lists count trees, abilities, and recipes", () => {
   expect(recipe?.ref.variant).toBe("crafting");
   expect(recipe?.relations?.skill).toEqual([refs.get("skills:0")!]);
   expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values.recipes).toBe(1);
+});
+
+test("an ability's applied rank publishes its real stat, weapon and flat contributions with reverse sources", () => {
+  const intelligence = ref("stats:3", "Intellect");
+  const effectRank = {
+    rank: 0, damageType: named(1, "Magical"), customDamageType: "Slicing Damage", customHealingType: null,
+    hitValueType: named(0, "FLAT"),
+    damage: 25, alteredStat: null, flatCalculation: false, cannotCrit: false,
+    skillModifier: 0, skillModifierSkill: null, weaponDamageModifier: 200,
+    useWeapon1Damage: true, useWeapon2Damage: false, useRangedWeaponDamage: false,
+    lifesteal: 0, maxHealthModifier: 0, missingHealthModifier: 0, delay: 0,
+    requiredEffect: null, requiredEffectDamageModifier: 0, damageStat: null, damageStatModifier: 0,
+    scaling: [{ stat: intelligence, coefficientPercent: 100, source: "damageType" as const }],
+    teleportType: named(0, "None"), teleportScene: null, lootTable: null, pet: null, petDuration: 0, petSpawnCount: 0,
+    knockbackDistance: 0, motionDistance: 0, dispelType: named(0, "None"),
+    dispelEffectType: named(0, "None"), dispelEffectTag: null, dispelEffect: null,
+    tauntFlatThreat: 0, resurrectHealthPercent: 0, statEffects: [], nestedEffects: [],
+  };
+  const statRules = { minValue: null, maxValue: null, baseValue: 0, isPercentStat: false, isVitalityStat: false,
+    isPersistent: false, startPercentage: 0, regeneration: [], shiftsInSprint: false, shiftsInBlock: false,
+    uiCategory: "Offense", statCategory: "Offense", procCooldown: 0, statBonuses: [], onHitEffects: [] };
+  const extra = [entity("abilities", 394, "Brutal Slice"), entity("effects", 394, "Brutal Slice damage"),
+    entity("stats", 3, "Intellect"), entity("stats", 4, "Strength"), entity("stats", 0, "Health")];
+  const applied = { effect: ref("effects:394", "Brutal Slice damage"), chance: 100, rank: 0, target: named(1, "Target"), delay: 0 };
+  const source: CatalogFacts = {
+    ...facts, entities: [...entities, ...extra],
+    abilities: [...facts.abilities, { entityKey: "abilities:394", ranks: [{ rankIndex: 0, lines }] }],
+    progression: {
+      ...facts.progression,
+      facts: [...progressionFacts,
+        { entityKey: "abilities:394", name: "Brutal Slice", kind: "abilities", details: { ...abilityDetails(null),
+          ranks: [{ ...abilityDetails(null).ranks[0]!, effectsApplied: [applied] }] } },
+        { entityKey: "effects:394", name: "Brutal Slice damage", kind: "effects", details: {
+          effectType: named(1, "InstantDamage"), tag: null, isState: false, isBuffOnSelf: false, stackLimit: 1,
+          allowMultiple: false, allowMixedCaster: false, pulses: 0, duration: 0, endless: false,
+          canBeManuallyRemoved: false, isPersistent: false, ranks: [effectRank],
+        } },
+        { entityKey: "stats:3", name: "Intellect", kind: "stats", details: statRules },
+        { entityKey: "stats:4", name: "Strength", kind: "stats", details: statRules },
+        { entityKey: "stats:0", name: "Health", kind: "stats", details: statRules }],
+      talentNodes: [...facts.progression.talentNodes, node("talentTrees:27", 2, "ability", "abilities:394", "Brutal Slice", 3, 1)],
+      learners: [...facts.progression.learners, { ability: "abilities:394", owner: ref("classes:5", "Assassin"),
+        via: "talentTree", source: ref("talentTrees:27", "Heroic Ascension"), level: null, tier: 3, row: 1 }],
+      appliers: [...facts.progression.appliers, { effect: "effects:394", source: ref("abilities:394", "Brutal Slice"),
+        via: "ability", rank: 0, chance: 100 }],
+    },
+  };
+  const references = buildEntityReferences(source.entities, { facts: source, relations });
+  const documents = projectPublicDocuments({ entities: source.entities, facts: source, relations, references,
+    resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(),
+    regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map() });
+  const ability = documents.get("abilities:394") as PublicAbility;
+  const effect = documents.get("effects:394") as PublicEffect;
+  const intellect = documents.get("stats:3") as PublicStat;
+  const strength = documents.get("stats:4") as PublicStat;
+  expect(effect.ranks[0]?.scaling).toMatchObject({ mainType: "Magical", baseAmount: 25, baseKind: "flat", weaponPercent: 200, weapons: ["main hand"],
+    stats: [{ stat: references.refs.get("stats:3"), coefficientPercent: 100, source: "damageType" }] });
+  expect(ability.versions[0]?.appliedEffects[0]).toMatchObject({ rank: 0, effectRank: 0,
+    scaling: { mainType: "Magical", baseAmount: 25, baseKind: "flat", weaponPercent: 200, stats: [{ stat: references.refs.get("stats:3") }] } });
+  expect(ability.versions[0]?.scalesWith.map((stat) => stat.key)).toEqual(["stats:3"]);
+  expect(intellect.scalesWith.playerAbilities.map((row) => row.key)).toEqual(["abilities:394"]);
+  expect(intellect.scalesWith.playerEffects.map((row) => row.key)).toEqual(["effects:394"]);
+  expect(intellect.scalesWith.creatureAbilities).toEqual([]);
+  expect(strength.scalesWith.playerAbilities).toEqual([]);
+  const rows = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, documents, source, references.refs)
+    .get("abilities")!.flatMap((part) => part.rows);
+  expect(rows.find((row) => row.ref.key === "abilities:394")?.facets.scalesWith).toEqual(["Intellect"]);
+  expect(rows.find((row) => row.ref.key === "abilities:0")?.facets.scalesWith).toEqual([]);
+  const input = { resolve: createReferenceResolver(references.refs) } as DocumentProjectionInput;
+  const effectDetails = source.progression.facts.find((row) => row.entityKey === "effects:394")!.details as ProgressionEffect;
+  const percent = rankScaling(effectDetails, { ...effectRank, alteredStat: ref("stats:4", "Strength"), hitValueType: named(1, "PERCENT_OF_MAX") } as ProgressionEffectRank, input);
+  expect(percent).toMatchObject({ baseAmount: 25, baseKind: "percentMax", baseStat: references.refs.get("stats:4") });
+  const unknown = rankScaling(effectDetails, { ...effectRank, hitValueType: null } as ProgressionEffectRank, input);
+  expect(unknown).toMatchObject({ baseAmount: 25, baseKind: "unknown" });
+  const healing = rankScaling({ ...effectDetails, effectType: named(2, "InstantHeal") },
+    { ...effectRank, damage: 150, alteredStat: ref("stats:0", "Health"), weaponDamageModifier: 0 } as ProgressionEffectRank, input);
+  expect(healing).toMatchObject({ healing: true, baseKind: "flat", baseAmount: 150, baseStat: references.refs.get("stats:0") });
+  const statInput: DocumentProjectionInput = { entities: source.entities, facts: source, relations, references,
+    resolve: input.resolve, artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(),
+    npcLevels: new Map(), placementIdsByKey: new Map() };
+  const creature = { adventurer: null, abilityPhases: [{ abilities: [{ ability: ref("abilities:394", "Brutal Slice") }] }] } as unknown as CatalogFacts["npcs"][number];
+  const shared = projectStat(extra[2]!, references.refs.get("stats:3")!, { ...statInput, facts: { ...source, npcs: [creature] } });
+  expect(shared.scalesWith.creatureAbilities.map((row) => row.key)).toEqual(["abilities:394"]);
+  expect(shared.scalesWith.creatureEffects.map((row) => row.key)).toEqual(["effects:394"]);
+  const unassigned = projectStat(extra[2]!, references.refs.get("stats:3")!, { ...statInput,
+    facts: { ...source, progression: { ...source.progression,
+      learners: source.progression.learners.filter((row) => row.ability !== "abilities:394") } } });
+  expect(unassigned.scalesWith.otherAbilities.map((row) => row.key)).toEqual(["abilities:394"]);
+  expect(unassigned.scalesWith.otherEffects.map((row) => row.key)).toEqual(["effects:394"]);
+  expect(unassigned.scalesWith.playerAbilities).toEqual([]);
 });

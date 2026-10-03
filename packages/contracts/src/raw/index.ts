@@ -15,6 +15,7 @@ import {
   SupportV1Schema,
   SupportV2Schema,
   SupportV3Schema,
+  SupportV4Schema,
 } from "./database";
 import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
@@ -38,7 +39,8 @@ schemaRegistry.register("compendium.corruption-capture.v3", CorruptionCaptureSch
 schemaRegistry.register("compendium.support.v1", SupportV1Schema);
 schemaRegistry.register("compendium.support.v2", SupportV2Schema);
 schemaRegistry.register("compendium.support.v3", SupportV3Schema);
-schemaRegistry.register("compendium.support.v4", SupportSchema);
+schemaRegistry.register("compendium.support.v4", SupportV4Schema);
+schemaRegistry.register("compendium.support.v5", SupportSchema);
 schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsV1Schema);
 schemaRegistry.register("compendium.relationships.v2", RelationshipsV2Schema);

@@ -127,7 +127,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     dungeonFinder: { supplyPack: item }, timedDungeon: { totalSeconds: 800, thresholds: [{ remainingSeconds: 500, tokenLevels: 2 }, { remainingSeconds: 300, tokenLevels: 1 }], maxLootItems: 3, altars: [placement],
       guide: { key: "mechanics:corruption", kind: "mechanics", name: "Corruption", slug: "corruption" } } } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
-  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], usedByItems: [], taughtBy: [], unlockedByActions: [], appliedEffects: [] }] } satisfies PublicAbility,
+  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], usedByItems: [], taughtBy: [], unlockedByActions: [], appliedEffects: [], scalesWith: [] }] } satisfies PublicAbility,
   classes: { ...base, ref: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, facts: { races: [{ key: "races:1", kind: "races", name: "Dwarf", slug: "dwarf" }], weapons: ["Shield"], talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 60 },
     trees: [{ anchor: "tree-18", name: "Aegis Mastery", points: "Talent Points", cost: 5, rows: [{ anchor: "talent-18-3", tier: 3, position: 2, name: "Aegis Discipline", ranks: 5,
       first: { rank: 1, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 2, isPercent: false }], petStats: [], text: [] }, last: { rank: 5, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 10, isPercent: false }], petStats: [], text: [] },
@@ -151,7 +151,8 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
   stats: { ...base, ref: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" },
     category: "Offense", unit: "flat", base: 0, min: 0, vitality: false, recovery: [],
     bonuses: [{ type: "Physical Damage", amount: 1 }], onHit: [], procCooldown: 0, grants: [{ source: item, family: "fixedItems", amount: 3, percent: false }],
-    sources: { fixedItems: [item], randomItems: [], gems: [], sets: [], talents: [], effects: [], classes: [], enchantments: [] } } satisfies PublicStat,
+    sources: { fixedItems: [item], randomItems: [], gems: [], sets: [], talents: [], effects: [], classes: [], enchantments: [] },
+    scalesWith: { playerAbilities: [], creatureAbilities: [], otherAbilities: [], playerEffects: [], creatureEffects: [], otherEffects: [] } } satisfies PublicStat,
   effects: { ...base, ref: { key: "effects:64", kind: "effects", name: "Strength", slug: "strength" },
     type: "Stat", isState: true, durationSeconds: 600, endless: false, pulses: 1, stackLimit: 1,
     persistent: false, canBeManuallyRemoved: true, ranks: [{ rank: 0, actions: [{ label: "Changes", amount: 10,
@@ -199,6 +200,21 @@ test("NPC stat operands are strict without widening item stat rows", () => {
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [{ ...stat, perLevel: "84.24" }] } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.npcs, { ...npc, facts: { ...npc.facts, stats: [{ ...stat, unknown: true }] } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...itemPage, facts: { ...itemPage.facts, stats: [{ ...stat }] } })).toThrow();
+});
+
+test("effect scaling accepts linked additive terms but rejects invented stat sources and coefficients", () => {
+  const effect = fixtures.effects as PublicEffect;
+  const scaling = { mainType: "Magical", baseKind: "flat", baseAmount: 25, category: "Slicing Damage", healing: false,
+    weaponPercent: 200, weapons: ["main hand"], stats: [
+      { stat: { key: "stats:28", kind: "stats", name: "Intellect", slug: "intellect" }, coefficientPercent: 100, source: "damageType" },
+      { stat: { key: "stats:135", kind: "stats", name: "Agility", slug: "agility" }, coefficientPercent: 30, source: "explicit" },
+    ] };
+  const ranks = [{ ...effect.ranks[0], scaling }];
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.effects, { ...effect, ranks });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.effects, { ...effect, ranks: [{ ...effect.ranks[0],
+    scaling: { ...scaling, stats: [{ ...scaling.stats[0], coefficientPercent: "100" }] } }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.effects, { ...effect, ranks: [{ ...effect.ranks[0],
+    scaling: { ...scaling, stats: [{ ...scaling.stats[0], source: "classMainStat" }] } }] })).toThrow();
 });
 
 test("place starts carry only named races and reject incomplete start details", () => {
