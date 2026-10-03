@@ -8,6 +8,7 @@ Pages for different Afallon entities often share names or generic descriptions, 
 - Qualify shared names with a reader-facing kind and, where necessary, a visible effect distinction, without changing in-game names.
 - Consolidate genuinely equivalent effect pages, preserving their combined sources and old addresses through 301 redirects.
 - Use a sufficiently large entity image for social previews when available and validate actual built page heads at deployment.
+- Keep internal teleport effect pages and their links, but exclude them from search indexing and the sitemap based on the effect type.
 
 ## Capabilities
 
@@ -21,4 +22,4 @@ None.
 
 ## Impact
 
-Publication document and reference projection, SvelteKit SEO metadata for home, lists, entities and other routes, deployment assertions, and redirect rules change. Game source evidence and the primary Afallon Compendium name stay unchanged.
+Publication document and reference projection, SvelteKit SEO metadata for home, lists, entities and other routes, sitemap generation, deployment assertions, and redirect rules change. Game source evidence and the primary Afallon Compendium name stay unchanged.

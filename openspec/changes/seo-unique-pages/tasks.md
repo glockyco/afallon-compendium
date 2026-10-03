@@ -12,3 +12,8 @@
 
 - [x] 3.1 Audit built page heads for duplicate titles and descriptions and missing canonical or description. Verify it fails on the prior publication and passes on corrected output.
 - [x] 3.2 Build and assert the corrected ri12 publication, validate OpenSpec strictly, and verify old address redirects.
+
+## 4. Teleport Search Indexing
+
+- [x] 4.1 Keep Teleport effect pages and links while marking only those pages noindex and excluding them from the sitemap. Verify the built HTML and sitemap against effect types.
+- [x] 4.2 Make deployment checks reject a missing teleport noindex tag or a teleport sitemap URL without weakening uniqueness and metadata checks for indexable pages. Run the production build and deployment assertion.

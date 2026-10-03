@@ -16,7 +16,7 @@
   ];
 </script>
 
-<SeoHead title={data.title} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} />
+<SeoHead title={data.title} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} noindex={data.page.kind === 'effects' && data.page.document.type === 'Teleport'} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} effectSubtitle={data.effectSubtitle} />

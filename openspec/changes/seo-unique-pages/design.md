@@ -15,6 +15,7 @@ The site prerenders every page from a selected static publication. Entity routes
 - Compare projected effects' full player-visible gameplay fields before publication serialization. Retain the simplest slug, union application/world/check sources, retarget reference links, and withhold the equivalent page. Keep effects with different stack limits, ranks, or actions separate.
 - Publish static `_redirects` rules for superseded addresses, as Cloudflare Workers Static Assets supports this file alongside `_headers`. Audit HTML heads during deployment assertion, exempting the noindex 404.
 - Use the document's artwork or portrait before an icon only when both dimensions are at least 200 pixels. Otherwise retain the existing card and declare the actual image dimensions.
+- Keep teleport effect documents in publication, prerendering, and internal links. Read the published effect type to apply `noindex` and filter sitemap entries without matching fragile names or slugs. Audit the built HTML and sitemap against that same publication type.
 
 ## Risks / Trade-offs
 

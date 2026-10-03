@@ -5,6 +5,7 @@ import { deploymentPaths } from "../deployment-paths.mjs";
 import { verifyPublicationGraph } from "./publication-graph";
 import type { DeploymentMetadata } from "./stage-publication.ts";
 import { assertPageHeads } from "./page-heads";
+import { isStaticDocument } from "@afallon/contracts/public";
 
 const FREE_ASSET_LIMIT = 20_000;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
@@ -44,7 +45,7 @@ for (const relativePath of files) {
 
 const metadata = parseJson<DeploymentMetadata>(join(outputDir, "_deployment.json"));
 const publicationPath = join(outputDir, "data", "publication.json");
-const { publication } = verifyPublicationGraph(join(outputDir, "data"));
+const { publication, resources } = verifyPublicationGraph(join(outputDir, "data"));
 if (metadata.schemaVersion !== "afallon.deployment.v2") throw new Error("Deployment metadata has an unsupported schema.");
 if (metadata.buildId !== publication.buildId || metadata.catalogId !== publication.catalogId || metadata.mode !== publication.mode || metadata.coverageComplete !== publication.complete) {
   throw new Error("Deployment metadata does not match the staged publication.");
@@ -52,7 +53,18 @@ if (metadata.buildId !== publication.buildId || metadata.catalogId !== publicati
 if (metadata.publicationSha256 !== hashFile(publicationPath)) throw new Error("The staged publication hash changed during the build.");
 if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
 if (publication.mode === "preview" && publication.complete) throw new Error("A preview publication cannot report complete coverage.");
-assertPageHeads(outputDir, files);
+const teleportPaths = new Set<string>();
+for (const reference of publication.search) {
+  const part = resources.get(reference.path);
+  if (!part || part.schemaVersion !== "compendium.static-search.v6") throw new Error(`Missing search part ${reference.path}.`);
+  for (const entry of part.entries) {
+    if (entry.ref.kind !== "effects" || !entry.ref.slug || !entry.document) continue;
+    const page = resources.get(entry.document.path);
+    if (!page || !isStaticDocument(page) || page.kind !== "effects") throw new Error(`Missing effect document ${entry.ref.key}.`);
+    if (page.document.type === "Teleport") teleportPaths.add(`effects/${entry.ref.slug}/index.html`);
+  }
+}
+assertPageHeads(outputDir, files, teleportPaths);
 
 process.stdout.write(`${JSON.stringify({
   publicationId: metadata.publicationId,

@@ -7,6 +7,7 @@
   export let description: string;
   export let type: 'website' | 'article' = 'website';
   export let website = false;
+  export let noindex = false;
   export let art: ArtRef | undefined = undefined;
   export let imageAlt = 'Afallon Compendium';
   $: url = absolutePageUrl($page.url.pathname);
@@ -16,6 +17,7 @@
 <svelte:head>
   <title>{title}</title>
   <meta name="description" content={description} />
+  {#if noindex}<meta name="robots" content="noindex" />{/if}
   <link rel="canonical" href={url} />
   <meta property="og:type" content={type} />
   <meta property="og:site_name" content="Afallon Compendium" />
