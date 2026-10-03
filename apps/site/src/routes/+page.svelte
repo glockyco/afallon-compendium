@@ -47,9 +47,6 @@
   $: orderedPlaces = [...data.placeTiles].sort((left, right) => Number(!fits(left)) - Number(!fits(right))
     || Number(!(left.creatures || left.quests)) - Number(!(right.creatures || right.quests)));
   $: shownPlaces = orderedPlaces.slice(0, shownRowCount(orderedPlaces.length, showAllPlaces));
-  const placeContents = (place: HubPlace) => [
-    place.creatures ? countText(place.creatures, 'creature', 'creatures') : '', place.quests ? countText(place.quests, 'quest', 'quests') : '',
-  ].filter(Boolean).join(' · ');
   // The places follow each keystroke. An empty field forgets the level, and a value outside the levels is ignored.
   function chooseLevel(event: Event): void {
     const text = (event.currentTarget as HTMLInputElement).value.trim();
@@ -146,7 +143,7 @@
               {#if fits(place)}<span class="fits">Your Level</span>{/if}
             </div>
             <h3><a class="place-link" href={pageHref(place.ref)}>{placeListName(place.ref.name, `${place.min}–${place.max}`)}</a></h3>
-            {#if placeContents(place)}<p class="place-meta">{placeContents(place)}</p>{/if}
+            {#if place.creatures || place.quests}<p class="place-meta">{#if place.creatures}<span>{countText(place.creatures, 'creature', 'creatures')}</span>{/if}{#if place.quests}<span>{countText(place.quests, 'quest', 'quests')}</span>{/if}</p>{/if}
           </li>
         {/each}
       </ul>
@@ -305,7 +302,8 @@
   .place-link { color: var(--c-text-strong); text-decoration: none; }
   .place-link:focus-visible { outline: none; }
   .place-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
-  .place-meta { margin: 0 .9rem .9rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .place-meta { display: flex; flex-wrap: wrap; gap: .1rem .65rem; margin: 0 .9rem .9rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .place-meta span { white-space: nowrap; }
   .place h3:last-child { margin-bottom: .9rem; }
   .show-more { margin-top: 1rem; }
   .your-level { display: inline-flex; align-items: center; gap: .5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
