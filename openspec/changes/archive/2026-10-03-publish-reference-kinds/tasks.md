@@ -17,5 +17,5 @@
 
 ## 4. Release
 
-- [ ] 4.1 Build a candidate catalog and publication, stage them, and check the pages, lists, search, tooltips, and map links at 1440 px, 1100 px, and 390 px.
-- [ ] 4.2 Merge with the other changes of this update, publish, report, and accept.
+- [x] 4.1 Build a candidate catalog and publication, stage them, and check the pages, lists, search, tooltips, and map links at 1440 px, 1100 px, and 390 px.
+- [x] 4.2 Merge with the other changes of this update, publish, report, and accept.

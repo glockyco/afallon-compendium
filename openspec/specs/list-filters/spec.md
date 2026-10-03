@@ -7,7 +7,7 @@ Let readers narrow the published lists by game facts, compare item stats, and sh
 
 ### Requirement: Lists share one filter panel
 
-Each list of at least 20 rows with facets or numeric columns SHALL show its filters in one panel. From 960 px wide, the panel SHALL sit beside the results. Below 960 px, a Filters button SHALL show the number of active filters and open the panel as a full-height sheet with a button that shows the result count and closes the sheet. A facet SHALL render its values as checkboxes. Several values of one facet SHALL match a row that has any of them, and different filters SHALL all apply. Each value SHALL show how many rows would match if it were selected, given the other active filters. The panel SHALL NOT offer a value that every row has, unless it is selected, and SHALL NOT show a facet that offers no value. A facet with more than ten values SHALL offer a search field for its values. Every group of the panel, including ranges and stats, SHALL open and close from its heading. The heading SHALL show a chevron that turns with the group's state and the number of active filters in the group, and SHALL NOT share a line with the group's separator. Closing a group SHALL NOT clear its filters. On the item list, Slot, Rarity, Level, and Stats SHALL start open and the other groups SHALL start closed. Every other list SHALL start with all groups open. A group with an active filter SHALL open, and a group that the reader opened or closed SHALL keep that state while filters change. Results SHALL update on each change. The result count SHALL read as "N of M" when filters hide rows. Each active filter SHALL show as a removable chip above the results, with a Clear all control.
+Each list of at least 20 rows with facets or numeric columns SHALL show its filters in one panel. From 960 px wide, the panel SHALL sit beside the results. Below 960 px, a Filters button SHALL show the number of active filters and open the panel as a full-height sheet with a button that shows the result count and closes the sheet. A facet SHALL render its values as checkboxes. Several values of one facet SHALL match a row that has any of them, and different filters SHALL all apply. Each value SHALL show how many rows would match if it were selected, given the other active filters. The panel SHALL NOT offer a value that every row has, unless it is selected, and SHALL NOT show a facet that offers no value. A facet with more than ten values SHALL offer a search field for its values. Every group of the panel, including ranges and stats, SHALL open and close from its heading. The heading SHALL show a chevron that turns with the group's state and the number of active filters in the group, and SHALL NOT share a line with the group's separator. Closing a group SHALL NOT clear its filters. On the item list, Slot, Rarity, Level, and Stats SHALL start open and the other groups SHALL start closed. On the NPC list, Place and Faction SHALL start closed and the other groups SHALL start open. On the quest list, Area and Chain SHALL start closed and the other groups SHALL start open. Every other list SHALL start with all groups open. A group with an active filter SHALL open, and a group that the reader opened or closed SHALL keep that state while filters change. Results SHALL update on each change. The result count SHALL read as "N of M" when filters hide rows. Each active filter SHALL show as a removable chip above the results, with a Clear all control.
 
 #### Scenario: Two slots
 - **WHEN** a reader checks Boots and Gloves in the item Slot filter
@@ -30,6 +30,11 @@ Each list of at least 20 rows with facets or numeric columns SHALL show its filt
 - **WHEN** a reader selects Shield in the Gear filter and then closes the Gear group
 - **THEN** the Gear heading shows a chevron pointing down and the count 1
 - **AND** the list still shows only shields
+
+#### Scenario: Long lists of names start closed
+- **WHEN** a reader opens the NPC list or the quest list without filters
+- **THEN** the NPC Place and Faction groups, and the quest Area and Chain groups, show only their headings
+- **AND** a shared link that selects a place opens the Place group
 
 ### Requirement: Usable by follows the game's equip rule
 
@@ -187,3 +192,27 @@ Above phone widths a list's column headings SHALL start directly above its first
 #### Scenario: Headings while scrolling
 - **WHEN** a reader scrolls down the item list
 - **THEN** the column headings stay directly below the result count
+
+### Requirement: Gear set counts identify exceptional thresholds
+
+The Gear Sets list SHALL show each set's number of available pieces without a second column that repeats the same count for its final bonus. When the final bonus needs a different number of pieces, the row SHALL identify that threshold beside its piece count. The reader SHALL still be able to sort the column and open the set's tier details.
+
+#### Scenario: Typical set
+- **WHEN** a set's last bonus unlocks after all its pieces are equipped
+- **THEN** its list row shows the piece count once
+
+#### Scenario: Exceptional set
+- **WHEN** Vermincrawl Garb has seven pieces and the last bonus unlocks at six
+- **THEN** its row shows seven pieces and explicitly names the six-piece threshold without requiring a second count column
+
+### Requirement: Catalog relationships link published entities
+
+A catalog relation column SHALL preserve the identity of its referenced entity when it has a published page. Its value SHALL use the site's entity link and hover preview rather than a plain name. A relation without a published destination SHALL remain readable as plain text. Links SHALL retain compact cells and readable phone rows.
+
+#### Scenario: Quest giver in a catalog row
+- **WHEN** a quest row names an NPC giver with a published page
+- **THEN** the giver cell links to that NPC and offers its standard preview
+
+#### Scenario: Unpublished relation
+- **WHEN** a row names an entity without a published page
+- **THEN** the name remains visible without a dead link

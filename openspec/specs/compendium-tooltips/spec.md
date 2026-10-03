@@ -86,7 +86,7 @@ Equipment requirements in an item tooltip SHALL appear in their requirements blo
 
 ### Requirement: Item tooltips present embedded gear sets
 
-An item tooltip SHALL show its published gear-set members and tiers in authored order. It SHALL distinguish the viewed member from other members and show each tier's equipped-member threshold and signed stat bonuses without inventing an equipment inventory.
+An item tooltip SHALL show its published gear-set name, members, and tiers in authored order. On a page, the set name SHALL link the set's page. It SHALL distinguish the viewed member from other members and show each tier's equipped-member threshold and signed stat bonuses without inventing an equipment inventory.
 
 #### Scenario: Reader opens a set-item tooltip
 - **WHEN** the reader opens the tooltip for a member of a multi-item gear set
@@ -156,3 +156,15 @@ The publication SHALL expose one registered schema for each affected static docu
 #### Scenario: Document version does not match its reference
 - **WHEN** a loader receives a document with a schema version that does not match its reference
 - **THEN** it rejects the document rather than rendering a mismatched tooltip
+
+### Requirement: Tooltip text links read as game text
+
+A link inside an item tooltip's game text, such as a stat, an effect, or a gear-set member, SHALL show no icon and SHALL take the colour of its line. A stat preview SHALL state only facts that distinguish the stat: a starting value or floor other than zero, a cap, recovery, on-hit effects, and how many items, gems, enchantments, gear sets, talents, and effects grant it.
+
+#### Scenario: Stat lines of an item
+- **WHEN** a reader views the tooltip of Acolyte's Belt
+- **THEN** its Haste, Stamina, Intellect, and Magic Armor lines keep the green of the item's stat lines and show no glyph
+
+#### Scenario: Stat without a starting value
+- **WHEN** a reader hovers Haste, whose base and floor are zero
+- **THEN** the preview omits both and states its cap and its sources

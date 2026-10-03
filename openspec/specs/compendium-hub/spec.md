@@ -8,13 +8,13 @@ The home page gives readers a clear start for finding the map and published refe
 
 ### Requirement: Home is a searchable compendium hub
 
-The route `/` SHALL show compendium search at the top of its main content. It SHALL give direct entries to the map, places by published level range, classes, crafting and gathering, and browse tiles for the reference lists. Guides SHALL NOT appear among the browse tiles. A Mechanics section after crafting and gathering SHALL instead list every guide of the Browse menu, in its order, with the published sentence that says what the guide explains. It SHALL NOT load the interactive map as its main content. It SHALL NOT rank routes, places, classes, recipes, or items as best. It SHALL NOT show an arbitrary sample of individual recipes.
+The route `/` SHALL show compendium search at the top of its main content. It SHALL give direct entries to the map, places by published level range, classes, crafting and gathering, and browse tiles for the reference lists. Mechanics pages SHALL NOT appear among the browse tiles. A Mechanics section after crafting and gathering SHALL instead list the featured mechanics pages of the Browse menu, in alphabetical order, each with the published sentence that says what it explains, and SHALL link the list of all mechanics pages. No hub or navigation text SHALL call the mechanics pages guides. It SHALL NOT load the interactive map as its main content. It SHALL NOT rank routes, places, classes, recipes, or items as best. It SHALL NOT show an arbitrary sample of individual recipes.
 
 #### Scenario: Reader opens home
 - **WHEN** a reader opens `/`
 - **THEN** the reader sees search before the entry groups
 - **AND** the reader can follow a map entry to `/map`
-- **AND** the reader can reach each published reference list from the browse tiles, and each guide from the Browse menu
+- **AND** the reader can reach each published reference list from the browse tiles, and every mechanics page from the Mechanics list
 
 #### Scenario: Reader looks for crafting and gathering
 - **WHEN** a reader follows the crafting and gathering entry
@@ -22,12 +22,13 @@ The route `/` SHALL show compendium search at the top of its main content. It SH
 - **AND** the entry names no individual recipe
 
 #### Scenario: Guides on the home page
-- **WHEN** a reader opens the home page
-- **THEN** the Mechanics section lists Adventurers, Character Progression, Crafting and Gathering, Corruption, Heroic Tier, and Loot, each linking its guide with a sentence on what it explains
+- **WHEN** a reader opens the home page of a publication with ten mechanics pages
+- **THEN** the Mechanics section lists Adventurers, Character Progression, Corruption, Crafting and Gathering, Factions and Reputation, and Loot, each linking its page with a sentence on what it explains
+- **AND** an "All 10 mechanics" link beside the heading opens the mechanics list
 
 ### Requirement: Level entry uses published place facts
 
-The hub SHALL show a place's level range only when the publication records that range. It SHALL link each shown place to its published page. A place without a recorded range SHALL remain reachable through the Places list. The hub SHALL distinguish an authored range from advice about where a character should go.
+The hub SHALL show a place's level range only when the publication records that range. Each place outside the dungeons that has a range SHALL appear as a tile with its artwork, its range, a link to its published page, and its counts of creatures and quests, ordered by range, with places that record no creature and no quest after the others; the first eight tiles SHALL show, with a Show N more control for the rest. A reader MAY enter a character level, saved with the level that the mechanics calculators use; the tiles SHALL follow each keystroke without moving focus, the places whose recorded range contains the level SHALL come first and carry a mark, and an empty field SHALL forget the level. A place without a recorded range SHALL remain reachable through the Places list. The hub SHALL distinguish an authored range from advice about where a character should go.
 
 #### Scenario: Place has a published level range
 - **WHEN** a published place has a level range
@@ -38,3 +39,16 @@ The hub SHALL show a place's level range only when the publication records that 
 - **WHEN** a published place has no level range
 - **THEN** its page remains reachable through the Places list
 - **AND** the hub does not invent a range for it
+
+#### Scenario: Reader enters a character level
+- **WHEN** a reader enters level 25 on the hub
+- **THEN** the places whose recorded range contains 25 come first, each marked, and the others follow in range order
+- **AND** no place is described as the best place for that level
+
+### Requirement: Featured entities share reference previews
+
+A featured place, boss, zone, class, skill, or mechanics page on the hub SHALL use the site's entity link when that page is published. Its visual card or tile layout SHALL remain a navigable group without adding a second bespoke hover surface. Merchants SHALL NOT be among the earliest or most prominent hub sections.
+
+#### Scenario: Hover a featured dungeon boss
+- **WHEN** a desktop reader hovers the published boss name on the home page
+- **THEN** the same hover card available in catalog rows opens beside the name

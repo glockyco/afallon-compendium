@@ -70,7 +70,11 @@ The page SHALL show the starting talent points, the points gained per character 
 
 ### Requirement: Heroic Tier explains its rewards and effects
 
-The Heroic Tier page SHALL show the captured Heroic kill experience multiplier and SHALL distinguish kill experience from quest experience. It SHALL express Heroic Essence as `(base + per-affix amount × affix count) × rank multiplier × bounded health factor`, with fractional carry between kills. It SHALL show the captured base, per-affix amount, rank multipliers, health baseline and bounds. It SHALL show the captured creature health and damage multipliers, gear scaling, affix chances and limits, affix loot multiplier, and Heroic gear stat bonus. The page SHALL qualify any setting whose behavior has not been verified. It SHALL not rank Heroic gear or character builds.
+The Heroic Tier page SHALL open with its overview and three short answers: how to turn the tier on, what changes, and what it gives, each with its values from the rules and a link to its detailed section. Its sections SHALL follow in three parts: Getting started, What changes, and Rewards.
+
+Getting started SHALL name the places that hold a Heroic Console as links, how to confirm entry, the recommended level as advice rather than a requirement, both ways to leave, that the choice belongs to the character and survives death, and the places and dungeon states in which the tier pauses. What changes SHALL state which creatures become empowered, their health and damage multipliers, how the reader's gear score raises them up to a cap, and a table of creature strength at three gear scores. It SHALL state the affix chances, the guaranteed affixes of Rare and Boss creatures, the affix limit, what each affix does, and the affix loot multiplier. A text SHALL NOT show the record id of a status effect.
+
+Rewards SHALL show the Heroic kill experience multiplier and SHALL distinguish kill experience from quest experience. It SHALL express Heroic Essence as `(base + per-affix amount × affix count) × rank multiplier × bounded health factor`, with fractional carry between kills, and SHALL name the talent trees where Essence is spent. It SHALL show the base, per-affix amount, rank multipliers, health baseline and bounds. It SHALL state the Boss and World Quest currency multipliers and that World Quest experience does not change, and the Heroic gear stat bonus. The page SHALL qualify any setting whose behavior has not been verified. It SHALL not rank Heroic gear or character builds.
 
 #### Scenario: Essence calculation
 - **WHEN** the catalog records Heroic Essence settings and the calculation has been verified
@@ -81,6 +85,20 @@ The Heroic Tier page SHALL show the captured Heroic kill experience multiplier a
 - **WHEN** Heroic Tier is active and its kill multiplier is published
 - **THEN** the page identifies the multiplier as a kill experience rule
 - **AND** it does not say that quest experience receives that multiplier
+
+#### Scenario: Turning the tier on
+- **WHEN** a reader opens the Heroic Tier page
+- **THEN** the opening names Coalway Woods, Coalway Swamp, and Chillwind Heights as console places and links them
+- **AND** it states the recommended level 25 as advice
+- **AND** Getting started states that a console or a right-click on the Heroic World Tier buff turns the tier off
+
+#### Scenario: Where the tier pauses
+- **WHEN** the rules name five excluded places and the dungeon timer and corruption states
+- **THEN** Getting started links the five places and says that the tier resumes when the reader leaves them
+
+#### Scenario: Affixes without record ids
+- **WHEN** the rules describe Beacon of Chaos, Engorged, Fel Raiser, and Imperious
+- **THEN** each affix reads as one plain sentence about its effect, and no sentence shows a status effect id
 
 ### Requirement: Character Progression publishes selectable kill sources
 
@@ -165,11 +183,11 @@ The Character Progression page SHALL show its sections in this order: the overvi
 
 ### Requirement: Mechanics guides are organized by topic
 
-Each mechanics page SHALL start with an overview of no more than three sentences. Titled topic sections SHALL follow the overview. Each section SHALL cover one mechanic or one context of its topic, such as one source of loot, and SHALL NOT be numbered or presented as a step of a sequence. Each section SHALL read as prose: a short lead, its computed values, and then the verified rules of its topic section as sentences of one paragraph. Each unknown rule SHALL follow as a note with the label "Unknown:" before its claim. A section that its lead explains in full MAY have no rules, and a rule that only repeats a lead or adds nothing a player can use SHALL be folded into the lead or left out. Guide text SHALL speak to the player in the plain sentences of a game wiki: it SHALL say what the player gets or must do, and SHALL leave out paraphrases of game code, descriptions of the data source, and notes that only qualify other text. The key values, tables, and worked examples of a mechanic SHALL appear in its section. Character Progression SHALL show its level curve first, because readers come to that page for the experience that each level needs. Each section SHALL have a stable anchor, and an entity's How it works link SHALL target the section that explains its value. Reader text SHALL NOT name game methods, decompilations, evidence records, rule numbers, or the pages where a rule also appears; the rules record and the catalog keep that evidence. Example entities SHALL link their published page or section, and the guide SHALL distinguish computed examples from universal game rules. A section lead SHALL NOT repeat the overview or a phrase of its rules. A rule phrase SHALL name its links where they read naturally: inside the sentence, or as a closing list that the phrase leads into and that reads as a list. A closing list of more than ten links SHALL show eight of them and offer the rest on request.
+Each mechanics page SHALL start with an overview of no more than three sentences. Titled topic sections SHALL follow the overview. Each section SHALL cover one mechanic or one context of its topic, such as one source of loot, and SHALL NOT be numbered or presented as a step of a sequence. Each section SHALL lead with a concise answer and SHALL group longer rules into short titled subsections, linked examples, or details disclosed on request. A section that its lead explains in full MAY have no rules, and a rule that only repeats a lead or adds nothing a player can use SHALL be folded into the lead or left out. Mechanics text SHALL speak to the player in plain sentences: it SHALL say what the player gets or must do, and SHALL leave out paraphrases of game code, descriptions of the data source, and notes that only qualify other text. The key values, tables, and worked examples of a mechanic SHALL appear in its section. Character Progression SHALL show its level curve first, because readers come to that page for the experience that each level needs. Each section SHALL have a stable anchor, and an entity's How it works link SHALL target the section that explains its value. Reader text SHALL NOT name game methods, decompilations, evidence records, rule numbers, or the pages where a rule also appears; the rules record and the catalog keep that evidence. Example entities SHALL link their published page or section, and the mechanics page SHALL distinguish computed examples from universal game rules. A section lead SHALL NOT repeat the overview or a phrase of its rules. A rule phrase SHALL name its links where they read naturally: inside the sentence, or as a closing list that the phrase leads into and that reads as a list. A closing list of more than ten links SHALL show eight of them and offer the rest on request.
 
 #### Scenario: Entity links a crafting section
 - **WHEN** a crafted item shows the level where its base experience falls to half
-- **THEN** How it works opens the guide at its Crafting experience section
+- **THEN** How it works opens Crafting and Gathering at its Crafting experience section
 - **AND** that section states the experience band rules and shows the worked craft
 
 #### Scenario: Loot sources are separate sections
@@ -178,7 +196,7 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **AND** no section is numbered or titled as a step
 
 #### Scenario: Guide on a phone
-- **WHEN** a reader opens any mechanics guide at 390 px
+- **WHEN** a reader opens any mechanics page at 390 px
 - **THEN** its sections stack in reading order and its tables remain readable without sideways page scroll
 
 #### Scenario: Reader opens Crafting and Gathering
@@ -187,7 +205,7 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **AND** Runeweave Regalia appears in Crafting experience, the spawner examples in Node selection, and Small Iron Vein in Node rewards
 
 #### Scenario: Rule section without a guide section
-- **WHEN** a rule names a section that its guide does not define
+- **WHEN** a rule names a section that its mechanics page does not define
 - **THEN** publication fails rather than publish a rule that no section shows
 
 #### Scenario: Heroic Essence example
@@ -208,7 +226,7 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **THEN** the World objects section shows 8 of them in its closing list and a control that shows the other 39
 
 #### Scenario: No evidence text
-- **WHEN** a reader opens any mechanics guide
+- **WHEN** a reader opens any mechanics page
 - **THEN** it shows no game method names, evidence descriptions, rule numbers, or lists of the pages where a rule also appears
 
 #### Scenario: Kill experience reads like a wiki
@@ -244,3 +262,32 @@ The publication SHALL publish an Adventurers guide with topic sections in this o
 #### Scenario: Roster by party role
 - **WHEN** a reader opens the roster section
 - **THEN** it has Tank, Healer, and Damage tabs that together list all 115 adventurers of the world roster, and the Tank tab lists Eldeth Goldvein as a Dwarf Druid of the Primal Feral tree
+
+### Requirement: Crafting and Gathering leads with its skills and groups its mechanics
+
+The Crafting and Gathering page SHALL open with its overview and the skills where each activity starts: every published crafting skill with its recipe count and every published gathering skill with its node count, each linking its skill page, with links to the Recipes and Gathering Nodes lists. Its sections SHALL follow in titled parts: Crafting (recipes, crafting experience, enchanting), Gathering (node selection, attunement, node availability, node rewards), and Training skills (skill experience). A section that no part names SHALL follow the parts. The enchanting items SHALL appear in a relation table with the eight-row rule. The node selection examples SHALL appear as one tab per gathering skill, each with its own level control and attunements. The attunements SHALL appear as a table of item, attunement, nodes, weight bonus, and duration, with a duration that every row shares stated once. The weapon skills that auto-attacks train SHALL appear as a grid of links.
+
+#### Scenario: Reader opens Crafting and Gathering
+- **WHEN** a reader opens `/mechanics/crafting-and-gathering`
+- **THEN** the page names Alchemy, Cooking, Metallurgy, Smithing, and Tailoring with their recipe counts and Fishing, Herbalism, and Mining with their node counts before the first part
+- **AND** the Crafting, Gathering, and Training skills parts follow in that order
+
+#### Scenario: Enchanting items
+- **WHEN** the publication has 23 enchanting items
+- **THEN** the Enchanting section shows eight rows and a Show 15 more control
+
+#### Scenario: Node odds by skill
+- **WHEN** a reader selects the Mining tab in Node selection
+- **THEN** the Mining level control, the mining attunements, and the mining spawner odds show, and the other skills' examples stay hidden
+
+### Requirement: Mechanics reference tables share one presentation
+
+Entity rows SHALL use the shared relation table with sortable relevant headings, readable phone rows, and an eight-row initial view when more than ten rows exist. Numeric reference matrices and calculator breakdowns SHALL use the global reference table style. Mechanics pages SHALL not maintain their own table markup styles. Skill experience breakpoints and the character level curve SHALL remain available.
+
+#### Scenario: Mining odds have a long node list
+- **WHEN** a spawner offers 14 linked gathering nodes
+- **THEN** eight rows show chance bars and Show 6 more reveals the remaining nodes
+
+#### Scenario: Numeric comparison
+- **WHEN** the player changes levels in a corruption or experience calculator
+- **THEN** its result table updates inside the result frame using the same shared compact numeric table style

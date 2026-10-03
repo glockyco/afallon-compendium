@@ -8,7 +8,7 @@ Give every entity detail page one structure that answers a player's questions in
 
 ### Requirement: Detail pages share one structure
 
-Every entity detail page SHALL show a breadcrumb, title block, answer, applicable side facts, and ordered relation sections. At widths of at least 1024 px the page SHALL use a main column and a 20rem side column beginning beside the answer, below the title block; the side column SHALL remain available while scrolling. At narrower widths the order SHALL be title, answer, side facts, relations. An applicable single stat strip beneath the title SHALL hold no more than five decisive facts. A page with at least four rendered sections SHALL offer section navigation. No fact SHALL repeat in adjacent title, strip, answer, and side content.
+Every entity detail page SHALL show a breadcrumb, title block, answer, applicable side facts, and ordered relation sections. At widths of at least 1024 px a page with side facts SHALL use a main column and a 20rem side column beginning beside the answer, below the title block; the side column SHALL remain available while scrolling. A page without side facts SHALL give its main column the full width instead of reserving an empty side column. Every side card SHALL share one card frame. At narrower widths the order SHALL be title, answer, side facts, relations. An applicable single stat strip beneath the title SHALL hold no more than five decisive facts. A page with at least four rendered sections SHALL offer section navigation. No fact SHALL repeat in adjacent title, strip, answer, and side content.
 
 #### Scenario: Item page on a wide screen
 - **WHEN** a reader opens an item page at 1440 px
@@ -22,6 +22,10 @@ Every entity detail page SHALL show a breadcrumb, title block, answer, applicabl
 #### Scenario: Detail page on a phone
 - **WHEN** a class page opens at 390 px
 - **THEN** its title and answer precede the side facts and relations without horizontal page scroll
+
+#### Scenario: Page without side facts
+- **WHEN** a page supplies no side facts
+- **THEN** its title, answer, and sections use the full width and no empty column appears beside them
 
 ### Requirement: The title block names the entity
 
@@ -38,7 +42,7 @@ The title block SHALL show the entity icon or portrait when available, its name,
 
 ### Requirement: The hero shows the entity as the game shows it
 
-The primary answer SHALL be a distinct card in the main column. The game's item or ability tooltip SHALL appear once in the side column at wide widths and after the answer on narrow screens. A place's artwork and description SHALL be part of its answer. NPC portraits, class and skill icons SHALL identify their title or relation row; descriptions and secondary stats SHALL appear once in the answer or side facts. A missing image SHALL not create an empty image frame. No side panel SHALL stretch just to match another panel's height.
+The primary answer SHALL be a distinct card in the main column. The game's item or ability tooltip SHALL appear once in the side column at wide widths and after the answer on narrow screens. An ability without a known learner or user SHALL keep its tooltip in that same narrow side column, while its primary answer shows what it does and one quiet missing-source line. A place's artwork and description SHALL be part of its answer. NPC portraits, class and skill icons SHALL identify their title or relation row; descriptions and secondary stats SHALL appear once in the answer or side facts. A missing image SHALL not create an empty image frame. No side panel SHALL stretch just to match another panel's height.
 
 #### Scenario: NPC without a portrait
 - **WHEN** an NPC has stats but no portrait
@@ -167,7 +171,7 @@ A page SHALL NOT show a stat whose amount is zero. A creature whose roles are al
 
 ### Requirement: NPC pages show who the NPC is, where it is, and what it gives
 
-When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. A combat creature without drops SHALL say that no drops are published for it by name. A friendly NPC without drops SHALL have no answer card. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience. An adventurer of the world roster SHALL show its class, linked to its page, its race, and its party role in its band, with a link to the roster of the Adventurers guide, and an adventurer without a role of its own SHALL read Damage by default. Its Gear card SHALL open with its gear preference. Its side SHALL show an Arrival card with its starting level, when it joins, and a link to the guide on inviting it. Where it has no known location, Where to find SHALL say that the Friends panel finds it once it has joined. A Talents section SHALL name its class, its preferred talent tree linked to that tree on its class page, and the abilities that it learns first. A roster adventurer takes its stats from its race and class at its level, so its page SHALL show no stats of its NPC record. An NPC's abilities SHALL be a section of the main column. An NPC that fights with the abilities of its class instead of the phase abilities of its record SHALL show no phase abilities, and ability pages SHALL NOT name it among the NPCs that use an ability.
+A combat creature with a published encounter SHALL show its useful level and positive health in a side facts card, with positive experience per kill and respawn as secondary facts when applicable. A lone fact SHALL sit in the title identity line instead of occupying a full stat strip. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. An NPC without drops SHALL not lead with an empty Drops answer. A friendly NPC without drops SHALL lead with its published service or flight destinations, when present. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL use the common side-card frame for meaningful combat stats, faction, aggro range, and immunities without repeating the answer, and SHALL omit the column when it has no useful content. Negative health and unplaced default combat values SHALL NOT appear as facts. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL prioritize the NPC's available stock, quests, or abilities ahead of secondary placement, with Where to find grouped by place with counts when there is a published spot, followed by variant differences. A missing spot SHALL be omitted rather than presented as a framed no-location answer. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience. An adventurer of the world roster SHALL show its class with a linked entity preview, its race, and its party role in a compact facts card, with a link to the adventurer roster mechanics, and an adventurer without a role of its own SHALL read Damage by default. Its Gear card SHALL open with its gear preference. Its side SHALL show an Arrival card with its starting level, when it joins, and a link to the guide on inviting it. Where it has no known location, Where to find SHALL say that the Friends panel finds it once it has joined. A Talents section SHALL name its class, its preferred talent tree linked to that tree on its class page, and the abilities that it learns first. A roster adventurer takes its stats from its race and class at its level, so its page SHALL show no stats of its NPC record. An NPC's abilities SHALL be a section of the main column. An NPC that fights with the abilities of its class instead of the phase abilities of its record SHALL show no phase abilities, and ability pages SHALL NOT name it among the NPCs that use an ability.
 
 #### Scenario: Boss of one place
 - **WHEN** an NPC is boss of one place
@@ -187,7 +191,7 @@ When available, a combat creature's strip SHALL show level, health, experience p
 
 #### Scenario: Gear preference of an adventurer
 - **WHEN** a reader opens Agra Emberhide, whose specialization is Leather, Staff, and Strength
-- **THEN** the side reads Gear preference: Leather armor, Staff, favours Strength, with a link to the Adventurers guide's gear section
+- **THEN** the side reads Gear preference: Leather armor, Staff, favours Strength, with a link to the Adventurers mechanics page's gear section
 
 #### Scenario: Experience at the reader's level
 - **WHEN** a reader at character level 15 opens a creature that spawns at levels 10 to 20 and scales with the player
@@ -207,12 +211,24 @@ When available, a combat creature's strip SHALL show level, health, experience p
 
 #### Scenario: Adventurer page layout
 - **WHEN** a reader opens Agra Emberhide
-- **THEN** the band shows Druid, Orc, and Tank, the Gear card opens with her preference for Leather armor and Staff, her Arrival card shows starting level 10 and that she joins at the start, and Talents lists the abilities that she learns first
+- **THEN** the side facts show a linked Druid class, Orc, and Tank, the Gear card opens with her preference for Leather armor and Staff, her Arrival card shows starting level 10 and that she joins at the start, and Talents lists the abilities that she learns first
 - **AND** the page shows no Health, Strength, Movement Speed, or Spirit
+
+#### Scenario: Unplaced NPC with abilities
+- **WHEN** an NPC has no published location, drops, or vendor stock but has abilities
+- **THEN** its abilities lead the page instead of an empty Drops or Where to find card, and unplaced respawn, experience, and aggro defaults are not advertised
+
+#### Scenario: Flight master with a named station
+- **WHEN** the flight network names the flight master's departure stop but no world placement is available
+- **THEN** the NPC answers with that stop, destinations and connection status, common free fare once, and the verified travel-time rule without claiming a map location
+
+#### Scenario: Negative NPC health
+- **WHEN** a creature's published stat amount for Health is negative
+- **THEN** neither the title nor side cards present it as health
 
 ### Requirement: Quest pages follow the course of the quest
 
-A quest's strip SHALL show available quest level, experience, main reward, and chain step. Its answer SHALL show objectives as a numbered checklist with target and required count, and identify who starts and ends the quest with their places and map links when known. The side SHALL show requirements and a vertical chain stepper identifying the current step. Sections SHALL follow: Rewards, Unlocks. Offer, objective, and completion text and world changes SHALL remain available in closed blocks at the end. A quest without a chain SHALL omit the stepper; it SHALL retain available repeatability, world quest timing, minimum level, and dungeon context without inventing values.
+A quest's identity SHALL show its type, available quest level, and chain step without a lone stat strip. Its answer SHALL show objectives as a numbered checklist with target and required count, keeping time and item-retention hints visually distinct from the instruction and count. It SHALL identify who starts and ends the quest with their places and map links when known. The side SHALL show requirements and a vertical chain stepper identifying the current step. Sections SHALL follow: Rewards, Unlocks. Offer, objective, and completion text and world changes SHALL remain available in closed blocks at the end. A quest without a chain SHALL omit the stepper. It SHALL retain available experience, repeatability, world quest timing, minimum level, and dungeon context without inventing values. Full world quest timing SHALL sit behind disclosure, after the actionable objective and reward.
 
 #### Scenario: Quest in a chain
 - **WHEN** a quest is step 5 of 5
@@ -222,17 +238,29 @@ A quest's strip SHALL show available quest level, experience, main reward, and c
 - **WHEN** a quest belongs to no chain
 - **THEN** it shows no chain stepper
 
+#### Scenario: World quest with one objective
+- **WHEN** a world quest has one objective and completes automatically
+- **THEN** its objective and start are readable before the full timing disclosure
+
+#### Scenario: World quest with several start spots
+- **WHEN** an active world quest starts at three spots
+- **THEN** its start names three spots with one map link rather than three adjacent numbered links
+
 ### Requirement: Property pages show the purchase
 
-A property page SHALL show its type and place in the title and show price, income per payment, and sell price in a single strip when known. Its answer SHALL show where to buy it with the for-sale signs and a map action. Its side SHALL show the available purchase panel and picture once. It SHALL not claim an interval or currency without confirmed facts.
+A property page SHALL show its type and place in the title. Its answer SHALL use the full width without a side column and show the available picture once, beside the price, income per payment, and sell price when known, followed by where to buy it with the for-sale signs and a map action. It SHALL not claim an interval or currency without confirmed facts.
 
 #### Scenario: Property with one sign
 - **WHEN** a property has one for-sale sign
 - **THEN** its answer identifies the sign's area and a map action opens it
 
+#### Scenario: Property purchase on a wide screen
+- **WHEN** a reader opens Coalway Swamp Fishing Hut at 1440 px
+- **THEN** its picture sits beside the purchase price, income, and sell price in the answer, the for-sale sign follows, and no side column appears
+
 ### Requirement: Ability pages compare versions
 
-An ability page SHALL show the game tooltip once in the side column, choosing the version with most users and the first in a tie. Its answer SHALL identify who learns it (published classes and talent nodes) and who uses it, with costs and activation requirements retained in the tooltip. When multiple versions exist, a Versions section SHALL compare their distinct text, use requirements, and users. Teaching items and all usable rank links SHALL remain available without repeating the tooltip.
+An ability without an effect, description, learner, creature user, item use, or applied effect SHALL be withheld by a reviewed exclusion with catalog evidence checked at publication, and references to it SHALL remain readable as plain text. Other ability pages SHALL choose the tooltip version with most users and the first in a tie. An ability with known learners or users SHALL identify them in its answer and put the game tooltip in the side column. An ability without a known learner or user SHALL give the applied effects or described outcome in the primary answer, keep the game tooltip narrow in the side column, and give one short missing-source line. Costs and activation requirements SHALL remain in the tooltip. Applied effects SHALL appear as linked outcomes beside or below the game tooltip, with their ability rank, chance, target in player words, and duration in human units when published. These rows SHALL use the same application evidence as each effect page's Applied by list and omit withheld effects. When multiple versions exist, a Versions section SHALL compare them side by side in the layout of creature versions: one column per version and one row per fact. The rows SHALL be the version's text, the effects it applies when any version applies effects, its use requirements and its learning classes when the versions differ in them, and its users when any version has users. A version without a value in a row SHALL read None. Each version's users SHALL show their first eight links and a Show N more control, and the answer's Show all link SHALL open every version's users. Teaching items and all usable rank links SHALL remain available without repeating the tooltip.
 
 #### Scenario: Ability with five versions
 - **WHEN** an ability has five versions
@@ -246,9 +274,38 @@ An ability page SHALL show the game tooltip once in the side column, choosing th
 - **WHEN** only an unpublished Hunter class learns Barbed Quarrel
 - **THEN** Learned by has no Hunter page link and the tooltip still shows Costs 9 Mana
 
+#### Scenario: Internal timer-only ability
+- **WHEN** AoE Rock Attack has only cast timing and no known learner or user
+- **THEN** it has no page, and its name remains readable wherever referenced
+
+#### Scenario: Effectful ability without a known user
+- **WHEN** a reader opens AoE Cursed
+- **THEN** its linked combat effects appear in the primary answer, the narrow game tooltip sits in the side column, and no empty users card appears
+
+#### Scenario: Reciprocal applied effects
+- **WHEN** Beacon of Dawn applies Beacon of Dawn Hot to a target for 10 seconds
+- **THEN** Beacon of Dawn links the effect beside its tooltip and the effect links back to Beacon of Dawn under Applied by with the same rank and target
+
+#### Scenario: Multiple effects from one ability
+- **WHEN** an ability applies two effects with different ranks, chances, targets, or durations
+- **THEN** each linked outcome retains its own published context, including its version where several ability versions exist
+
+#### Scenario: Long applied-effect duration
+- **WHEN** an ability applies an effect for 120 seconds
+- **THEN** the effect outcome reads 2 minutes instead of 120 seconds
+
+#### Scenario: Nine versions on a wide screen
+- **WHEN** a reader opens Weapon Strike, whose nine versions have no users
+- **THEN** Versions shows three blocks of three versions
+- **AND** no Used by row appears
+
+#### Scenario: Versions learned by different classes
+- **WHEN** only the second of four Frostbolt versions is learned by the Wizard
+- **THEN** the Learned by row links Wizard under Version 2 and reads None under the others
+
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a guide explains how those points are earned, such as Heroic Essence in the Heroic Tier guide, the tree and the side SHALL link that guide section. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with row anchors. The talent trees SHALL have two views, switchable with tabs: Web, the default, which lays out every tree of the class as the game's talent screen does, with the game's positions and requirement lines, and List, which shows each tree as a table in its own tab. Both views SHALL render every tree and talent anchor, so a link to a talent or a tree selects it in the reader's current view. Every talent SHALL show its icon. The web SHALL let a reader move it, zoom it, and select a talent to see its ranks, effect, requirements, and the talents that it unlocks. Selecting a talent SHALL highlight every talent that it needs, back to the first tier of its tree, with the lines between them, and the talents that it unlocks. Selecting a talent in the web SHALL move neither the page nor the web, except that the web SHALL glide to a selected talent outside its view at the same zoom. A link to a talent or a tree from elsewhere on the page SHALL scroll the page only as far as needed to show the whole web. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A side facts card SHALL link available races and show the highest level when known, without repeating the talent tree count. A separate gear card SHALL show weapon types. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a mechanics page explains how those points are earned, such as Heroic Essence in the Heroic Tier mechanics page, the tree and the side SHALL link that mechanics page section. A class whose starting gear is all equipped SHALL state that once above the table and omit its Equipped column. A class with mixed equipped and unequipped gear SHALL keep the column. The Web SHALL initially focus one arm with talent links at least 24 px wide at 390 px and offer a tree focus navigator while preserving pan, zoom, and List. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with row anchors. The talent trees SHALL have two views, switchable with tabs: Web, the default, which lays out every tree of the class as the game's talent screen does, with the game's positions and requirement lines, and List, which shows each tree as a table in its own tab. Both views SHALL render every tree and talent anchor, so a link to a talent or a tree selects it in the reader's current view. Every talent SHALL show its icon. The web SHALL let a reader move it, zoom it, and select a talent to see its ranks, effect, requirements, and the talents that it unlocks. Selecting a talent SHALL highlight every talent that it needs, back to the first tier of its tree, with the lines between them, and the talents that it unlocks. Selecting a talent in the web SHALL move neither the page nor the web, except that the web SHALL glide to a selected talent outside its view at the same zoom. A link to a talent or a tree from elsewhere on the page SHALL scroll the page only as far as needed to show the whole web. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 A passive talent rank SHALL show its changes to pets after its own changes. A change to pets SHALL name the pets as the game does: "Your beast" for the Hunter's beast, the NPC whose summons change, or "Summons" for every pet. The changes to the same pets SHALL share one line.
 
@@ -256,6 +313,10 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **WHEN** a reader opens Shieldmaster
 - **THEN** Starting gear, then Bastion Breaker, Guardian, Templar, Aegis Mastery, and Heroic Ascension remain reachable in order
 - **AND** the page links Character Progression
+
+#### Scenario: Playable races on a class page
+- **WHEN** a reader opens Druid
+- **THEN** its race names link to their pages without a second talent tree count in the side facts
 
 #### Scenario: Class that no race offers
 - **WHEN** no race offers a class
@@ -285,7 +346,7 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **WHEN** a reader scrolls through the talent trees of Shieldmaster
 - **THEN** the side still shows each tree with the Talent Points that learning it in full takes
 - **AND** Heroic Ascension shows its cost in Heroic Essence
-- **AND** Heroic Essence links the Essence section of the Heroic Tier guide
+- **AND** Heroic Essence links the Essence section of the Heroic Tier mechanics page
 
 #### Scenario: Web as in the game
 - **WHEN** a reader opens Shieldmaster
@@ -303,9 +364,17 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **WHEN** a reader selects Hemorrhage Expert in the Assassin web
 - **THEN** Opened Veins and Bleeding Strike, which it needs in turn, light up with their lines, as does Bloodsoaked, which it unlocks
 
+#### Scenario: Class gear with mixed equipped states
+- **WHEN** Hunter has equipped and unequipped starting gear
+- **THEN** the Equipped column shows the distinction
+
+#### Scenario: Touch navigation in a talent web
+- **WHEN** a reader opens Druid on a 390 px screen
+- **THEN** the web's interactive talent links have targets at least 24 px wide and high, and tree navigation stays available through focus controls without losing Web pan, zoom, or List
+
 ### Requirement: Skill pages show recipes and levels
 
-Each non-excluded skill SHALL have a page. Its strip SHALL show available highest level, recipe count, gathering node count, and experience to highest level. The answer SHALL show each verified experience source—craft, gather, or auto-attack hits—with a linked example range; it SHALL not assign an unverified source. Its side SHALL retain the level curve chart and level control when a level template and highest level above one exist, and link to Character Progression. Its sections SHALL show Recipes grouped by required-level bands and Gathering nodes by gate. A recipe without a published product SHALL retain its anchored row; a skill with no levels SHALL omit a fictitious curve.
+Each non-excluded skill SHALL have a page. Its side facts card SHALL show available highest level, recipe count, gathering node count, and experience to highest level. The answer SHALL show each verified experience source—craft, gather, or auto-attack hits—with a linked example range; it SHALL not assign an unverified source. Its side SHALL offer the level curve chart and level control behind an openable progression detail when a level template and highest level above one exist, and link to Character Progression. A weapon skill SHALL link matching weapon categories in its primary answer. Its sections SHALL show Recipes grouped by required-level bands and Gathering nodes by gate. A shared recipe station SHALL appear once above the rows. A row with no station SHALL say so while mixed station names SHALL remain visible in their rows. A recipe without a published product SHALL retain its anchored row; a skill with no levels SHALL omit a fictitious curve.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens Alchemy
@@ -321,7 +390,7 @@ Each non-excluded skill SHALL have a page. Its strip SHALL show available highes
 
 #### Scenario: Weapon skill
 - **WHEN** a reader opens Axes
-- **THEN** its level curve and auto-attack experience source remain available without an Experience table
+- **THEN** the answer says an axe hit awards 2 skill experience until level 300, links all axes, and retains its level curve without an Experience table
 
 #### Scenario: Skill without levels
 - **WHEN** a published skill has a highest level of zero
@@ -330,6 +399,10 @@ Each non-excluded skill SHALL have a page. Its strip SHALL show available highes
 #### Scenario: Known call site without a verified skill mapping
 - **WHEN** an experience call site cannot be tied to a skill
 - **THEN** the skill page does not assign it to that skill
+
+#### Scenario: Smithing station exception
+- **WHEN** Smithing recipes share a station except for one without a listed station
+- **THEN** the common station is stated once, with the exception identified on its row
 
 ### Requirement: Existing long detail pages use section navigation
 
@@ -428,12 +501,12 @@ A place page SHALL list each object in the place that gives items when used, suc
 
 ### Requirement: Place pages show what a player finds there and how to get there
 
-A place's strip SHALL show available type, level range, and boss count. Its answer SHALL contain artwork, description, and map action. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs, Gathering and objects with category counts, Quests, Areas; available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. The place SHALL not infer a level range where none was published.
+A place's identity SHALL show its type and available level range without a lone stat strip. Its answer SHALL show the place's artwork as a banner and its description, followed by the most useful available inhabitants, quests, or places to enter with links to their sections. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs, Gathering and objects with category counts, Quests, Areas. Available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. The place SHALL not infer a level range where none was published. When no actionable content exists, the page SHALL not display an empty answer card.
 
 The side SHALL show these cards when their facts exist:
 
 - Getting there, on every place with its own map outside the overworld, and on every challenge stone. It SHALL name each place that a player enters this place from, with links to the entrance spots. Entrances from challenge stones SHALL NOT count. A challenge stone SHALL instead name the stone where it starts, the stone's region, and the number of Hearts that it uses up. A dungeon that the Dungeon Finder can send a player to SHALL say that a player can choose it in the Dungeon Finder or get it from a Random run, and that only a finished Random run gives the supply pack.
-- Timed dungeon, on each timed dungeon. It SHALL show the timer, the time left that each threshold needs and the token levels that it adds, the most items that the reward bag holds besides the token, a link to the Altar of Corruption on the map, and a link to the Timed dungeons section of the Corruption guide.
+- Timed dungeon, on each timed dungeon. It SHALL show the timer, the time left that each threshold needs and the token levels that it adds, the most items that the reward bag holds besides the token, a link to the Altar of Corruption on the map, and a link to the Timed dungeons section of the Corruption mechanics page.
 - Services, with a count and a map link for each of merchants, bankers, auctioneers, flight points, quest givers, and each kind of crafting station. Townsfolk, neutral creatures, and travel points SHALL NOT count as services.
 
 The overworld page SHALL show a Places to enter section that groups the places a player can enter from it into dungeons, challenge stones, and other places. Each row SHALL link the place, show its level range when published, and link its entrance spots.
@@ -466,6 +539,14 @@ The overworld page SHALL show a Places to enter section that groups the places a
 #### Scenario: NPCs without services
 - **WHEN** a place has merchants and bankers
 - **THEN** the Services card counts them, and the NPC section lists the NPCs without a services list
+
+#### Scenario: Descriptive zone without map space
+- **WHEN** a zone has lore and published placements whose area exactly matches its name
+- **THEN** its answer shows its artwork, its lore, and the count of creatures and quests from those placements, and its sections list them, without inventing a place map pin
+
+#### Scenario: A shared creature level rule
+- **WHEN** every creature in a place scales with the player's level
+- **THEN** the Creatures section states the scaling rule once and each row shows its level range without repeating the rule
 
 ### Requirement: Class pages link to the gear they can use
 
@@ -500,3 +581,84 @@ The site SHALL remember the character level and the skill levels that a reader s
 #### Scenario: First visit
 - **WHEN** a reader who has set no Fishing level opens a fishing node
 - **THEN** its control starts at level 1 and shows that level
+
+### Requirement: Small reference kinds lead with an answer
+
+Currency, faction, gear set, crafting station, and race pages SHALL each have a single-line identity and a useful primary answer. They SHALL show a side card only for distinct facts that add information; otherwise their main content SHALL use the full width. They SHALL NOT show a full-width strip of one or two counts, reserve a desktop column without content, repeat a fact across adjacent panels, or expose default zero values as a feature. Their relation rows SHALL retain genuinely different values while sharing invariant information outside the rows.
+
+#### Scenario: Currency acquisition
+- **WHEN** a reader opens Gold Coin or Corrupted Emerald
+- **THEN** the currency page offers the published item's acquisition routes with links to full item sources
+- **AND** the ways to spend it and its currency item remain linked
+
+#### Scenario: Honor without a linked item
+- **WHEN** a reader opens Honor
+- **THEN** the page explains battleground acquisition without claiming no source exists
+- **AND** the merchants and prices are visible without an invariant seller column
+
+#### Scenario: Crafting station
+- **WHEN** a reader opens a station with map spots and recipes
+- **THEN** the page shows where to find it, the linked crafting skill, and a sortable recipe list without a two-number hero strip
+
+#### Scenario: Starting faction
+- **WHEN** a new character's faction standings are shown
+- **THEN** Humans starts Honored, Hostile and Hostile Elementals start Hated, and Neutral and Neutral Aggressive start Neutral
+- **AND** the latter starts with 100 points toward the next stance while each stance takes 100 points to fill
+- **AND** rows with differing starting points preserve that difference, while invariant thresholds and zero-only columns are stated once
+
+#### Scenario: Race and equipment progression
+- **WHEN** a reader opens any race or gear set
+- **THEN** the race's starting area and linked playable classes are readily available without repeating the start
+- **AND** the set's bonus tiers identify their required equipped piece counts, count each distinct piece once, and retain earlier bonuses at higher tiers
+
+### Requirement: Content-free places are not published
+
+A reviewed scene that has no map space, description, artwork, level, inhabitants, quest objective or placement SHALL have no place page. Its references SHALL degrade to plain text. The publication SHALL check that the recorded exclusion evidence still holds each time.
+
+#### Scenario: An empty zone
+- **WHEN** a scene has only a generic zone type and no usable place content
+- **THEN** it has no search entry or place page, and a reference to it is not a broken link
+
+### Requirement: Quest world-change items retain their entity link
+
+An interactive-object source whose displayed name matches an item explicitly requested by that quest SHALL use that published item as a typed subject. Other sources SHALL retain their own label rather than linking an unrelated item with the same name.
+
+#### Scenario: Egg collection source
+- **WHEN** a quest objective requests Funnel Weaver Egg and its world-change interaction uses the same displayed name
+- **THEN** that world-change source links the Funnel Weaver Egg item page
+
+### Requirement: Gathering node timers remain readable
+
+A gathering node SHALL state available experience, spots, and respawn in a side facts card. Respawn SHALL retain its published duration, round times above an hour to the nearest minute with "About" when needed, and leave the exact seconds in the Timers and ranges disclosure. Its tooltip SHALL distinguish needed items from items consumed per use.
+
+#### Scenario: Long respawn
+- **WHEN** Mireblossom has a 9,999-second respawn
+- **THEN** the card shows About 2 hours 47 minutes while Timers and ranges retains the exact 2 hours 46 minutes 39 seconds
+
+#### Scenario: Fishing consumable
+- **WHEN** Fishing Hole (Coalway) requires Makeshift Angler and uses one Fish Bait
+- **THEN** the tooltip separates the needed item from the bait consumed per use
+
+### Requirement: NPC effects and portraits reflect their game identity
+
+NPC pages SHALL link published effects whose appliers name that NPC through an ability or an adventurer invitation. An adventurer invitation SHALL describe the NPC it summons and the effect's authored pet duration in human units. NPC pages and previews SHALL show the game's authored portrait, including portraits shared by unrelated characters. A record with no usable placement, description, drops, stock, quests, abilities, or other playable relation MAY be withheld by reviewed, evidence-checked exclusion, and links to it SHALL read as plain text. A bare service-role flag without a location or matching quest or stock is not a usable service.
+
+#### Scenario: Adventurer invitation
+- **WHEN** Brughan Redthorn's invitation applies a pet effect that summons Brughan Redthorn for 3,600 seconds
+- **THEN** his page links that effect and says he is summoned for 1 hour
+
+#### Scenario: NPC ability applies an effect
+- **WHEN** a creature's phase ability applies a published effect
+- **THEN** the creature page links both the ability and the effect, reflecting the effect page's NPC applier
+
+#### Scenario: Game-authored portrait shared by adventurers
+- **WHEN** Brughan Redthorn and unrelated roster adventurers share the Avatar human female portrait
+- **THEN** their NPC pages and previews display the game's authored portrait
+
+#### Scenario: Content-free NPC
+- **WHEN** AemonGold the Trader has no place, service, ability, drops, stock, quest, or description in published source data
+- **THEN** no empty NPC page is published, and any reference to the record remains readable without a link
+
+#### Scenario: Unreachable quest giver
+- **WHEN** an NPC has a quest-giver flag but no known location, quest, description, stock, or ability
+- **THEN** its role flag alone does not force the publication of an empty page

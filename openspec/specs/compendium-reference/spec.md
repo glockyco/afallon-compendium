@@ -32,16 +32,20 @@ The site SHALL prerender a detail page at `/<kind>/<slug>/` for each published d
 
 ### Requirement: Unknown facts are not fabricated
 
-Entity pages SHALL render established publication facts and SHALL distinguish unknown values from known values. An absent drop chance SHALL be marked in its chance cell rather than guessed; a creature without a published location SHALL retain its drop information and identify the location gap in its location section.
+Entity pages SHALL render established publication facts and SHALL distinguish unknown values from known values. A missing value SHALL read Unknown, or words such as "an unknown time" inside a sentence, with its reason available on hover, focus, and tap. It SHALL NOT read as a bare mark beside or in place of a value. An absent drop chance SHALL be marked in its chance cell rather than guessed, and a creature without a published location SHALL retain its drop information and identify the location gap in its location section.
 
 #### Scenario: A drop chance is unknown
 - **WHEN** a published drop has a quantity but no established chance
-- **THEN** its chance cell shows a dash with an explanation available on hover or focus
+- **THEN** its chance cell shows Unknown with an explanation available on hover or focus
 
 #### Scenario: A creature has no published location
 - **WHEN** an NPC has drops but no published location
 - **THEN** its Where to find section says no known location
 - **AND** the drops remain visible
+
+#### Scenario: An unknown gold amount
+- **WHEN** a creature drops Gold without a valid quantity
+- **THEN** its quantity cell reads Unknown with the reason on hover, and no dash follows it
 
 ### Requirement: Space belongs to entities that occupy it
 
@@ -123,3 +127,15 @@ Entity pages SHALL show the selected publication's game release version in the f
 #### Scenario: An entity lacks artwork
 - **WHEN** a reader shares a page for an entity with no published art
 - **THEN** its Open Graph image points to the site's default image
+
+### Requirement: Stat links read as part of their amount
+
+A link to a stat SHALL show no icon or kind glyph and SHALL take the colour of the text around it, marked as a link by a dotted underline, in every table, sentence, and tooltip. Links to other kinds SHALL keep their icons.
+
+#### Scenario: Enchantment amounts
+- **WHEN** a reader views the enchanting table on the Crafting and Gathering page
+- **THEN** each amount reads as "+15 Armor" with Armor underlined and no framed glyph before it
+
+#### Scenario: Item linked beside a stat
+- **WHEN** a row names an item and a stat
+- **THEN** the item keeps its icon and the stat shows none
