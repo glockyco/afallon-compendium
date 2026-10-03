@@ -13,15 +13,23 @@ The site SHALL support a progression overview that orders entries by known level
 
 #### Scenario: Labeled axis landmarks
 - **WHEN** several known ranges appear within a place-type group
-- **THEN** the group starts with an axis directly above its bars, with intermediate round-level labels and matching grid lines showing where bars fall
-- **AND** the reader's chosen level appears as a labeled marker on the first group axis, not as a separate result label
+- **THEN** the group starts with an axis directly above its bars, with round-level labels above unobstructed ticks and matching grid lines showing where bars fall
+- **AND** the reader's chosen level appears as a labeled marker above the first group's tick labels, not as a separate result label
 
 ### Requirement: Places By Level
-The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries.
+The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries. The page SHALL explain the matching-range highlight.
 
 #### Scenario: Reader chooses a level
 - **WHEN** a reader sets Your Level to a positive level
 - **THEN** the level marker and matching known ranges update, while other places and unknown-range places remain visible
+
+#### Scenario: Place type groups
+- **WHEN** published Zones and Dungeons have known level ranges
+- **THEN** they appear under plural headings with each group's count, and entries without a known range remain under Level Range Unknown
+
+#### Scenario: Compact phone range rows
+- **WHEN** a reader views Places on a narrow screen
+- **THEN** a range bar, its numeric label, and a compact map link share one line, while boss facts remain available below it
 
 #### Scenario: Place without a map space
 - **WHEN** a place has no published map space

@@ -10,6 +10,7 @@
   import type { PageData } from './$types';
   export let data: PageData;
   const GALLERY_KINDS = new Set(['classes', 'skills', 'races', 'factions', 'properties', 'mechanics']);
+  const PLACE_GROUP_TITLES = { Zone: 'Zones', Dungeon: 'Dungeons' };
   let view: 'gallery' | 'table' = 'gallery';
   let currentKind = data.kind.kind;
   $: if (currentKind !== data.kind.kind) { currentKind = data.kind.kind; view = 'gallery'; }
@@ -45,7 +46,7 @@
   {#if illustrated && view === 'gallery'}
     {#key data.kind.kind}<OverviewGallery list={data.list} kind={data.kind} registry={data.registry} />{/key}
   {:else if placesView}
-    <ProgressionOverview entries={data.places} registry={data.registry} />
+    <ProgressionOverview entries={data.places} registry={data.registry} groupTitles={PLACE_GROUP_TITLES} />
   {:else}
     <!-- Each table remounts on kind change so its filters and sorting read that list's address. -->
     {#key data.kind.kind}<ListTable list={data.list} kind={data.kind} registry={data.registry} />{/key}

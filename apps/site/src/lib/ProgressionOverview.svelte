@@ -7,10 +7,12 @@
 
   export let entries: ProgressionEntry[];
   export let registry: PublicKindEntry[];
+  /** Entity-specific plural headings leave other progression modes free to name their own categories. */
+  export let groupTitles: Readonly<Record<string, string>> = {};
   /** The same renderer can show a skill's gathering progression with its skill-level key. */
   export let levelId = CHARACTER_LEVEL;
   export let levelLabel = 'Your Level';
-  export let description = 'Ranges can overlap, so several places may suit your level.';
+  export let description = 'Highlighted places include your level. Ranges can overlap.';
 
   $: selectedLevel = $readerLevels[levelId];
   $: axisEnd = progressionAxis(entries, selectedLevel);
@@ -37,8 +39,8 @@
   </div>
   {#if groups.length}
     {#each groups as group, index (group.label)}
-      <section class="group" aria-label={group.label}>
-        <h2>{group.label} <small>{formatNumber(group.entries.length)}</small></h2>
+      <section class="group" aria-label={groupTitles[group.label] ?? group.label}>
+        <h2>{groupTitles[group.label] ?? group.label} <small>{formatNumber(group.entries.length)}</small></h2>
         <div class="group-box">
           {#if !group.unknown}
             <div class="axis" aria-label={`Level axis from 1 to ${formatNumber(axisEnd)}`}>
@@ -52,7 +54,6 @@
                   {#if index === 0}<span class="reader-flag" class:near-start={selectedLevel !== undefined && selectedLevel <= 3} class:near-end={selectedLevel !== undefined && selectedLevel >= axisEnd - 2} style:left={`${marker}%`}>You {formatNumber(selectedLevel!)}</span>{/if}
                 {/if}
               </div>
-              {#if !ticks.includes(axisEnd)}<span class="axis-end">Max {formatNumber(axisEnd)}</span>{/if}
             </div>
           {/if}
           <ul>
@@ -65,7 +66,7 @@
                   <div class="track" aria-hidden="true">{#each ticks as tick (tick)}<span class="tick-line" style:left={`${levelPoint(tick, axisEnd)}%`}></span>{/each}<span class="fill" style:left={`${position.left}%`} style:width={`${position.width}%`}></span>{#if marker !== null}<span class="marker" style:left={`${marker}%`}></span>{/if}</div>
                   <span class="range-text">{formatNumber(entry.range.min)}–{formatNumber(entry.range.max)}</span>
                 {:else}<span class="unknown">Level Range Unknown</span>{/if}
-                <div class="detail">{entry.detail ?? ''}</div>
+                {#if entry.detail}<div class="detail">{entry.detail}</div>{/if}
                 {#if entry.mapHref}<a class="map-link" href={entry.mapHref} aria-label={`Show ${entry.ref.name} on Map`}><span class="map-long">Show on Map</span><span class="map-short">Map</span></a>{/if}
               </li>
             {/each}
@@ -82,17 +83,17 @@
   .intro p { max-width: 44rem; margin: 0; color: var(--c-text-dim); line-height: 1.5; }
   .level-control { display: flex; flex: none; align-items: center; gap: .55rem; color: var(--c-text-strong); font-size: var(--c-text-small); font-weight: 700; }
   .level-control input { width: 5.1rem; min-height: 2.4rem; padding: .35rem .5rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
-  .axis, li { display: grid; grid-template-columns: minmax(13rem, 1.65fr) minmax(9rem, 2fr) 4.5rem minmax(4rem, .55fr) minmax(5.8rem, .7fr); align-items: center; gap: .65rem; }
+  .axis, li { display: grid; grid-template-columns: minmax(16rem, 20rem) minmax(9rem, 1fr) 4.25rem 5.25rem 6rem; align-items: center; gap: .55rem; }
   .axis { min-height: 3.5rem; padding: .35rem .85rem .2rem; border-bottom: 1px solid var(--c-line-strong); color: var(--c-text-dim); font-size: var(--c-text-small); }
   .axis-track { position: relative; grid-column: 2; align-self: stretch; min-width: 0; font-variant-numeric: tabular-nums; }
   .baseline { position: absolute; top: 2.65rem; left: 0; right: 0; border-top: 1px solid var(--c-line-strong); }
-  .axis-tick { position: absolute; top: 1.3rem; height: 1.55rem; border-left: 1px solid var(--c-line-strong); }
+  .axis-tick { position: absolute; top: 1rem; height: 1.8rem; }
   .axis-tick span { position: absolute; top: 0; left: 0; transform: translateX(-50%); white-space: nowrap; }
-  .axis-reader { position: absolute; top: 1.22rem; bottom: .35rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
+  .axis-tick::after { content: ''; position: absolute; top: 1.45rem; height: .35rem; border-left: 1px solid var(--c-line-strong); }
+  .axis-reader { position: absolute; top: 2.4rem; bottom: .35rem; width: 2px; background: var(--c-accent); transform: translateX(-50%); }
   .reader-flag { position: absolute; top: -.25rem; padding: .05rem .25rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-accent-surface); color: var(--c-accent-strong); font-size: var(--c-text-small); white-space: nowrap; transform: translateX(-50%); }
   .reader-flag.near-start { transform: none; }
   .reader-flag.near-end { transform: translateX(-100%); }
-  .axis-end { grid-column: 3; align-self: end; padding-bottom: .35rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .group { margin-bottom: 1.4rem; }
   .group h2 { display: flex; align-items: baseline; gap: .6rem; margin: 0 0 .35rem; padding: .4rem .85rem; color: var(--c-text-strong); font: 600 1.18rem/1.3 var(--c-serif); }
   .group h2 small { color: var(--c-text-dim); font: 500 var(--c-text-small)/1.3 var(--c-sans); }
@@ -111,24 +112,24 @@
   .range-text { white-space: nowrap; color: var(--c-text-strong); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
   .unknown, .detail { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .unknown { grid-column: 2 / 4; }
-  .map-link { justify-self: end; color: var(--c-accent); font-size: var(--c-text-small); white-space: nowrap; text-underline-offset: .17em; }
+  .detail { grid-column: 4; }
+  .map-link { grid-column: 5; justify-self: end; color: var(--c-accent); font-size: var(--c-text-small); white-space: nowrap; text-underline-offset: .17em; }
   .map-short { display: none; }
   @media (max-width: 800px) {
-    .axis, li { grid-template-columns: minmax(0, 1fr) 4.5rem; gap: .35rem .7rem; }
+    .axis, li { grid-template-columns: minmax(0, 1fr) 3.8rem 2.4rem; gap: .35rem .5rem; }
     .axis-track { grid-column: 1; }
-    .axis-end { grid-column: 2; }
     .place-name { grid-column: 1 / -1; grid-row: 1; }
     .track { grid-column: 1; grid-row: 2; }
     .range-text { grid-column: 2; grid-row: 2; justify-self: start; }
-    .unknown { grid-column: 1 / -1; grid-row: 2; }
-    .detail { grid-column: 1; grid-row: 3; }
-    .map-link { grid-column: 2; grid-row: 3; }
+    .unknown { grid-column: 1 / 3; grid-row: 2; }
+    .detail { grid-column: 1 / -1; grid-row: 3; }
+    .map-link { grid-column: 3; grid-row: 2; }
+    .map-long { display: none; }
+    .map-short { display: inline; }
   }
   @media (max-width: 520px) {
     .intro { align-items: flex-start; flex-direction: column; gap: .8rem; }
     li { padding-top: .8rem; padding-bottom: .8rem; }
     .place-name :global(.entity-link img) { width: 3.15rem; height: 2rem; }
-    .map-long { display: none; }
-    .map-short { display: inline; }
   }
 </style>
