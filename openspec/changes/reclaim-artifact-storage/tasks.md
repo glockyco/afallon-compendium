@@ -36,7 +36,7 @@
 
 ## 4. Publication clones
 
-- [ ] 4.1 Materialize each publication file with `copyFile`, using exclusive creation and copy-on-write cloning, then verify the file and mark it read-only. Verify that the publication tests pass. Verify that materializing a publication into a root on the store's volume reduces free space by far less than the publication's logical size. Verify that a materialized file still verifies after its source object is removed.
+- [x] 4.1 Materialize each publication file with `copyFile`, using exclusive creation and copy-on-write cloning, then verify the file and mark it read-only. Verify that the publication tests pass. Verify that materializing a publication into a root on the store's volume reduces free space by far less than the publication's logical size. Verify that a materialized file still verifies after its source object is removed.
 
 ## 5. Documentation, verification, and cutover
 

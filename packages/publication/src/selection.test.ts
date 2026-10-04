@@ -54,6 +54,22 @@ test("rejects broken v3 edges and damaged reuse without replacing the selected p
   } finally { await rm(root, { recursive: true, force: true }); }
 }, 60_000);
 
+test("a materialized publication keeps its bytes after its store objects are removed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-publication-clone-"));
+  try {
+    const { store, plan, options } = await publicationFixture(root);
+    const generated = await publishFromPlan(store, plan, { ...options, select: false });
+    const publicationRoot = join(root, "publication");
+    const selected = await selectPublication(store, publicationRoot, generated.root, generated.resources, generated.assets, gate);
+    const files = [...generated.resources.map((resource) => ({ path: resource.reference.path, identity: resource.identity })), ...generated.assets];
+    for (const file of files) await rm(store.objectPath(file.identity.sha256), { force: true });
+    for (const file of files) {
+      const bytes = await readFile(join(publicationRoot, selected.directory, file.path));
+      expect({ sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex"), bytes: bytes.byteLength }).toEqual({ sha256: file.identity.sha256, bytes: file.identity.bytes });
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+}, 60_000);
+
 test("names the referencing document and key when a referenced document is not published", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-publication-reference-audit-"));
   try {

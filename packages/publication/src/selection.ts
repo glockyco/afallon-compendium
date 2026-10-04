@@ -104,28 +104,13 @@ async function verifyFile(filePath: string, identity: ContentIdentity): Promise<
 
 async function materialize(store: ArtifactStore, destination: string, identity: ContentIdentity): Promise<void> {
   await mkdir(path.dirname(destination), { recursive: true });
-  const source = await open(store.objectPath(identity.sha256), "r");
-  try {
-    const target = await open(destination, "wx", 0o600);
-    try {
-      const buffer = Buffer.allocUnsafe(1024 * 1024), hash = createHash("sha256");
-      let bytes = 0;
-      while (true) {
-        const result = await source.read(buffer, 0, buffer.length, null);
-        if (result.bytesRead === 0) break;
-        hash.update(buffer.subarray(0, result.bytesRead));
-        bytes += result.bytesRead;
-        let offset = 0;
-        while (offset < result.bytesRead) {
-          const written = await target.write(buffer, offset, result.bytesRead - offset);
-          if (written.bytesWritten === 0) throw new Error(`Publication copy made no progress: ${destination}.`);
-          offset += written.bytesWritten;
-        }
-      }
-      if (bytes !== identity.bytes || hash.digest("hex") !== identity.sha256) throw new Error(`Publication copy integrity mismatch: ${destination}.`);
-      await target.sync();
-    } finally { await target.close(); }
-  } finally { await source.close(); }
+  // Bun clones the store object on a copy-on-write volume such as APFS, for files of any size, so the publication shares
+  // its blocks and keeps them after the object is collected. Elsewhere it copies the bytes. The destination is a fresh
+  // candidate directory, and its file is verified either way.
+  await Bun.write(destination, Bun.file(store.objectPath(identity.sha256)));
+  await verifyFile(destination, identity);
+  const target = await open(destination, "r");
+  try { await target.sync(); } finally { await target.close(); }
   await chmod(destination, 0o444);
 }
 
