@@ -10,9 +10,9 @@ The published site covers Afallon 0.16.3 (Steam build 25653798).
 
 ## What it offers
 
-- **Map** (`/map/`). The game's own drawn maps of the overworld and its interiors, with every creature, merchant, quest giver, resource, container, and doorway that the scans place on them, plus category filters and search.
-- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. World Quest pages show their zones and timing. Each kind has a browse list at `/<kind>/`, and the quest list can filter World Quests. Classes, Skills, Races, Factions, and Properties open as illustrated galleries with a sortable table option. Skills are grouped by Crafting, Gathering, and Weapon, while property tiles compare purchase prices and income. Places opens by level with overlapping ranges, a remembered character level, and map links. Its full sortable table is at `/places/?view=table`. Recipes have a list whose crafts show on the pages of their products. The Items, NPCs, and Abilities lists keep entries without a known source, world encounter, or use behind a counted reveal with a plain explanation.
-- **Mechanics** (`/mechanics/`). An art-free topic index leads to Character Progression, Heroic Tier, Crafting and Gathering, Corruption, Loot, Adventurers, and World Quests, with a table option. Character Progression uses a remembered level to show experience to the next level, a conditional creature-kill comparison, and progress through the published level curve. The full chart and breakpoints remain available. Heroic Tier compares eligible creatures at your equipped gear score and Normal versus Heroic equipment without promising conditional rewards. World Quests covers zone rotation, automatic participation, rewards, and Heroic Cache currency. Entity pages link the section that explains their numbers.
+- **Map** (`/map/`). The game's own maps of the overworld and its interiors, with every creature, merchant, quest giver, resource, container, and doorway that the scans place on them.
+- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. Each kind has a browse list at `/<kind>/`.
+- **Mechanics** (`/mechanics/`). Guides to character progression, the Heroic tier, crafting and gathering, corruption, loot, adventurers, and World Quests. Entity pages link the section that explains their numbers.
 - **Coverage** (`/coverage/`). What the data covers and which pages have known gaps.
 
 Every fact comes from the game's data or from game code that was read and verified for the supported build. A rule that is not verified is labelled unknown instead of guessed.
@@ -42,18 +42,6 @@ flowchart LR
 - **Producers.** Spawners describe what can appear, not what is alive. A spawner keeps its options and weights whether or not anything is spawned when the scan reads it.
 - **Coverage.** Reachability, extraction, and imagery are separate. A scene without results is not proof that the game has none, and the accepted build is published in preview mode until its coverage is complete.
 - **Game rules.** Rules such as kill experience, loot rolls, or gathering odds rest on decompiled game code or a recorded runtime check. They live in a registered rules record, which the guides and entity pages render, so a number on the site always names its rule.
-
-### Reader-text conventions
-
-Use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links (“Show on Map,” “Clear All”). Lowercase minor words inside a title unless first or last: a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, vs. Headings, disclosure summaries, and links phrased as sentences use sentence case (“How the kill award adds up,” “Turning it on and off,” “How creature drops work,” “See full details”); a section navigation pill repeats the heading's casing exactly. Field labels (“Fishing level,” “Living followers”), counts and result lines (“6 classes”), card facts (“22 recipes,” “Max level 300”), placeholders (“Filter classes by name”), hints, filter values, chips, units, lead-ins (“Can drop corrupted from Duskfall Depths · Aquarius”), descriptions, empty states, and errors use sentence case. Preserve game-provided names and abbreviations such as NPCs, XP, and HP. The hidden-entries reveal is a sentence-case exception among commands (“Show 91 items without a known source”). The built-page audit is `apps/site/scripts/assert-reader-casing.ts`, run by `assert:deployment`.
-
-The kind and identity facts directly beneath a page title are also title-like labels, unlike ordinary field labels: “Defense Stat” beneath Stamina, “Rare · Axe,” “Boss · Enemy,” “Crafting Skill,” and “Gathering Node for Mining.” A label that continues into an entity name uses the entire line for minor-word casing: “Boss of Duskfall Depths,” not “Boss Of Duskfall Depths.” Keep game-provided names in these lines as the game spells them.
-
-### Extending pages and guides
-
-Register a paged kind's document schema and static schema ID in `PAGE_DOCUMENTS` in `packages/contracts/src/public/documents.ts`; its kind values, schema maps, static document union, and references derive from that declaration. Give it list and route metadata in `packages/publication/src/kind-registry.ts`, and implement its document and list projections. The exhaustive dispatch in `DetailPage.svelte` and `TooltipPresenter.svelte` requires both a page and a hover card.
-
-Register a mechanics topic's ID, name, description, and Browse label in `MECHANICS_TOPIC_DEFINITIONS` in `packages/contracts/src/catalog/mechanics.ts`. Add the topic's document schema in `documents.ts`, its guide sections in `packages/publication/src/guide-sections.ts`, and its page component in `DetailPage.svelte`. The topic schema, publication labels, and site navigation derive from the definition.
 
 ## Repository layout
 
@@ -99,7 +87,6 @@ Staging verifies the candidate against the accepted publication that the second 
 Production builds need `SITE_STAGE=production`: `bun run build:production`. The development server uses `apps/site/.svelte-kit`, while the site's type check writes to `.svelte-kit-check`, builds and `bun run preview` use `.svelte-kit-build`, and tests that start Vite use `.svelte-kit-test`, so checking, building, or testing never disturbs a running development server. `bun install` creates `apps/site/.svelte-kit` when it is missing, because the site's `tsconfig.json` and the tests read the files SvelteKit generates there.
 
 Marker glyphs use the checked-in `apps/site/static/map-marker-icons.png` sprite and its mapping. After changing a marker icon, color, or category, run `bun --cwd apps/site scripts/generate-map-icons.ts` with Playwright Chromium installed (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pointing to a Chromium binary), then commit both generated files.
-
 
 ## Data pipeline
 
@@ -181,6 +168,20 @@ bun run compendium deploy <publication-root>    # build, deploy to Cloudflare St
 `deploy` stages the selected publication, builds and validates the site, deploys it with Wrangler, and smoke-tests production. Production has no database access, runtime probes, or development panels.
 
 To rehearse a rollback locally, `bun run verify:deployment <current-publication-root> <previous-publication-root>` builds and checks both publications and returns the stage to the current one. `bun run rollback:production` rolls the deployed site back with Wrangler.
+
+## Conventions
+
+### Reader text
+
+Use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links (“Show on Map,” “Clear All”). Lowercase minor words inside a title unless first or last: a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, vs. Headings, disclosure summaries, and links phrased as sentences use sentence case (“How the kill award adds up,” “Turning it on and off,” “How creature drops work,” “See full details”). A section navigation pill repeats the heading's casing exactly. Field labels (“Fishing level,” “Living followers”), counts and result lines (“6 classes”), card facts (“22 recipes,” “Max level 300”), placeholders (“Filter classes by name”), hints, filter values, chips, units, lead-ins (“Can drop corrupted from Duskfall Depths · Aquarius”), descriptions, empty states, and errors use sentence case. Preserve game-provided names and abbreviations such as NPCs, XP, and HP. The hidden-entries reveal is a sentence-case exception among commands (“Show 91 items without a known source”). The built-page audit is `apps/site/scripts/assert-reader-casing.ts`, run by `assert:deployment`.
+
+The kind and identity facts directly beneath a page title are also title-like labels, unlike ordinary field labels: “Defense Stat” beneath Stamina, “Rare · Axe,” “Boss · Enemy,” “Crafting Skill,” and “Gathering Node for Mining.” A label that continues into an entity name uses the entire line for minor-word casing: “Boss of Duskfall Depths,” not “Boss Of Duskfall Depths.” Keep game-provided names in these lines as the game spells them.
+
+### Adding page kinds and mechanics topics
+
+Register a paged kind's document schema and static schema ID in `PAGE_DOCUMENTS` in `packages/contracts/src/public/documents.ts`. Its kind values, schema maps, static document union, and references derive from that declaration. Give it list and route metadata in `packages/publication/src/kind-registry.ts`, and implement its document and list projections. The exhaustive dispatch in `DetailPage.svelte` and `TooltipPresenter.svelte` requires both a page and a hover card.
+
+Register a mechanics topic's ID, name, description, and Browse label in `MECHANICS_TOPIC_DEFINITIONS` in `packages/contracts/src/catalog/mechanics.ts`. Add the topic's document schema in `documents.ts`, its guide sections in `packages/publication/src/guide-sections.ts`, and its page component in `DetailPage.svelte`. The topic schema, publication labels, and site navigation derive from the definition.
 
 ## Further reading
 
