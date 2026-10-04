@@ -36,21 +36,22 @@ See `proposal.md` for motivation. The specs define the required behavior. This d
 - **Legacy data**: Seven runs of build `25153357` use `compendium.artifact-run.v1`. About 1.0 GB is referenced only by them. That build's three latest-success references name v1 manifests that were never stored as objects. `readLatestSuccess` therefore fails with `ENOENT`, and it would fail schema validation even if the objects existed.
 - **Publication roots**: 160 experiment roots under `local/` held 84 GB before they were deleted on 2026-10-04. On the Data volume, copying a 512 MiB file through the current loop used 512 MiB of free space, and Bun's `copyFile` used none.
 
-The table simulates the policy below on this store, with the window ending at 2026-10-04 07:45 CEST, after a day of heavy candidate work. Evidence includes failed runs.
+The table simulates retention policies on this store as of 2026-10-04. The accepted build is `25653798`, and no newer build exists. "Release roots" means the accepted release and the replaced release, including every object their update reports cite, together with the latest-success references of the accepted build. The current build has 66 successful catalog runs and 566 successful runs of other operations.
 
-| Retention window | Retained | Collected |
+| Policy | Retained | Collected |
 | --- | --- | --- |
-| none | 45.3 GB | 234.6 GB |
-| 12 hours | 51.8 GB | 228.2 GB |
-| 24 hours | 77.4 GB | 202.6 GB |
-| 48 hours | 150.7 GB | 129.3 GB |
-| 72 hours | 217.8 GB | 62.2 GB |
+| Release roots only | 15.1 GB | 264.9 GB |
+| Release roots, then the two newest successful runs of every operation in current builds | 18.4 GB | 261.6 GB |
+| Release roots, then the two newest successful catalog and publish runs and every other successful run of current builds (chosen) | 21.4 GB | 258.6 GB |
+| Earlier draft: all evidence regardless of age or build, the newest reproducible run per build, and a 24-hour window | 77.4 GB | 202.6 GB |
+
+Both last-two policies also keep the newest failed or interrupted run of each operation.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Bound store growth by what is selected, accepted, irreplaceable, newest, or recent.
+- Bound store growth by what the accepted, replaced, selected, and newest results depend on, with no age-based rule and no permanent tier.
 - Make collection safe against concurrent commands and crashed commands without relying on time-based heuristics.
 - Keep deletion decisions behind an integrity gate and a reviewable dry run.
 - Stop publication roots from duplicating stored bytes.
@@ -61,7 +62,7 @@ The table simulates the policy below on this store, with the window ending at 20
 - Pruning publication roots or the history in their `publications/` directories. Those roots are operator-owned directories outside the store, and clones make their history cheap.
 - Removing runtime ownership receipts. They belong to the runtime ownership protocol and total 5.9 MB.
 - A managed location for research output written through the runtime. Clean reports those entries and leaves them in place.
-- Compressing catalog databases, changing step reuse, or retiring builds automatically.
+- Compressing catalog databases or changing step reuse.
 
 ## Decisions
 
@@ -72,7 +73,7 @@ The store gets a lock file, `.store-lock.sqlite`, at its root. It stays in rollb
 - A lease opens its own connection, starts a transaction, and reads `sqlite_schema`. The resulting shared lock lasts until the lease is released.
 - An object write without a protection holds the shared lock in the same way for the duration of the write.
 - Clean runs `BEGIN EXCLUSIVE` with a zero busy timeout, so it fails at once when any shared holder exists.
-- Writers wait up to 30 minutes for a running clean and then fail with a maintenance error, before they admit a run or write an object. On the current store, clean is expected to finish within minutes: it hashes about 77 GB of retained objects and unlinks about 220,000 files. The wait is injectable, so tests can exercise both outcomes in milliseconds.
+- Writers wait up to 30 minutes for a running clean and then fail with a maintenance error, before they admit a run or write an object. On the current store, clean is expected to finish within minutes: it hashes about 21 GB of retained objects and unlinks about 250,000 files. The wait is injectable, so tests can exercise both outcomes in milliseconds.
 - The operating system drops the lock when the holding process exits, so a crash cannot leave the store locked.
 - Only SQLite opens the lock file. POSIX advisory locks drop when any descriptor of the file closes, and SQLite's unix VFS accounts for that.
 
@@ -93,37 +94,52 @@ Alternatives considered:
 - **Lock directories or PID files**: These go stale after a crash.
 - **`flock` through FFI**: This needs platform glue, and the SQLite precedent already exists.
 
-### 2. Retention is roots, rules, and closure, with mechanism separate from policy
+### 2. Retention is roots, build-scoped rules, and closure, with mechanism separate from policy
 
 `packages/artifacts` owns the mechanism: the lock, the inventory, closure tracing, the integrity gate, the plan, and the sweep. Its policy input consists of:
 - labeled object and manifest roots, each marked strict or best-effort;
 - the run IDs to retain;
-- the builds to retire;
-- the retention window and the evaluation time;
-- a predicate that tells whether an operation is reproducible.
+- the set of current builds;
+- the operations whose runs are whole-build products.
 
-Latest-success references and leases are store concepts, so the package reads them itself.
+Latest-success references and leases are store concepts, so the package reads them itself. It reads only the references of current builds.
 
 `apps/compendium-cli/src/clean.ts` owns the policy. It collects:
 - the accepted-release roots from the acceptance module;
 - the pending selection references from the publication package;
-- the reproducible-operation set;
+- the current builds, derived from the accepted descriptor and the build numbers in the inventory;
+- the product operations, catalog and publish;
 - the command-line flags.
 
 Following the project context, this is concrete and game-specific rather than a general retention framework.
 
-The rules split runs by cost and by whether they can be replaced:
-- **Evidence**: Catalog runs make up 88% of the bytes and rebuild in about a minute. Every terminal evidence run, failed ones included, adds 14.5 GB to the roots. Once the game updates, none of it can be observed again. Evidence runs are therefore kept whatever their age, outcome, or completion. Interrupted evidence runs are included, because a crashed scan or capture has still registered observations.
-- **Unknown operations**: An operation that is not in the reproducible set counts as evidence. A new operation is therefore never collected before someone classifies it.
-- **Capture must stay evidence**: Capture tile reuse reads unselected and failed capture runs. If capture were ever moved into the reproducible set, tile reuse would shrink silently.
-- **Newest reproducible run per build**: This protects the candidate under review when work pauses for longer than the window. On the current store it adds 2.3 GB.
-- **24-hour window**: This protects candidate work in progress. A candidate usually goes from catalog through publish and staging to acceptance within a day, and 0.16.3 was accepted twice on 3 October. A 72-hour window would retain 218 GB of this store, as the table shows.
+Evidence matters only through what consumes it:
+- **Scans** are catalog inputs (`packages/catalog/src/application.ts:25-26`), and the update report cites them (`packages/contracts/src/update-report.ts:76`).
+- **Captures, game maps, and tiles** become catalog imagery. Capture tile reuse also reads every capture run of the build (`capture-cache.ts:127-173`).
+- **Registered inputs** are spatial profiles, coverage reviews, mechanics rules, presentations, and release notes. A rules record cites the runtime checks behind its rules, and catalog admission verifies every cited object (`packages/catalog/src/evidence.ts:341-349`).
+- **Failed runs** serve diagnosis only. A manifest dependency must be a successful run (`references.ts:80-82`).
+
+Every catalog run records all its admitted sources as references on both of its outputs (`application.ts:46-55`). Those sources include scan manifests, rules evidence objects, the coverage policy, imagery inputs, and the capture or game-map manifests behind the imagery. So the closure of a retained catalog already contains exactly the evidence that the catalog rests on.
+
+A game update makes old observations irreplaceable, but only what the shipped result rests on must survive. The replaced release keeps that for one more acceptance cycle. Evidence therefore needs no permanent tier. Instead, it lives as long as its build is current.
+
+Current builds:
+- A build is current when it is the accepted build, when its build number is larger than the accepted build's, or when it has a publication selection awaiting recovery.
+- Steam build numbers increase over time: `25153357`, `25419293`, `25434619`, `25653798`. An identifier that is not a number counts as current, and so does every build while no release is accepted.
+- When a newer build is accepted, the old build keeps only what the replaced release reaches. Builds older than that leave retention entirely, latest-success references included. No operator has to retire anything.
+
+Rules within a current build:
+- **Whole-build products**: Catalog and publish runs each produce one complete result that supersedes the previous one. They make up 88% of the bytes. The two newest successful runs protect two parallel candidates.
+- **Batch operations**: Scan, capture, capture-sweep, tiles, game-map, game-map-catalog, register, and update produce batches of distinct pieces, not successive versions of one result. Examples are scan shards, captured scenes, one game map per map space, and one registration per input. A "last two" rule would delete earlier members of a batch before the catalog that combines them runs. A deleted scan can only be redone while the same game build is installed. The rule would also empty the capture tile-reuse cache. Keeping every successful batch run of a current build costs 3 GB more than "last two" on today's store.
+- **Unknown operations**: These count as batch operations, so a new operation is never collected before someone considers it.
+- **Failures**: Each operation keeps its newest failed or interrupted run for diagnosis.
 
 Alternatives considered:
-- **Keep the last K runs per operation**: Parallel experiments push out the candidate that is under review.
-- **A time window alone**: This lets catalog churn decide the store size.
-- **Explicit candidate references**: Every pipeline command would gain new selection state.
-- **Persistent pins**: These add state and commands, while `--retain-run` covers the ad hoc need.
+- **A retention window**: Catalog churn then decides the store size. The 24-hour draft kept 77 GB, and a 72-hour window would keep 218 GB.
+- **Last two runs of every operation**: This keeps 18.4 GB, but it drops batch members before their catalog runs, and it drops capture reuse sources.
+- **Permanent evidence**: This is unbounded, and nothing reads evidence that no retained result reaches.
+- **Explicit build retirement**: Retirement is manual and easy to forget. Build currency derives the same outcome from the accepted descriptor.
+- **Explicit candidate references or persistent pins**: These add selection state to every command, while `--retain-run` covers the ad hoc need.
 - **A retention class in each run manifest**: This changes the schema of every run, and the existing manifests would need the same table anyway.
 
 ### 3. Classify runs by header and verify only what is retained
@@ -133,19 +149,19 @@ The inventory reads each run directory's header: run ID, build, operation, statu
 - A directory with only revisions is interrupted. No run can be live under the exclusive lock.
 - A directory with neither is unmanaged.
 
-Both manifest versions share the header, so retiring build `25153357` collects its v1 runs without any v1 support code.
+Both manifest versions share the header. Build `25153357` is no longer current, so its v1 runs are collected without any v1 support code.
 
 Verification differs by run:
-- **Roots and successful runs**: Their closures must pass the v2 run contract and full verification. A v1 manifest in such a closure fails as unreadable, and clean names the run so that the operator can retire its build.
+- **Roots and successful runs**: Their closures must pass the v2 run contract and full verification. A v1 manifest in such a closure fails as unreadable, and clean names the run.
 - **Failed and interrupted runs**: These are traced on a best-effort basis. A failed manifest can name inputs that never verified: when preparation fails, `beginArtifactRun` writes its normalized inputs into the failed manifest anyway (`runs.ts:200-209`). For example, catalog runs `aa1b3488` and `ed9f66c2` and game-map run `ea0c682e` all failed with `ENOENT`. For such runs, clean keeps every referenced identity that exists, follows the manifest dependencies that pass the contract, and reports the rest as warnings.
 - **Interrupted runs**: These are traced from their latest revision, because they have no manifest object. The latest revision lists their inputs, their registered outputs, and the outputs' references.
 
-Clean hashes the objects of strict closures once per invocation. On the current store that is about 77 GB. It only stats unreachable objects, because their integrity cannot change the decision to delete them.
+Clean hashes the objects of strict closures once per invocation. On the current store that is about 21 GB. It only stats unreachable objects, because their integrity cannot change the decision to delete them.
 
 ### 4. Collect in an order that survives interruption
 
 Clean computes and applies the plan under a single exclusive lock. Apply then runs these steps in order:
-1. remove the latest-success references of retired builds;
+1. remove the latest-success references of builds that are no longer current;
 2. remove abandoned lease files;
 3. remove collectible run directories;
 4. remove unreachable objects;
@@ -154,7 +170,7 @@ Clean computes and applies the plan under a single exclusive lock. Apply then ru
 
 Each step removes only entries that nothing retained names. An interruption therefore leaves orphans, which the next clean collects.
 
-References go first, so no reference ever names a collected run. Retirement is not persisted, so if an interruption cuts a retirement short, the operator repeats the command.
+References go first, so no reference ever names a collected run. Build currency is derived on every run from the accepted descriptor, so an interrupted clean leaves no state behind, and the next clean finishes the work.
 
 The report counts logical bytes. Clones can share blocks, so the space actually freed can be smaller.
 
@@ -178,13 +194,13 @@ A clone keeps its blocks after its source object is deleted, so collection never
 
 ### 8. One command produces the dry-run report
 
-`compendium clean --store DIR [--apply] [--retain-hours N] [--retain-run RUN]... [--retire-build ID]...` replaces both report-only APIs and keeps the existing `--apply` convention.
+`compendium clean --store DIR [--apply] [--retain-run RUN]...` replaces both report-only APIs and keeps the existing `--apply` convention. It has no age or retirement options, because build currency and the two-newest rule are derived from the store itself.
 
 It prints one JSON report containing:
 - the policy;
 - roots with their labels;
 - warnings, such as an incomplete replaced release;
-- retained-run counts by rule;
+- the current builds and retained-run counts by rule;
 - collected runs with build, operation, status, and time;
 - counts and logical bytes for retained and collected objects;
 - abandoned leases;
@@ -192,17 +208,18 @@ It prints one JSON report containing:
 - revision journals;
 - unmanaged entries with sizes.
 
-It exits with a non-zero status when the store is busy, when integrity verification fails, or when a retirement is invalid.
+It exits with a non-zero status when the store is busy or when integrity verification fails.
 
 `reportGarbageCollection`, `GarbageCollectionPolicy`, `compactTerminalRunRevisions`, and the `compendium.artifact-gc-report.v1` schema are removed. The report is console output rather than a persisted artifact, so it uses a TypeScript type instead of a registered schema.
 
 ## Risks / Trade-offs
 
-- [A candidate under review is older than the window and is not the newest of its operation] → The dry run lists it, and `--retain-run` keeps it. Publication bytes are deterministic, so rebuilding takes catalog and publish again. Sealed catalog bytes may differ, which would require the update report to be authored again.
+- [A third parallel catalog or publish candidate is collected while still in use] → Only the two newest successful product runs per current build remain. The dry run lists the others, and `--retain-run` keeps one. Publication bytes are deterministic, so rebuilding takes catalog and publish again. Sealed catalog bytes may differ, which would require the update report to be authored again.
 - [Clean cannot start while agents run store commands] → Clean fails at once and names the leases. The operator reruns it when the store is idle.
 - [Store commands stall while clean runs] → The wait is bounded. Clean's duration is dominated by hashing the retained objects.
-- [A damaged record blocks clean] → The report names the reference path. The operator retires the build or repairs the record. Clean never deletes around a damaged record.
-- [Evidence accumulates] → Terminal evidence of the three current builds, gathered over three weeks, adds 14.5 GB. Retiring old builds bounds it. Each build's latest-success closures cost about 8 GB until the build is retired.
+- [A damaged record blocks clean] → The report names the reference path, and the operator repairs the record. Clean never deletes around a damaged record. A record in a build that is no longer current blocks nothing, because nothing in that build is retained except what the releases reach.
+- [Build numbers stop increasing] → Currency compares Steam build numbers. If an older number were ever accepted again, the builds above it would count as current and be retained until a later acceptance, which wastes space but loses nothing.
+- [A rules record cites evidence registered under a build that is no longer current] → That evidence survives only while a retained catalog references it. Rules records are verified against one game binary, so their evidence is normally registered under the same build.
 - [Clones make the freed space smaller than the reported bytes] → The report states logical bytes.
 - [SQLite lock semantics] → Tests exercise shared and exclusive holders across processes, waiting, and release on process exit. The lock file stays in rollback-journal mode.
 - [Deletion is irreversible] → Clean defaults to a dry run, checks integrity first, and protects every root. The cutover requires the operator to review the dry run.
@@ -214,7 +231,7 @@ It exits with a non-zero status when the store is busy, when integrity verificat
 3. Land clone materialization.
 4. Cut over:
    - Stop all store commands.
-   - Run a dry run with `--retire-build 25153357`.
+   - Run a dry run. It should show builds `25153357`, `25419293`, and `25434619` leaving retention.
    - Have the operator review it, then apply it.
    - Verify the accepted release, the latest-success references, and staging from the accepted publication root.
 5. Update `README.md`. When the deltas are synced, update the artifact-lifecycle purpose so that it describes collection.

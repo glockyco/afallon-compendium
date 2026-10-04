@@ -9,8 +9,8 @@ Clean SHALL report every run directory, object, abandoned lease, stale scratch e
 - **THEN** it reports the runs, objects, leases, scratch entries, and revision journals that it would remove, and the roots and rules that retain the remaining runs
 - **AND** the store is unchanged
 
-#### Scenario: An expired candidate is collected
-- **WHEN** a successful catalog run is not selected, not accepted, not the newest catalog run of its build, and older than the retention window
+#### Scenario: A superseded candidate is collected
+- **WHEN** a successful catalog run is not selected, not accepted, and not one of the two newest successful catalog runs of its build
 - **THEN** applying clean removes its run directory and every object that no retained run or root references
 - **AND** objects that a retained run also references remain
 
@@ -27,7 +27,7 @@ Clean SHALL report every run directory, object, abandoned lease, stale scratch e
 ### Requirement: Retention roots protect selected and accepted results
 
 Clean SHALL treat these as retention roots:
-- every latest-success reference;
+- the latest-success references of every current build;
 - the accepted release, including its catalog, publication, update report, every object that the report cites, and its rollback selection and descriptor;
 - the previous reference of every pending publication selection;
 - every run that the operator names to retain.
@@ -49,41 +49,43 @@ Clean SHALL also keep the release that the accepted release replaced while that 
 
 #### Scenario: An operator keeps a candidate
 - **WHEN** an operator names a run to retain
-- **THEN** clean retains that run and its closure regardless of age or build retirement
+- **THEN** clean retains that run and its closure, whatever its build and whatever the retention rules decide
 
-### Requirement: Retention rules keep evidence, the newest results, and recent work
+### Requirement: Retention rules keep each current build's newest products and its observations
 
-Clean SHALL retain every run of an evidence operation, whether it succeeded, failed, or was interrupted, and whatever its age, because a game update makes its observations irreplaceable. The reproducible operations SHALL be catalog, publish, tiles, game-map, and game-map-catalog. Every other operation SHALL count as evidence, including any operation added later. Clean SHALL retain the newest successful run of each reproducible operation in each build. It SHALL retain every run whose last recorded time falls inside the retention window. The window SHALL be 24 hours unless the operator sets another number of hours. Every other run SHALL be collectible.
+A build SHALL be current when any of these holds:
+- it is the accepted build;
+- its build number is larger than the accepted build's;
+- it has a publication selection that awaits recovery.
 
-#### Scenario: An old failed scan remains
-- **WHEN** a scan run failed a month ago and no root names it
-- **THEN** clean retains the run and its registered outputs
+While no release is accepted, every build SHALL be current. A build identifier that is not a number SHALL count as current.
 
-#### Scenario: A crashed capture remains
-- **WHEN** a capture process crashed and left a run that has only revisions
-- **THEN** clean retains the run and the outputs that its latest revision registered
+Within each current build, clean SHALL retain the two newest successful runs of catalog and of publish. Each of those runs produces one complete result that supersedes the previous one. Clean SHALL retain every successful run of every other operation, including any operation added later. Those operations produce batches of distinct observations and inputs that later runs combine. Clean SHALL also retain the newest failed or interrupted run of each operation.
 
-#### Scenario: The newest candidate outlives the window
-- **WHEN** the newest successful catalog run of a build is unselected and older than the retention window
-- **THEN** clean retains it
-- **AND** it collects an older unselected catalog run of that build that is also outside the window
+A run of a build that is not current SHALL be collectible unless a retention root reaches it. Applying clean SHALL remove the latest-success references of every build that is not current.
 
-#### Scenario: Recent work remains
-- **WHEN** a failed or interrupted publish run recorded its last revision inside the retention window
-- **THEN** clean retains the run and the objects that it registered
+#### Scenario: Only the two newest catalog candidates remain
+- **WHEN** a current build has three unselected successful catalog runs that no root reaches
+- **THEN** clean retains the two newest
+- **AND** it collects the oldest
 
-### Requirement: Operators retire builds explicitly
+#### Scenario: A scan batch awaits its catalog
+- **WHEN** five successful scan runs of the current build are newer than every catalog run of that build
+- **THEN** clean retains all five
 
-Clean SHALL retire a build only when the operator names it. Retiring a build SHALL remove its latest-success references. It SHALL also exempt the build's runs from the evidence, newest-result, and retention-window rules. Objects that a remaining root cites SHALL stay, and so SHALL runs that the operator names to retain. Clean SHALL refuse to retire the accepted build, the build of the release that the accepted release replaced, or a build that has a pending publication selection.
+#### Scenario: Only the newest failure remains
+- **WHEN** an operation of a current build has failed three times and no root reaches those runs
+- **THEN** clean retains the newest failed run
+- **AND** it collects the two earlier ones
 
-#### Scenario: An obsolete build is retired
-- **WHEN** an operator retires a build that is neither the accepted build nor the replaced release's build
-- **THEN** applying clean removes the build's latest-success references
-- **AND** it collects the build's runs and every object that no remaining root or retained run references
+#### Scenario: An earlier build stops being current
+- **WHEN** a newer build has been accepted
+- **THEN** clean retains only those runs and objects of earlier builds that the accepted release or the replaced release reaches
+- **AND** applying clean removes the latest-success references of the earlier builds
 
-#### Scenario: The accepted build cannot be retired
-- **WHEN** an operator asks clean to retire the accepted build
-- **THEN** clean fails before it changes the store
+#### Scenario: A newer build is still a candidate
+- **WHEN** runs exist for a build whose number is larger than the accepted build's
+- **THEN** clean applies the current-build rules to that build
 
 ### Requirement: Store maintenance excludes active operations
 
@@ -151,7 +153,7 @@ Clean SHALL verify the closure of every retention root and of every successful r
 A failed or interrupted run can record dependencies that never verified. For each such run that it retains, clean SHALL keep the dependencies that exist and SHALL report the missing or invalid ones without stopping. Clean SHALL identify the root or rule that retains each kept run.
 
 #### Scenario: A retained catalog outlives its source run retention window
-- **WHEN** a retained catalog manifest references a scan manifest whose run no retention rule keeps on its own, as in a retired build
+- **WHEN** a retained catalog manifest references a scan manifest whose run no retention rule keeps on its own, as when the replaced release's catalog belongs to a build that is no longer current
 - **THEN** clean still retains and verifies the scan evidence through the catalog lineage
 - **AND** it identifies the retaining run and the reference path
 
@@ -176,4 +178,4 @@ A failed or interrupted run can record dependencies that never verified. For eac
 
 **Reason**: Clean now collects whatever retention does not protect. A requirement for reporting without deletion, and for revision-only cleaning, no longer describes its behavior.
 
-**Migration**: Run `compendium clean --store <dir>` without `--apply` to get the retention report. These requirements replace this one: "Clean collects what retention does not protect", "Retention roots protect selected and accepted results", "Retention rules keep evidence, the newest results, and recent work", and "Store maintenance excludes active operations". Pending-object reporting for active operations is replaced by the store lock, which prevents clean from running while any lease is held.
+**Migration**: Run `compendium clean --store <dir>` without `--apply` to get the retention report. These requirements replace this one: "Clean collects what retention does not protect", "Retention roots protect selected and accepted results", "Retention rules keep each current build's newest products and its observations", and "Store maintenance excludes active operations". Pending-object reporting for active operations is replaced by the store lock, which prevents clean from running while any lease is held.
