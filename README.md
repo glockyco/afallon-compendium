@@ -120,39 +120,6 @@ A build is current when it is the accepted build or a newer build, or when it ha
 
 Everything else is removed, including all runs of earlier builds that the two releases do not need, leases left by crashed commands, and their scratch directories. Clean deletes nothing when a kept result has a missing or damaged dependency, and it names the dependency. It refuses to start while another store command holds a lease, and commands that start during clean wait for it. It reports entries under `artifacts/` that no pipeline command creates, such as research output, but leaves them in place. Publications are materialized as copy-on-write clones of store objects, so they use no extra space on APFS and survive collection.
 
-### Reproducing creature stats
-
-The NPC scan exports each authored stat's added value, per-level gain and overrides from the running game's database. Shared stat starting values come from the same canonical scan. Spawner level overrides and player-scaling bounds come from the world scans, not the NPC template's level range. An NPC page projects a total only when its stat and encounter level have enough evidence.
-
-On creature pages, Combat Stats follows Drops in the main column when at least one complete stat can be calculated. Up to four values use the published encounter level: Health, Strength, Armor, and Magic armor. A compact level control appears only for non-boss creatures that appear at multiple levels. Missing totals never masquerade as authored bonuses or Unknown cells, and when none can be calculated the entire section is omitted. The related experience calculator follows the stats instead of repeating its result in the sidebar.
-
-To rebuild the 0.16.3 data, use the configured research character and the reviewed scan arrivals. Give every plan and run output a new path. The [game-update procedure](.agent/skills/game-update/SKILL.md) covers authoring the full set of world scan, game-map, terrain capture, coverage review, and imagery plans:
-
-```sh
-bun tools/update/load-character.ts <config>
-bun run compendium scan --config <config> --plan <canonical-scan-plan> --candidate
-bun run compendium scan --config <config> --plan <world-scan-plan> --candidate
-bun run compendium capture --config <config> --plan <capture-plan> --candidate
-bun tools/update/quit-game.ts <config>
-bun run compendium game-map --store artifacts --plan <game-map-plan> --candidate
-bun run compendium pyramid --store artifacts --plan <terrain-tile-plan> --candidate
-bun run compendium catalog --store artifacts --plan <catalog-plan> --candidate
-bun run compendium publish --store artifacts --output <publication-root> --plan <publish-plan> --candidate
-bun run stage:production <publication-root> <accepted-publication-directory> --verified-update
-```
-
-The catalog plan must select the new canonical scan, admit the world scans that supply each source, and include the scan runs cited by its reviewed coverage decisions. A fresh scan does not make a previous review's evidence pointers disappear. Register revised rules and the reviewed publication presentation before catalog and publish. Compare the new catalog's `npc_stats` starting, added, and per-level columns and its source-level overrides with the previous build, then check the published NPC documents at their actual source levels. For example, the independently exported 0.16.3 canonical evidence `b5a96370…` and catalog candidate `93bd8b6a…` give Fangchill Health `100 + 187.2 + 84.24 × 20 = 1,972` at its 20–30 player-scaled source and Aquarius `100 + 56,605 + 195 × 20 = 60,605` at its fixed level-20 source. This fresh scan used the pipeline above for canonical evidence, reused the already captured 0.16.3 imagery and reviewed world scans, and published a verification-only candidate. It did not re-run terrain capture or accept an update, so it is not evidence that a second full capture reproduces identical image bytes.
-
-After a complete comparison and approval, author the update report and run `bun run compendium accept-update --store artifacts --report <report> --publication-root <accepted-root> --baseline-root <accepted-publication-directory> --expected <accepted-build-sha256>`. Never use an accepted publication's static files as a manually maintained data link: the candidate must be staged from its catalog-derived publication.
-
-### Reproducing ability scaling
-
-The canonical scan's `support.v5` evidence keeps each effect rank's main damage type, `FLAT` or percent-of-target basis, authored amount, optional explicit stat and coefficient, weapon percentage and selected slots. It also records the game settings' Health stat ID. The catalog joins these operands to the game's `BASE_DAMAGE_TYPE`, `HEALING`, and `GLOBAL_HEALING` stat definitions instead of inferring a scaling stat from an ability name, class, or custom damage category. The registered rules and their bounded native and runtime evidence are described in `local/update-0-16-3/research/ability-scaling-findings-20261003-1.md`.
-
-Run the scan, catalog, publish, and stage commands above with new plan names and `--candidate`. Keep the reviewed world scans and map imagery when only canonical scaling evidence changes. The catalog plan must select the fresh canonical target and retain the earlier scan cited by the coverage review. For the independently run 0.16.3 candidate scan `artifacts/runs/7d6b812e-be4a-4b54-adf3-84ba74de113e/manifest.json`, support object `964de957…` has Health stat ID 0, Brutal Slice's flat 25 and 200% weapon coefficient, and Vital Rend's flat 25 and 250% coefficient. The verified-rule catalog SQLite `7bc1e285…` records Intellect at 100% for both effects, plus Strength at 100% and Agility at 30% for Auto Shot impact. Compare the new catalog's effect-rank scaling entries, the generated ability and effect pages, stat reverse-source lists, and the Abilities list facet against these native and live samples before considering an update.
-
-Four independent canonical scans in the same installed build wrote **identical canonical database object** `b5a963702c28e140e06a053ca46c67f343335c31796f94da010ea3ecd4569e86`. Their support-object hashes differ where the collector intentionally added Health stat ID and hit-value kind fields. Repeating an unchanged scan should reproduce both object hashes. Run manifests differ because they record run IDs and timestamps. This verification reused accepted terrain imagery and world scans, published only a candidate, and never ran `accept-update`. A complete game update must still follow the capture, publish and acceptance procedure above rather than treat this candidate as accepted data.
-
 ### Game updates
 
 A new game build goes through the whole pipeline as a candidate and is compared with the accepted build before `accept-update` selects it. The [game-update skill](.agent/skills/game-update/SKILL.md) gives the steps, scripts, arguments, and failure modes. In short: install and compare declarations, scan, rebuild the maps and imagery, catalog, review every rule against the new build, publish, check the site in a browser, write the update report, and accept.
