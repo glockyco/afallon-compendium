@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, realpath, rename, rm } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, beginArtifactRun, createArtifactLease, fingerprintStep, resolveArtifactRun, selectLatestSuccess, type ActiveArtifactLease } from "@afallon/artifacts";
 import { evaluateCatalogGate, queryCatalogMaps, type CatalogGateResult } from "@afallon/catalog";
-import { canonicalJson, schemaRegistry, type ArtifactRunManifest, type ContentIdentity } from "@afallon/contracts";
+import { ArtifactLatestSuccessSchema, canonicalJson, schemaRegistry, type ArtifactRunManifest, type ContentIdentity } from "@afallon/contracts";
 import { PublicationPlanSchema, assertPublicationPresentation, assertStaticResourceIdentity, type PublicationPlan } from "@afallon/contracts/public";
 import { buildStaticPublication, type StaticPublicationBuildResult } from "./build";
 import { publicationRelease } from "./release";
@@ -105,6 +105,33 @@ async function recoverSelection(journalPath: string, journal: SelectionJournal):
     if (failures.length > 0) throw new AggregateError(failures, "Publication selector recovery failed. The selection journal remains pending.");
   }
   await settleSelection(journalPath, journal);
+}
+
+export interface PendingSelection {
+  readonly buildId: string;
+  /** The publication run that recovery would select again, if the interrupted selection replaced one. */
+  readonly previousManifest: ContentIdentity | null;
+}
+
+/** The publication selections in the store that await recovery, and the latest-success manifests recovery would restore. */
+export async function pendingPublicationSelections(store: ArtifactStore): Promise<PendingSelection[]> {
+  const refsRoot = join(store.root, "refs");
+  let builds: string[];
+  try { builds = await readdir(refsRoot); }
+  catch (error) { if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return []; throw error; }
+  const pending: PendingSelection[] = [];
+  for (const buildId of builds.sort()) {
+    const transaction = await readPending(join(refsRoot, buildId, "publish"));
+    if (transaction === null || transaction.journal.state !== "pending") continue;
+    let previousManifest: ContentIdentity | null = null;
+    if (transaction.journal.previousReference !== null) {
+      const pointer: unknown = JSON.parse(Buffer.from(transaction.journal.previousReference, "base64").toString("utf8"));
+      Assert(ArtifactLatestSuccessSchema, pointer);
+      previousManifest = { sha256: pointer.manifest.sha256, bytes: pointer.manifest.bytes };
+    }
+    pending.push({ buildId, previousManifest });
+  }
+  return pending;
 }
 
 async function withPublicationSelection<T>(referencePath: string, publicationPath: string, select: () => Promise<T>): Promise<T> {

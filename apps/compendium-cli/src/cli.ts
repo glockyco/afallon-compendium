@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { Assert } from "typebox/value";
 import { capture, generateGameMap, generateTiles, validateCapturePlan } from "@afallon/capture";
-import { ArtifactStore, compactTerminalRunRevisions } from "@afallon/artifacts";
+import { ArtifactStore } from "@afallon/artifacts";
 import { CapturePlanSchema, TilePlanSchema } from "@afallon/contracts";
 import "@afallon/contracts/public";
 import { validateScanPlanStructure } from "@afallon/scan";
@@ -16,6 +16,7 @@ import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
 import { runGameUpdate } from "./game-update";
 import { acceptUpdate } from "./accept-update";
+import { cleanStore } from "./clean";
 import { alignWorldLayoutFiles } from "./world-layout-alignment";
 
 const HELP = `Usage:
@@ -30,7 +31,7 @@ const HELP = `Usage:
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
   bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH|none]
   bun run compendium align-world-layout --presentation FILE --offsets FILE --publication-root DIRECTORY --output FILE [--half-width NUMBER --half-height NUMBER]
-  bun run compendium clean --store DIRECTORY [--apply]
+  bun run compendium clean --store DIRECTORY [--apply] [--retain-run RUN ...]
   bun run compendium preview
   bun run compendium deploy PUBLICATION_ROOT [ORIGIN]
 
@@ -39,6 +40,9 @@ register stores reviewed inputs or binary assets and reports immutable content i
 Plans reference objects in --store; local paths are transport arguments, not evidence identities.
 --candidate produces verified output without replacing successful references.
 preview builds and serves the staged production site with its response-header rules.
+clean reports what the store no longer needs and removes it with --apply. It keeps the accepted and replaced
+releases, the selections and two newest catalog and publish runs of current builds, every other successful run of a
+current build, and each operation's newest failure. It refuses to run while another store command runs.
 deploy publishes the staged production build; it is never invoked by another command.`;
 
 const { values, positionals } = parseArgs({
@@ -50,7 +54,7 @@ const { values, positionals } = parseArgs({
     build: { type: "string" }, version: { type: "string" }, cpp2il: { type: "string" },
     report: { type: "string" }, "publication-root": { type: "string" }, "baseline-root": { type: "string" }, expected: { type: "string" },
     presentation: { type: "string" }, offsets: { type: "string" }, "half-width": { type: "string" }, "half-height": { type: "string" },
-    candidate: { type: "boolean", default: false }, apply: { type: "boolean", default: false },
+    candidate: { type: "boolean", default: false }, apply: { type: "boolean", default: false }, "retain-run": { type: "string", multiple: true },
   },
 });
 
@@ -72,9 +76,9 @@ async function main(): Promise<void> {
   const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "align-world-layout", "clean", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "clean") {
-    allowOptions(command, ["store", "apply"]);
+    allowOptions(command, ["store", "apply", "retain-run"]);
     if (positionals.length !== 1 || !values.store) throw new Error("clean requires --store and does not accept operands.");
-    console.log(JSON.stringify({ ok: true, ...await compactTerminalRunRevisions(new ArtifactStore(resolve(values.store)), { apply: values.apply }) }, null, 2));
+    console.log(JSON.stringify({ ok: true, ...await cleanStore(resolve(values.store), { apply: values.apply, retainedRunIds: values["retain-run"] ?? [] }) }, null, 2));
     return;
   }
   if (command === "preview") {

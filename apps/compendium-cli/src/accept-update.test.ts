@@ -3,16 +3,17 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
-import { acquireExclusiveStoreLock, ArtifactStore, beginArtifactRun, StoreBusyError } from "@afallon/artifacts";
+import { acquireExclusiveStoreLock, ArtifactStore, beginArtifactRun, cleanArtifactStore, StoreBusyError } from "@afallon/artifacts";
 import {
   UPDATE_CHECK_AREAS,
   canonicalJson,
+  validateUpdateReport,
   type AcceptedBuildDescriptor,
   type ContentIdentity,
   type UpdateReport,
 } from "@afallon/contracts";
 import type { StaticRootManifest } from "@afallon/contracts/public";
-import { acceptUpdate, type DeploymentMetadata } from "./accept-update";
+import { acceptedReleaseRoots, acceptUpdate, reportEvidence, type DeploymentMetadata } from "./accept-update";
 
 const BUILD_ID = "25419293";
 const CATALOG_ID = "c".repeat(64);
@@ -207,6 +208,22 @@ test("accepts one candidate with compare-and-swap and retained rollback identity
 
     await expect(acceptUpdate({ ...value, expectedDescriptorSha256: "0".repeat(64), stage: async () => { stageCalls++; return successfulStage(value); } })).rejects.toThrow(/compare-and-swap/);
     expect(stageCalls).toBe(1);
+  } finally { await rm(value.root, { recursive: true, force: true }); }
+});
+
+test("clean keeps the accepted release, its cited evidence, and its rollback objects when no rule keeps them", async () => {
+  const value = await fixture();
+  try {
+    const accepted = await acceptUpdate({ ...value, expectedDescriptorSha256: value.priorDescriptorIdentity.sha256, stage: async () => successfulStage(value) });
+    const store = new ArtifactStore(value.storeRoot);
+    const unrelated = await store.putBytes(bytes("unrelated object"));
+    const release = await acceptedReleaseRoots(store);
+    expect(release.buildId).toBe(BUILD_ID);
+    await cleanArtifactStore(store, () => ({ roots: release.roots, retainedRunIds: [], isCurrentBuild: () => false, productOperations: new Set() }), { apply: true });
+    const report = validateUpdateReport(JSON.parse(await readFile(value.reportPath, "utf8")));
+    const kept = [accepted.report, accepted.catalog.manifest, accepted.catalog.object, accepted.publication.manifest, accepted.publication.root, accepted.rollback!.selection, accepted.rollback!.acceptedDescriptor!, ...reportEvidence(report)];
+    for (const identity of kept) expect(await Bun.file(store.objectPath(identity.sha256)).exists()).toBe(true);
+    expect(await Bun.file(store.objectPath(unrelated.sha256)).exists()).toBe(false);
   } finally { await rm(value.root, { recursive: true, force: true }); }
 });
 

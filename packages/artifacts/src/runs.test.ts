@@ -5,7 +5,8 @@ import { join } from "node:path";
 import type { ArtifactRunInput } from "@afallon/contracts";
 import { beginArtifactRun, inspectArtifactRun, readArtifactRunManifest, type ArtifactRun } from "./runs";
 import { createArtifactLease, readArtifactLeases } from "./leases";
-import { reportGarbageCollection } from "./gc";
+import { cleanArtifactStore } from "./clean";
+import { StoreBusyError } from "./lock";
 import { readLatestSuccess, resolveArtifactRun, selectLatestSuccess } from "./references";
 import { ArtifactStore } from "./store";
 
@@ -81,18 +82,17 @@ test.each(["succeeded", "failed"] as const)("%s output remains protected until e
   if (manifest === null) throw new Error("Terminal run has no manifest identity.");
   const terminalBytes = await readFile(run.manifestPath);
   expect((await readArtifactLeases(store)).map(lease => lease.runId)).toEqual([run.runId]);
-  const protectedReport = await reportGarbageCollection(store, { retainedRunIds: [] });
-  for (const identity of [output, manifest]) {
-    expect(protectedReport.objects.find(object => object.content.sha256 === identity.sha256)?.disposition).toBe("preserve");
-  }
+  // Only a succeeded run's build is current here, so after release only selection protects the run.
+  const policy = { roots: [], retainedRunIds: [], isCurrentBuild: () => status === "succeeded", productOperations: new Set<string>() };
+  await expect(cleanArtifactStore(store, () => policy)).rejects.toBeInstanceOf(StoreBusyError);
   if (status === "succeeded") await selectLatestSuccess(store, run.manifestPath);
   await run.release();
   expect(await readArtifactLeases(store)).toEqual([]);
-  const releasedReport = await reportGarbageCollection(store, { retainedRunIds: [] });
+  await cleanArtifactStore(store, () => policy, { apply: true });
   for (const identity of [output, manifest]) {
-    expect(releasedReport.objects.find(object => object.content.sha256 === identity.sha256)?.disposition).toBe(status === "succeeded" ? "preserve" : "unreachable");
+    expect(await Bun.file(store.objectPath(identity.sha256)).exists()).toBe(status === "succeeded");
   }
-  expect(await readFile(run.manifestPath)).toEqual(terminalBytes);
+  if (status === "succeeded") expect(await readFile(run.manifestPath)).toEqual(terminalBytes);
 }));
 
 test("rejected preparation releases its lease even when failure evidence cannot be sealed", async () => fixture(async store => {
@@ -104,7 +104,8 @@ test("rejected preparation releases its lease even when failure evidence cannot 
   }
   await expect(beginArtifactRun(new UnwritableStore(store.root), invalidInput)).rejects.toBeInstanceOf(AggregateError);
   expect(await readArtifactLeases(store)).toEqual([]);
-  expect((await reportGarbageCollection(store, { retainedRunIds: [] })).summary.unreachable).toBe(1);
+  // No lease or store lock leaks from the rejected admissions.
+  await cleanArtifactStore(store, () => ({ roots: [], retainedRunIds: [], isCurrentBuild: () => true, productOperations: new Set() }));
 }));
 
 test("a revision collision preserves admitted bytes and permits retry", async () => fixture(async (store, root, begin) => {

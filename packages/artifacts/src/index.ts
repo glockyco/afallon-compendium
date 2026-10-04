@@ -1,9 +1,8 @@
 export { replaceFileAtomically } from "./artifact-filesystem";
+export * from "./clean";
 export * from "./fingerprints";
-export * from "./gc";
 export * from "./leases";
 export * from "./lock";
-export * from "./maintenance";
 export * from "./references";
 export * from "./reuse";
 export * from "./runs";

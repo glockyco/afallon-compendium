@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { type ArtifactStore, readArtifactLeases, readLatestSuccess } from "@afallon/artifacts";
 import type { ContentIdentity } from "@afallon/contracts";
 import type { PublicationPlan, PublicationPresentation } from "@afallon/contracts/public";
-import { publishFromPlan } from "./application";
+import { pendingPublicationSelections, publishFromPlan } from "./application";
 import { publicationFixture } from "./publication-fixture.test";
 
 async function withPresentation(store: ArtifactStore, plan: PublicationPlan, change: (presentation: PublicationPresentation) => void): Promise<PublicationPlan> {
@@ -131,6 +131,8 @@ for (const state of ["preparing", "settled"] as const) test(`does not restore st
     const pendingPath = join(options.publicationRoot, ".publication-selection.pending.json");
     await writeFile(journalPath, JSON.stringify({ state, referencePath, publicationPath, previousReference, previousPublication }));
     await writeFile(pendingPath, JSON.stringify({ journalPath }));
+    await writeFile(join(store.root, "refs", plan.buildId, "publish", ".publication-selection.pending.json"), JSON.stringify({ journalPath }));
+    expect(await pendingPublicationSelections(store)).toEqual([]);
     const verify = store.verify.bind(store);
     let observedRecovery = false;
     store.verify = async (identity: ContentIdentity) => {
@@ -184,6 +186,8 @@ test("recovers an interrupted selector pair under its original locks before sele
     const sealedPath = join(store.root, interrupted.manifest.path);
     const sealedBytes = await readFile(sealedPath);
     const abandonedLeases = (await readArtifactLeases(store)).map((lease) => lease.runId).sort();
+    const previousPointer = JSON.parse(beforeReference.toString("utf8"));
+    expect(await pendingPublicationSelections(store)).toEqual([{ buildId: plan.buildId, previousManifest: { sha256: previousPointer.manifest.sha256, bytes: previousPointer.manifest.bytes } }]);
 
     const originalLock = new Database(join(options.publicationRoot, ".publication-selection.sqlite"), { create: true });
     originalLock.exec("BEGIN EXCLUSIVE");
@@ -206,6 +210,7 @@ test("recovers an interrupted selector pair under its original locks before sele
     await expect(publishFromPlan(store, plan, nextOptions)).rejects.toThrow();
     expect(observedRecovery).toBe(true);
     expect(await readFile(referencePath)).toEqual(beforeReference);
+    expect(await pendingPublicationSelections(store)).toEqual([]);
     expect(await readFile(join(options.publicationRoot, "selected.json"))).toEqual(beforeSelection);
     expect(await readFile(sealedPath)).toEqual(sealedBytes);
     expect((await readArtifactLeases(store)).map((lease) => lease.runId).sort()).toEqual(abandonedLeases);

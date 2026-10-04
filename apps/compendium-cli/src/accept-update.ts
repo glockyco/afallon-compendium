@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
-import { ArtifactStore, createArtifactLease, resolveArtifactRun, type ActiveArtifactLease } from "@afallon/artifacts";
+import { ArtifactStore, createArtifactLease, resolveArtifactRun, type ActiveArtifactLease, type RetentionRoot } from "@afallon/artifacts";
 import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity, type UpdateReport } from "@afallon/contracts";
 import { PublicationPlanSchema, StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
 import { publicationRelease } from "@afallon/publication";
@@ -162,4 +162,56 @@ async function accept(options: AcceptUpdateOptions, store: ArtifactStore, report
     }
     throw error;
   }
+}
+
+export interface AcceptedReleaseRoots {
+  readonly buildId: string | null;
+  readonly roots: RetentionRoot[];
+  readonly warnings: string[];
+}
+
+// A release's catalog, publication, report, and every identity the report cites. An unreadable report fails the strict
+// accepted release and only warns for the replaced one.
+async function releaseRoots(store: ArtifactStore, descriptor: AcceptedBuildDescriptor, label: string, strict: boolean, warnings: string[]): Promise<RetentionRoot[]> {
+  const named: [string, ContentIdentity][] = [
+    ["report", descriptor.report],
+    ["catalog-manifest", descriptor.catalog.manifest],
+    ["catalog", descriptor.catalog.object],
+    ["publication-manifest", descriptor.publication.manifest],
+    ["publication-root", { sha256: descriptor.publication.root.sha256, bytes: descriptor.publication.root.bytes }],
+  ];
+  try {
+    const report = validateUpdateReport(JSON.parse(await readFile(store.objectPath(descriptor.report.sha256), "utf8")));
+    named.push(...reportEvidence(report).map((identity, index): [string, ContentIdentity] => [`report-evidence:${index}`, identity]));
+  } catch (error) {
+    if (strict) throw new Error(`The ${label} release's update report ${descriptor.report.sha256} is unreadable.`, { cause: error });
+    warnings.push(`${label}: update report ${descriptor.report.sha256} is unreadable`);
+  }
+  return named.map(([name, identity]) => ({ label: `${label}:${name}`, identity: { sha256: identity.sha256, bytes: identity.bytes }, strict }));
+}
+
+/**
+ * The retention roots of the accepted release and, on a best-effort basis, of the release it replaced. Clean reads them
+ * under its exclusive store lock, after any acceptance in progress has written its descriptor.
+ */
+export async function acceptedReleaseRoots(store: ArtifactStore): Promise<AcceptedReleaseRoots> {
+  const bytes = await optionalBytes(join(store.root, "accepted-build.json"));
+  if (bytes === null) return { buildId: null, roots: [], warnings: [] };
+  const descriptor: unknown = JSON.parse(bytes.toString("utf8"));
+  Assert(AcceptedBuildDescriptorSchema, descriptor);
+  const warnings: string[] = [];
+  const roots = await releaseRoots(store, descriptor, "accepted", true, warnings);
+  if (descriptor.rollback !== null) {
+    roots.push({ label: "accepted:rollback-selection", identity: descriptor.rollback.selection, strict: true });
+    const replaced = descriptor.rollback.acceptedDescriptor;
+    if (replaced) {
+      roots.push({ label: "accepted:rollback-descriptor", identity: replaced, strict: true });
+      try {
+        const prior: unknown = JSON.parse(await readFile(store.objectPath(replaced.sha256), "utf8"));
+        Assert(AcceptedBuildDescriptorSchema, prior);
+        roots.push(...await releaseRoots(store, prior, "replaced", false, warnings));
+      } catch { warnings.push(`replaced: descriptor ${replaced.sha256} is unreadable`); }
+    }
+  }
+  return { buildId: descriptor.buildId, roots, warnings };
 }

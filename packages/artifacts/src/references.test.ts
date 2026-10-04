@@ -6,7 +6,8 @@ import type { ArtifactRunInput } from "@afallon/contracts";
 import { readLatestSuccess, selectLatestSuccess } from "./references";
 import { beginArtifactRun, type ArtifactRun } from "./runs";
 import { ArtifactStore } from "./store";
-import { reportGarbageCollection } from "./gc";
+import { cleanArtifactStore } from "./clean";
+import { StoreBusyError } from "./lock";
 
 const input: ArtifactRunInput = {
   buildId: "25153357",
@@ -80,10 +81,8 @@ test("a selector write failure leaves terminal success and the previous selector
   finally { await chmod(directory, 0o755); }
   expect(await readFile(next.manifestPath)).toEqual(terminalBytes);
   expect(next.status).toBe("succeeded");
-  const report = await reportGarbageCollection(store, { retainedRunIds: [] });
-  for (const identity of [object, next.manifestIdentity!]) {
-    expect(report.objects.find(candidate => candidate.content.sha256 === identity.sha256)?.disposition).toBe("preserve");
-  }
+  // The unselected run still holds its lease, so clean cannot collect what selection will name.
+  await expect(cleanArtifactStore(store, () => ({ roots: [], retainedRunIds: [], isCurrentBuild: () => false, productOperations: new Set() }))).rejects.toBeInstanceOf(StoreBusyError);
   expect((await readLatestSuccess(store, input.buildId, input.operation))?.manifest.runId).toBe(previous.runId);
   await expect(next.fail(new Error("selection failed"))).rejects.toMatchObject({ name: "RunStateError" });
   await selectLatestSuccess(store, next.manifestPath);
