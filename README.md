@@ -115,9 +115,23 @@ Runtime steps need a local copy of Afallon with the HotRepl host loaded. [`confi
 | `bun run compendium catalog --store <dir> --plan <file>` | Builds the SQLite catalog from the evidence that the plan names. |
 | `bun run compendium publish --store <dir> --output <dir> --plan <file>` | Builds and selects a static publication from a catalog. |
 | `bun run compendium accept-update --store <dir> --report <file> ...` | Accepts a checked candidate as the new build, from an update report. |
-| `bun run compendium clean --store <dir>` | Lists the intermediate manifest revisions of finished runs, and deletes them with `--apply`. |
+| `bun run compendium clean --store <dir> [--apply] [--retain-run <run>]...` | Reports what the store no longer needs, and removes it with `--apply`. |
 
 Add `--candidate` to scan, capture, catalog, or publish to produce a verified result without replacing the selected one. Only scan and capture need the running game.
+
+### Keeping the store small
+
+Every run adds objects to `artifacts/`, and catalog runs add a sealed database of about 3 GB each. Run `clean` once the store's commands are idle, for example after accepting a release. Read its dry-run report, then repeat it with `--apply`. Collection cannot be undone.
+
+A build is current when it is the accepted build or a newer build, or when it has a publication selection awaiting recovery. Clean keeps:
+
+- the accepted release, the release it replaced, and every object their update reports cite;
+- the selected results and the two newest catalog and publish runs of each current build;
+- every other successful run of a current build, because scans, captures, game maps, and registered inputs arrive in batches that a later catalog combines;
+- the newest failed or interrupted run of each operation;
+- runs named with `--retain-run`, and everything that a kept result was built from.
+
+Everything else is removed, including all runs of earlier builds that the two releases do not need, leases left by crashed commands, and their scratch directories. Clean deletes nothing when a kept result has a missing or damaged dependency, and it names the dependency. It refuses to start while another store command holds a lease, and commands that start during clean wait for it. It reports entries under `artifacts/` that no pipeline command creates, such as research output, but leaves them in place. Publications are materialized as copy-on-write clones of store objects, so they use no extra space on APFS and survive collection.
 
 ### Reproducing creature stats
 

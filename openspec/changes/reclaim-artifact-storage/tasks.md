@@ -40,8 +40,8 @@
 
 ## 5. Documentation, verification, and cutover
 
-- [ ] 5.1 Update `README.md` with the clean command line, the retention roots, the current-build rules, the store lock's behavior, scratch and unmanaged entries, and when to run clean. Verify that the documented command matches `--help`.
-- [ ] 5.2 Run `bun run check`, `bun run check:dependencies`, and `bun run test`. Verify that all pass.
+- [x] 5.1 Update `README.md` with the clean command line, the retention roots, the current-build rules, the store lock's behavior, scratch and unmanaged entries, and when to run clean. Verify that the documented command matches `--help`.
+- [x] 5.2 Run `bun run check`, `bun run check:dependencies`, and `bun run test`. Verify that all pass.
 - [ ] 5.3 While no other store command runs, dry-run clean on `artifacts/` and review the report with the operator. Verify:
   - the report shows no integrity failure;
   - it retains the accepted release, the replaced release, and the latest-success references of build `25653798`;
