@@ -53,7 +53,7 @@
   - staging the accepted publication root passes.
 
   Record free space before and after.
-- [ ] 5.5 When syncing the deltas, update the artifact-lifecycle purpose so that it describes collection. Verify that `openspec validate reclaim-artifact-storage --strict` passes before archiving.
+- [x] 5.5 When syncing the deltas, update the artifact-lifecycle purpose so that it describes collection. Verify that `openspec validate reclaim-artifact-storage --strict` passes before archiving.
 
 ### Cutover evidence
 
