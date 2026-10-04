@@ -1,0 +1,55 @@
+## 1. Store lock and lease scope
+
+- [ ] 1.1 Add the store lock to `packages/artifacts`:
+  - a `.store-lock.sqlite` file in rollback-journal mode;
+  - a shared mode, held by an open read transaction, that waits up to 30 minutes, with the wait injectable for tests;
+  - an exclusive mode that fails immediately.
+
+  Verify with separate processes that a shared holder makes exclusive acquisition fail at once. Verify that an exclusive holder makes shared acquisition wait and then succeed after release. Verify that, with a short injected wait, a writer fails with the maintenance error before it admits a run or writes an object. Verify that killing a holder process releases the lock.
+- [ ] 1.2 Make each lease hold the shared lock from creation until release, and make each object write without a protection hold it for the duration of the write. Verify that lease creation and an unprotected write both wait while an exclusive holder exists. Verify that releasing a lease releases its shared lock.
+- [ ] 1.3 Make acceptance create its lease before it verifies the update report's evidence, and protect the cited identities and manifests. Release the lease only after `accepted-build.json` is written. In the acceptance test, verify that an exclusive acquisition attempted from the staging callback fails, and that an exclusive acquisition attempted after the report is stored also fails. Verify that a failed acceptance still releases its lease.
+
+## 2. Collector in the artifacts package
+
+- [ ] 2.1 Replace `gc.ts` and `maintenance.ts` with a collector that works under the exclusive lock. It inventories run headers, latest-success references, leases, scratch, and unmanaged entries. It applies the supplied roots and rules, traces the retained closures, and returns a plan. It traces interrupted runs from their latest revision. Verify each rule boundary with fixture stores:
+  - a latest-success reference;
+  - a named run;
+  - successful, failed, and interrupted evidence;
+  - an unknown operation counted as evidence;
+  - the newest successful reproducible run of a build;
+  - the window edge;
+  - interrupted reproducible runs inside and outside the window, together with the outputs their latest revisions registered.
+- [ ] 2.2 Apply the plan in this order: retired references, abandoned leases, run directories, unreachable objects, scratch, terminal revisions. Verify that a dry run leaves every file in the store unchanged. Verify that apply removes exactly the reported set and that shared objects remain. Verify that an apply interrupted after it removes run directories leaves no reference to a removed object, and that the next clean completes the work.
+- [ ] 2.3 Enforce the integrity gate. Verify that each of these stops clean before any change and names the reference path: a missing object, a damaged object, and a v1 manifest, each in the closure of a root or a successful retained run. Verify that a failed evidence run naming a missing input is retained with a warning while collection continues. Verify the same for an incomplete replaced release.
+- [ ] 2.4 Implement build retirement. Verify that retiring a build removes its latest-success references and collects its runs, while objects that a root cites and runs named to retain stay. Verify that retiring the accepted build, the replaced release's build, or a build with a pending selection fails before any change.
+- [ ] 2.5 Remove the scratch left by crashed commands: object temporaries, `.scan-*`, `.work/<runId>` of known runs, and `candidate.sqlite` and `.catalog-*` inside run directories. Verify that each is removed. Verify that `.runtime/`, lock and journal files, and unmanaged entries remain, and that the report lists them with their sizes.
+- [ ] 2.6 Remove `reportGarbageCollection`, `GarbageCollectionPolicy`, `compactTerminalRunRevisions`, and the `compendium.artifact-gc-report.v1` schema. Move the protection assertions in the run, reference, and lease tests to the collector. Verify that no reference to a removed name remains and that the artifacts tests pass.
+
+## 3. Policy composition and command
+
+- [ ] 3.1 Export one accepted-release root enumeration from the acceptance module. It covers the descriptor identities, every update-report evidence pointer, and the rollback objects, and `verifyReportEvidence` uses it. Verify on an acceptance fixture that clean retains the accepted catalog, publication, report, cited evidence, and rollback objects of a candidate that no latest-success reference names. Verify that it retains the replaced release on a best-effort basis.
+- [ ] 3.2 Make the publication package expose the previous references of pending publication selections. Verify that clean retains the previous publication run of a pending journal, and that preparing and settled journals add no root.
+- [ ] 3.3 Add `apps/compendium-cli/src/clean.ts` with the reproducible-operation set. Wire `clean --store DIR [--apply] [--retain-hours N] [--retain-run RUN]... [--retire-build ID]...` into `cli.ts` and its help text. Verify through the CLI:
+  - invalid options and invalid hours are rejected;
+  - a busy store, an integrity failure, and an invalid retirement each exit with a non-zero status without changes;
+  - the JSON report lists the policy, roots, warnings, retained counts, collected runs, objects, leases, scratch, revisions, and unmanaged entries.
+
+## 4. Publication clones
+
+- [ ] 4.1 Materialize each publication file with `copyFile`, using exclusive creation and copy-on-write cloning, then verify the file and mark it read-only. Verify that the publication tests pass. Verify that materializing a publication into a root on the store's volume reduces free space by far less than the publication's logical size. Verify that a materialized file still verifies after its source object is removed.
+
+## 5. Documentation, verification, and cutover
+
+- [ ] 5.1 Update `README.md` with the clean command line, the retention roots and rules, retirement, the store lock's behavior, scratch and unmanaged entries, and when to run clean. Verify that the documented command matches `--help`.
+- [ ] 5.2 Run `bun run check`, `bun run check:dependencies`, and `bun run test`. Verify that all pass.
+- [ ] 5.3 While no other store command runs, dry-run clean on `artifacts/` with `--retire-build 25153357` and review the report with the operator. Verify:
+  - the report shows no integrity failure;
+  - it retains the accepted release, the replaced release, and every latest-success reference;
+  - it lists the four abandoned leases and the seven legacy runs.
+- [ ] 5.4 After the operator approves, apply the reviewed command. Verify:
+  - a second dry run collects nothing beyond new activity;
+  - the accepted catalog and publication manifests and every latest-success reference resolve;
+  - staging the accepted publication root passes.
+
+  Record free space before and after.
+- [ ] 5.5 When syncing the deltas, update the artifact-lifecycle purpose so that it describes collection. Verify that `openspec validate reclaim-artifact-storage --strict` passes before archiving.
