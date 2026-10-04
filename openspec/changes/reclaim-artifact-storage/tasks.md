@@ -42,15 +42,23 @@
 
 - [x] 5.1 Update `README.md` with the clean command line, the retention roots, the current-build rules, the store lock's behavior, scratch and unmanaged entries, and when to run clean. Verify that the documented command matches `--help`.
 - [x] 5.2 Run `bun run check`, `bun run check:dependencies`, and `bun run test`. Verify that all pass.
-- [ ] 5.3 While no other store command runs, dry-run clean on `artifacts/` and review the report with the operator. Verify:
+- [x] 5.3 While no other store command runs, dry-run clean on `artifacts/` and review the report with the operator. Verify:
   - the report shows no integrity failure;
   - it retains the accepted release, the replaced release, and the latest-success references of build `25653798`;
   - builds `25153357`, `25419293`, and `25434619` leave retention, including the seven legacy runs;
   - it lists the four abandoned leases.
-- [ ] 5.4 After the operator approves, apply the reviewed command. Verify:
+- [x] 5.4 After the operator approves, apply the reviewed command. Verify:
   - a second dry run collects nothing beyond new activity;
   - the accepted catalog and publication manifests and every latest-success reference resolve;
   - staging the accepted publication root passes.
 
   Record free space before and after.
 - [ ] 5.5 When syncing the deltas, update the artifact-lifecycle purpose so that it describes collection. Verify that `openspec validate reclaim-artifact-storage --strict` passes before archiving.
+
+### Cutover evidence
+
+The dry run on 2026-10-04 reported no integrity failure and no warnings. It kept 21.4 GB in 29,277 objects for current build `25653798`: 566 batch runs, 4 newest product runs, 6 newest failures, and 4 runs reached through lineage. It would collect 897 runs and 258.6 GB, including all 7 legacy runs of `25153357`. It would also remove `refs/25153357`, `refs/25419293`, `refs/25434619`, the four leases of the publications interrupted on 2 October, and 1.2 GB of scan scratch. The operator approved the report.
+
+Applying it took 83 s and collected 897 runs and 258.6 GB. Free space on `/` rose from 189.9 GiB to 425.5 GiB. The difference from the collected bytes is space still shared with clones in publication roots. `artifacts/` now holds 25 GB.
+
+A second dry run collected nothing, with no leases, scratch, or references left to remove. The accepted catalog run `a3f839d9` and publication run `f7950aa4` resolve with their closures, the accepted catalog object and report verify, and every latest-success reference of `25653798` resolves. Staging `local/compendium-v3-previous` in a temporary worktree passed, and its selection `7ae505cc…` and publication `de2c1ce3…` match `accepted-build.json`.
