@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactLeaseSchema, ContentIdentitySchema, canonicalJson, type ArtifactLease, type ContentIdentity } from "@afallon/contracts";
 import { createImmutableFile, isErrno, replaceFileAtomically, safeSegment } from "./artifact-filesystem";
+import { acquireSharedStoreLock } from "./lock";
 import { ArtifactStore, type ObjectWriteProtection } from "./store";
 
 export interface ActiveArtifactLease extends ObjectWriteProtection {
@@ -21,7 +22,6 @@ export async function createArtifactLease(
 ): Promise<ActiveArtifactLease> {
   safeSegment(input.runId, "A lease runId");
   const directory = path.join(store.root, "leases");
-  await mkdir(directory, { recursive: true });
   const leasePath = path.join(directory, `${input.runId}.json`);
   const now = new Date().toISOString();
   const objects = new Map<string, ContentIdentity>();
@@ -44,11 +44,17 @@ export async function createArtifactLease(
     createdAt: now, updatedAt: now,
     objects: [...objects.values()], pendingObjects: [], manifests: [...manifests.values()],
   };
-  await createImmutableFile(leasePath, `${canonicalJson(lease)}\n`);
+  // The lease holds the store lock until release, so clean cannot run while it protects anything.
+  const lock = await acquireSharedStoreLock(store);
+  let created = false;
   try {
+    await mkdir(directory, { recursive: true });
+    await createImmutableFile(leasePath, `${canonicalJson(lease)}\n`);
+    created = true;
     for (const identity of objects.values()) await store.verify(identity);
   } catch (error) {
-    await unlink(leasePath).catch(() => {});
+    if (created) await unlink(leasePath).catch(() => {});
+    lock.release();
     throw error;
   }
   let active = true;
@@ -106,8 +112,8 @@ export async function createArtifactLease(
     },
     release() {
       return enqueue(async () => {
-        await unlink(leasePath);
-        active = false;
+        try { await unlink(leasePath); }
+        finally { active = false; lock.release(); }
       });
     },
   };

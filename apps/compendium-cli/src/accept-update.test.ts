@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
-import { ArtifactStore, beginArtifactRun } from "@afallon/artifacts";
+import { acquireExclusiveStoreLock, ArtifactStore, beginArtifactRun, StoreBusyError } from "@afallon/artifacts";
 import {
   UPDATE_CHECK_AREAS,
   canonicalJson,
@@ -185,12 +185,15 @@ test("accepts one candidate with compare-and-swap and retained rollback identity
   const value = await fixture();
   try {
     let stageCalls = 0;
+    const store = new ArtifactStore(value.storeRoot);
     const accepted = await acceptUpdate({
       ...value,
       expectedDescriptorSha256: value.priorDescriptorIdentity.sha256,
-      stage: async () => { stageCalls++; return successfulStage(value); },
+      // Clean cannot start while acceptance holds the cited evidence that the descriptor will name.
+      stage: async () => { stageCalls++; expect(() => acquireExclusiveStoreLock(store)).toThrow(StoreBusyError); return successfulStage(value); },
     });
     expect(stageCalls).toBe(1);
+    acquireExclusiveStoreLock(store).release();
     expect(accepted).toMatchObject({
       buildId: BUILD_ID,
       catalog: { catalogId: CATALOG_ID },
@@ -199,7 +202,6 @@ test("accepts one candidate with compare-and-swap and retained rollback identity
     });
     expect(await readFile(join(value.stageRoot, "version.txt"), "utf8")).toBe("candidate stage");
     expect(JSON.parse(await readFile(value.descriptorPath, "utf8"))).toEqual(accepted);
-    const store = new ArtifactStore(value.storeRoot);
     expect(await readFile(store.objectPath(value.priorSelectionIdentity.sha256), "utf8")).toBe(new TextDecoder().decode(value.priorSelectionBytes));
     expect(await readFile(store.objectPath(value.priorDescriptorIdentity.sha256), "utf8")).toBe(new TextDecoder().decode(value.priorDescriptorBytes));
 
@@ -233,6 +235,7 @@ test("restores the selected publication, descriptor, and stage when staging fail
     expect(await readFile(value.selectionPath, "utf8")).toBe(new TextDecoder().decode(value.priorSelectionBytes));
     expect(await readFile(value.descriptorPath, "utf8")).toBe(new TextDecoder().decode(value.priorDescriptorBytes));
     expect(await readFile(join(value.stageRoot, "version.txt"), "utf8")).toBe("prior stage");
+    acquireExclusiveStoreLock(new ArtifactStore(value.storeRoot)).release();
   } finally { await rm(value.root, { recursive: true, force: true }); }
 });
 

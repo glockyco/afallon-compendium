@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
-import { ArtifactStore, createArtifactLease, resolveArtifactRun } from "@afallon/artifacts";
+import { ArtifactStore, createArtifactLease, resolveArtifactRun, type ActiveArtifactLease } from "@afallon/artifacts";
 import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity, type UpdateReport } from "@afallon/contracts";
 import { PublicationPlanSchema, StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
 import { publicationRelease } from "@afallon/publication";
@@ -69,17 +69,23 @@ async function replace(path: string, bytes: Uint8Array): Promise<void> {
   } finally { await rm(temporary, { force: true }); }
 }
 
-async function verifyReportEvidence(store: ArtifactStore, report: UpdateReport): Promise<void> {
+/** Every store identity that an update report cites. Acceptance verifies them, and clean retains them. */
+export function reportEvidence(report: UpdateReport): ContentIdentity[] {
   const pointers = [report.artifacts.updateReceipt, report.artifacts.releaseNotes, report.artifacts.schemaSnapshot, report.artifacts.buildComparison, ...report.artifacts.scans, ...report.artifacts.reviewedInputs, report.artifacts.catalog, report.artifacts.publication, ...report.checks.flatMap(check => check.evidence), ...report.risks.flatMap(risk => risk.evidence)];
-  const unique = new Map(pointers.map(pointer => [`${pointer.content.sha256}:${pointer.content.bytes}`, pointer.content]));
-  for (const value of unique.values()) await store.verify(value);
+  return [...new Map(pointers.map(pointer => [`${pointer.content.sha256}:${pointer.content.bytes}`, pointer.content])).values()];
 }
 
 export async function acceptUpdate(options: AcceptUpdateOptions): Promise<AcceptedBuildDescriptor> {
   const store = new ArtifactStore(resolve(options.storeRoot));
   const reportBytes = new Uint8Array(await readFile(resolve(options.reportPath)));
   const report = validateUpdateReport(JSON.parse(new TextDecoder().decode(reportBytes)));
-  await verifyReportEvidence(store, report);
+  // The lease verifies the cited evidence and protects it until the descriptor that names it is durable.
+  const lease = await createArtifactLease(store, { runId: randomUUID(), buildId: report.current.buildId, operation: "accept-update", objects: reportEvidence(report), manifests: [report.artifacts.publication.content, report.artifacts.catalog.content] });
+  try { return await accept(options, store, report, reportBytes, lease); }
+  finally { await lease.release(); }
+}
+
+async function accept(options: AcceptUpdateOptions, store: ArtifactStore, report: UpdateReport, reportBytes: Uint8Array, lease: ActiveArtifactLease): Promise<AcceptedBuildDescriptor> {
   const publicationRun = await resolveArtifactRun(store, report.artifacts.publication.content, { buildId: report.current.buildId, operation: "publish" });
   const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v8");
   if (!publicationOutput) throw new Error("Accepted update report does not reference a successful static publication run.");
@@ -127,14 +133,10 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
     if (metadata.buildId !== report.current.buildId || metadata.catalogId !== plan.catalog.catalogId || metadata.publicationId !== publicationOutput.content.sha256 || metadata.selectionSha256 !== selectionIdentity.sha256 || metadata.publicationSha256 !== publicationOutput.content.sha256 || metadata.coverageComplete !== rootValue.complete || metadata.mode !== rootValue.mode) {
       throw new Error("Staged production metadata does not match the accepted candidate.");
     }
-    const lease = await createArtifactLease(store, { runId: randomUUID(), buildId: report.current.buildId, operation: "accept-update", objects: [], manifests: [report.artifacts.publication.content, report.artifacts.catalog.content] });
-    let reportIdentity: ContentIdentity;
-    try {
-      const storedReport = await store.putBytes(reportBytes, lease);
-      reportIdentity = { sha256: storedReport.sha256, bytes: storedReport.bytes };
-      if (previousSelection) await store.putBytes(previousSelection, lease);
-      if (previousDescriptorBytes) await store.putBytes(previousDescriptorBytes, lease);
-    } finally { await lease.release(); }
+    const storedReport = await store.putBytes(reportBytes, lease);
+    const reportIdentity: ContentIdentity = { sha256: storedReport.sha256, bytes: storedReport.bytes };
+    if (previousSelection) await store.putBytes(previousSelection, lease);
+    if (previousDescriptorBytes) await store.putBytes(previousDescriptorBytes, lease);
     const descriptor: AcceptedBuildDescriptor = {
       schemaVersion: "compendium.accepted-build.v1", acceptedAt, releaseVersion: report.releaseVersion, buildId: report.current.buildId,
       report: reportIdentity,

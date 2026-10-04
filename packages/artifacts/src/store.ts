@@ -3,6 +3,7 @@ import { chmod, link, mkdir, open, unlink } from "node:fs/promises";
 import * as path from "node:path";
 import type { ContentIdentity } from "@afallon/contracts";
 import { isErrno, syncDirectory } from "./artifact-filesystem";
+import { acquireSharedStoreLock, STORE_MAINTENANCE_WAIT_MS } from "./lock";
 
 const SHA256 = /^[a-f0-9]{64}$/;
 export const OBJECT_CHUNK_BYTES = 1024 * 1024;
@@ -40,16 +41,23 @@ export interface StoredObject extends ContentIdentity {
   readonly path: string;
 }
 
+export interface ArtifactStoreOptions {
+  /** How long store commands wait for a running clean. Tests shorten it. */
+  readonly maintenanceWaitMs?: number;
+}
+
 export class ArtifactStore {
   readonly root: string;
   readonly objectsRoot: string;
   readonly temporaryRoot: string;
+  readonly maintenanceWaitMs: number;
 
-  constructor(root: string) {
+  constructor(root: string, options: ArtifactStoreOptions = {}) {
     if (typeof root !== "string" || root.length === 0) throw new TypeError("The artifact store root must be a non-empty path.");
     this.root = path.resolve(root);
     this.objectsRoot = path.join(this.root, "objects", "sha256");
     this.temporaryRoot = path.join(this.objectsRoot, ".tmp");
+    this.maintenanceWaitMs = options.maintenanceWaitMs ?? STORE_MAINTENANCE_WAIT_MS;
   }
 
   objectPath(sha256: string): string {
@@ -83,6 +91,15 @@ export class ArtifactStore {
   }
 
   async putStream(source: AsyncIterable<Uint8Array>, protection?: ObjectWriteProtection): Promise<StoredObject> {
+    // A lease already holds the store lock; an unprotected write holds it for the write.
+    if (protection === undefined) {
+      const lock = await acquireSharedStoreLock(this);
+      try { return await this.#write(source); } finally { lock.release(); }
+    }
+    return this.#write(source, protection);
+  }
+
+  async #write(source: AsyncIterable<Uint8Array>, protection?: ObjectWriteProtection): Promise<StoredObject> {
     await mkdir(this.temporaryRoot, { recursive: true });
     const temporaryPath = path.join(this.temporaryRoot, randomUUID());
     const handle = await open(temporaryPath, "wx", 0o600);

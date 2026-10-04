@@ -1,13 +1,13 @@
 ## 1. Store lock and lease scope
 
-- [ ] 1.1 Add the store lock to `packages/artifacts`:
+- [x] 1.1 Add the store lock to `packages/artifacts`:
   - a `.store-lock.sqlite` file in rollback-journal mode;
   - a shared mode, held by an open read transaction, that waits up to 30 minutes, with the wait injectable for tests;
   - an exclusive mode that fails immediately.
 
   Verify with separate processes that a shared holder makes exclusive acquisition fail at once. Verify that an exclusive holder makes shared acquisition wait and then succeed after release. Verify that, with a short injected wait, a writer fails with the maintenance error before it admits a run or writes an object. Verify that killing a holder process releases the lock.
-- [ ] 1.2 Make each lease hold the shared lock from creation until release, and make each object write without a protection hold it for the duration of the write. Verify that lease creation and an unprotected write both wait while an exclusive holder exists. Verify that releasing a lease releases its shared lock.
-- [ ] 1.3 Make acceptance create its lease before it verifies the update report's evidence, and protect the cited identities and manifests. Release the lease only after `accepted-build.json` is written. In the acceptance test, verify that an exclusive acquisition attempted from the staging callback fails, and that an exclusive acquisition attempted after the report is stored also fails. Verify that a failed acceptance still releases its lease.
+- [x] 1.2 Make each lease hold the shared lock from creation until release, and make each object write without a protection hold it for the duration of the write. Verify that lease creation and an unprotected write both wait while an exclusive holder exists. Verify that releasing a lease releases its shared lock.
+- [x] 1.3 Make acceptance create its lease before it verifies the update report's evidence, and protect the cited identities and manifests. Release the lease only after `accepted-build.json` is written. In the acceptance test, verify that an exclusive acquisition attempted from the staging callback fails, and that an exclusive acquisition attempted after the report is stored also fails. Verify that a failed acceptance still releases its lease.
 
 ## 2. Collector in the artifacts package
 
