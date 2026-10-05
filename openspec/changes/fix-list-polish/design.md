@@ -14,7 +14,7 @@ See proposal.md. Gallery and table consume the same static list rows, but previo
 - A property's amount and optional currency come from its list relations. Only display a currency when present. Income intervals come from its list values. Scene art uses the same cover frame regardless of which image field supplied it.
 - List projections supply available creature/quest counts and node search placement truth. Registry columns and existing row filtering then present those facts. Rebuild a candidate publication for browser verification without accepting an update.
 - A single delegated pointer listener assigns native titles only to cut text under the pointer, avoiding one listener per table cell and the static-element interaction warning.
-- Show invariant starting place and class availability for races. Hide only redundant skill cells, not their filterable projection values. At 1100–1280 px, omit Quest Giver and wrap the remaining name columns within the card.
+- Show invariant starting place and class availability for races. Show every row's skill and leave out the Skill column only when it would repeat each row's station name. At 1100–1280 px, omit Quest Giver and wrap the remaining name columns within the card.
 
 ## Risks / Trade-offs
 

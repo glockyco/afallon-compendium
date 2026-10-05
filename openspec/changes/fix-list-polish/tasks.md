@@ -6,7 +6,7 @@
 
 ## 2. List Facts and Readability
 
-- [x] 2.1 Remove duplicate place ranges, zero ordinary-zone boss rows, and duplicate station/skill facts; verify home and browse views.
+- [x] 2.1 Remove duplicate place ranges and zero ordinary-zone boss rows, and show every station's and recipe's skill; verify home and browse views.
 - [x] 2.2 Align gear-set counts, retain race and faction facts, and hide zero Source facets until reveal; verify desktop and phone cards.
 - [x] 2.3 Keep quests readable without cut words at 1100–1280 px and mechanics descriptions full width on phones; verify no page overflow.
 
