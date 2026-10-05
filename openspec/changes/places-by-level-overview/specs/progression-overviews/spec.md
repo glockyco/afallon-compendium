@@ -17,11 +17,15 @@ The site SHALL support a progression overview that orders entries by known level
 - **AND** the reader's chosen level appears as a labeled marker above the first group's tick labels, not as a separate result label
 
 ### Requirement: Places By Level
-The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries. The page SHALL explain the matching-range highlight.
+The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries. The control SHALL reach the character level cap even beyond the highest recorded range. When no range contains the chosen level, the page SHALL say so and name the highest level that places reach. The page SHALL explain the matching-range highlight.
 
 #### Scenario: Reader chooses a level
 - **WHEN** a reader sets Your Level to a positive level
 - **THEN** the level marker and matching known ranges update, while other places and unknown-range places remain visible
+
+#### Scenario: Reader chooses a level that no place covers
+- **WHEN** a reader steps Your Level from 31 to 45 in a version whose places reach level 31
+- **THEN** the marker moves to 45, no range is marked, and the page says that no place covers level 45 and that places go up to level 31
 
 #### Scenario: Place type groups
 - **WHEN** published Zones and Dungeons have known level ranges

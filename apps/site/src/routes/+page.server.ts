@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { loadCharacterLevelCap } from '$lib/server/character-level-cap';
 import { serverMapLoader } from '$lib/server/publication';
 import { GUIDE_TOPICS } from '$lib/site-navigation';
 import type { ArtRef, EntityRef } from '@afallon/contracts/public';
@@ -80,9 +81,7 @@ export const load: PageServerLoad = async ({ parent }) => {
   }))).flat() : [];
 
   // A reader's level reaches the character level cap, not only the highest level that a place records.
-  const progression = published.has('mechanics') ? await loader.loadDocument('mechanics', 'character-progression') : undefined;
-  const placeLevelMax = Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1);
-  const characterLevelCap = progression?.kind === 'mechanics' && progression.document.topic === 'character-progression' ? progression.document.curve.cap : placeLevelMax;
+  const characterLevelCap = await loadCharacterLevelCap(loader, registry) ?? Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1);
 
   return {
     itemGroups,

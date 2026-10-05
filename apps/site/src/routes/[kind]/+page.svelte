@@ -43,7 +43,7 @@
   {#if illustrated && view === 'gallery'}
     {#key data.kind.kind}<OverviewGallery list={data.list} kind={data.kind} registry={data.registry} />{/key}
   {:else if placesView}
-    <ProgressionOverview entries={data.places} registry={data.registry} groupTitles={PLACE_GROUP_TITLES} />
+    <ProgressionOverview entries={data.places} registry={data.registry} groupTitles={PLACE_GROUP_TITLES} levelCap={data.levelCap} />
   {:else}
     <!-- Each table remounts on kind change so its filters and sorting read that list's address. -->
     {#key data.kind.kind}<ListTable list={data.list} kind={data.kind} registry={data.registry} />{/key}

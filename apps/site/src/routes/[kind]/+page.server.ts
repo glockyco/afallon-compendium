@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { listPageEntries } from '$lib/server/page-entries';
+import { loadCharacterLevelCap } from '$lib/server/character-level-cap';
 import { serverMapLoader } from '$lib/server/publication';
 import { categoryLabel, isPublicPageKind } from '@afallon/contracts/public';
 import { formatNumber } from '$lib/format';
@@ -29,5 +30,6 @@ export const load: PageServerLoad = async ({ params }) => {
       };
     }))
     : [];
-  return { kind, list, places };
+  const levelCap = kind.kind === 'places' ? await loadCharacterLevelCap(loader, registry) : undefined;
+  return { kind, list, places, levelCap };
 };

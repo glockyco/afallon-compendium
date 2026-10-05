@@ -3,7 +3,7 @@
 
 ### Requirement: Level entry uses published place facts
 
-The hub SHALL show a place's level range only when the publication records that range. Each place outside the dungeons that has a range SHALL appear as a tile with its artwork, its range, a link to its published page, and its counts of creatures and quests, ordered by range, with places that record no creature and no quest after the others; the first eight tiles SHALL show, with a Show N more control for the rest. A reader MAY enter or step to a character level with the compact shared control, saved with the level that the mechanics calculators use; the tiles SHALL follow each keystroke without moving focus, the places whose recorded range contains the level SHALL come first and carry a mark, and an empty field SHALL forget the level. A place without a recorded range SHALL remain reachable through the Places list. The hub SHALL distinguish an authored range from advice about where a character should go.
+The hub SHALL show a place's level range only when the publication records that range. Each place outside the dungeons that has a range SHALL appear as a tile with its artwork, its range, a link to its published page, and its counts of creatures and quests, ordered by range, with places that record no creature and no quest after the others; the first eight tiles SHALL show, with a Show N more control for the rest. A reader MAY enter or step to a character level with the compact shared control, saved with the level that the mechanics calculators use; the tiles SHALL follow each keystroke without moving focus, the places whose recorded range contains the level SHALL come first and carry a mark, and an empty field SHALL forget the level. The control SHALL reach the character level cap. When no place or dungeon covers the chosen level, the hub SHALL say so and name the highest level that places reach. A place without a recorded range SHALL remain reachable through the Places list. The hub SHALL distinguish an authored range from advice about where a character should go.
 
 #### Scenario: Place has a published level range
 - **WHEN** a published place has a level range
@@ -19,3 +19,7 @@ The hub SHALL show a place's level range only when the publication records that 
 - **WHEN** a reader enters level 25 on the hub
 - **THEN** the places whose recorded range contains 25 come first, each marked, and the others follow in range order
 - **AND** no place is described as the best place for that level
+
+#### Scenario: Reader enters a level that no place covers
+- **WHEN** a reader steps the hub's level from 31 to 45 in a version whose places reach level 31
+- **THEN** the control accepts 45, no tile is marked, and the hub says that no place covers level 45 and that places go up to level 31

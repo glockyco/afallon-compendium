@@ -15,12 +15,17 @@
   export let levelId = CHARACTER_LEVEL;
   export let levelLabel = 'Your level';
   export let description = 'Highlighted places include your level. Ranges can overlap.';
+  /** The highest level a reader can choose, beyond the highest recorded range. Without it the axis end bounds the control. */
+  export let levelCap: number | undefined = undefined;
 
   $: selectedLevel = $readerLevels[levelId];
   $: axisEnd = progressionAxis(entries, selectedLevel);
   $: groups = progressionGroups(entries);
   $: ticks = levelTicks(axisEnd);
   $: marker = selectedLevel === undefined ? null : levelPoint(selectedLevel, axisEnd);
+  $: ranges = entries.flatMap((entry) => entry.range ? [entry.range] : []);
+  $: highestLevel = Math.max(1, ...ranges.map((range) => range.max));
+  $: uncovered = selectedLevel !== undefined && ranges.length > 0 && !ranges.some((range) => range.min <= selectedLevel! && selectedLevel! <= range.max);
 
   function levelPoint(level: number, end: number): number {
     return (level - 0.5) / end * 100;
@@ -65,8 +70,8 @@
 
 <div class="progression">
   <div class="intro">
-    <p>{description}</p>
-    <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={axisEnd} level={selectedLevel} readerId={levelId} optional compact slider={false} />
+    <p>{description}{#if uncovered}{' '}No place covers level {formatNumber(selectedLevel ?? 0)}. Places go up to level {formatNumber(highestLevel)}.{/if}</p>
+    <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={Math.max(axisEnd, levelCap ?? 0)} level={selectedLevel} readerId={levelId} optional compact slider={false} />
   </div>
   {#if groups.length}
     {#each groups as group, index (group.label)}
