@@ -72,9 +72,9 @@
     return stat && (name !== 'Health' || (projectNpcStat(stat, statLevel) ?? 0) > 0) ? [stat] : [];
   });
   $: health = primaryStats.find((stat) => nameOf(stat.stat) === 'Health');
-  $: boss = document.bossOf.length > 0 || facts.roles.some((role) => roleLabel(role) === 'Boss');
   $: hasCombatStats = combat && !adventurer && document.locations.length > 0 && primaryStats.length > 0;
-  $: variableStatLevel = statSource?.level && statMax > statMin && !boss;
+  // Any creature whose level varies, a boss that scales with the player included, shows the level its stats are for.
+  $: variableStatLevel = statSource?.level && statMax > statMin;
   $: hours = adventurer?.joinAfterHours ?? 0;
   $: summaryFacts = adventurer ? [
     ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),

@@ -22,7 +22,7 @@
 
 ## 5. Creature Combat Stats
 
-- [x] 5.1 Move projected combat values and their explanation into a main-column Combat Stats section after Where to find, as one compact strip, with a compact inline level control only for variable-level non-boss creatures; verify Fangchill, Bandit, and Aquarius at 1440, 1100, and 390 px.
+- [x] 5.1 Move projected combat values and their explanation into a main-column Combat Stats section after Where to find, as one compact strip, with a compact inline level control for every creature whose level varies; verify Fangchill, Bandit, and Aquarius at 1440, 1100, and 390 px.
 - [x] 5.2 Keep kill experience in a side card with your level and, for variable-level creatures, a creature level shared with Combat Stats, keep short side facts and scaling qualifiers readable, and retain adventurer identity without NPC combat stats; verify the four NPCs in Firefox and Chromium at each width.
 - [x] 5.3 Rebuild and assert deployment, validate OpenSpec strict, exercise level transitions and section links, and pass staged repository verification.
 
