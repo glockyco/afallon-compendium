@@ -7,7 +7,7 @@ Entity pages repeat facts, bury the useful answer on phones, and allow controls 
 - Prioritize boss difficulty, quest rewards, adventurer identity, class talent links, playable zone contents, and ability effects before secondary detail on narrow screens.
 - Deduplicate acquisition routes, item and set facts, and repeated counts while preserving access to full detail.
 - Keep metadata, table headings, units, controls, and section navigation readable at phone widths without disturbing desktop layouts.
-- Move projected creature combat stats and kill experience into the NPC main column, with a compact level control and readable stat tiles instead of a crowded side card.
+- Move projected creature combat stats out of a crowded side card into a main-column Combat Stats section after Where to find, as one compact strip with a creature-level control, and keep kill experience in a side card whose creature level is shared with those stats.
 - Keep loot chance assumptions in linked help, suppress unnamed internal effect links, and omit creature stat panels that cannot calculate a complete value.
 - Group computed and listed item drop rates, place phone quantities under full-width names while keeping chance headings clear, and make identity, service, and gathering facts read consistently across browser widths.
 
