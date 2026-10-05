@@ -4,12 +4,15 @@
   import EntityReference from './EntityReference.svelte';
   import { formatNumber } from './format';
   import { actionWords, durationWords, effectImpact } from './detail/effect-outcome';
+  import { hasScaling, scalingSentence } from './detail/scaling-formula';
 
   export let document: PublicEffect;
   export let registry: PublicKindEntry[];
   export let rankIndex: number | undefined = undefined;
   $: rank = document.ranks.find((candidate) => candidate.rank === rankIndex) ?? document.ranks[0];
   $: impact = effectImpact(document, rank);
+  // A scaling rank adds weapon damage and caster stats to its listed amount, so the preview names every part.
+  $: sentence = hasScaling(rank?.scaling) ? scalingSentence(rank.scaling) : undefined;
   $: condition = !impact ? document.checkedBy.find((row) => row.owner?.key && ['abilities', 'items'].includes(row.owner.kind)) : undefined;
   $: duration = document.isState && document.durationSeconds > 0 ? durationWords(document.durationSeconds) : undefined;
 </script>
@@ -18,6 +21,7 @@
   <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} compact />
   <p class="type">{document.type} effect{rankIndex !== undefined && document.ranks.length > 1 ? ` · Rank ${formatNumber((rank?.rank ?? 0) + 1)}` : ''}</p>
   {#if document.type === 'Stat' && rank?.actions.length}<ul>{#each rank.actions as entry}{@const words = actionWords(entry)}<li>{words.before}{#if entry.target}<EntityReference ref={entry.target} {registry} plain />{/if}{words.after}</li>{/each}</ul>
+  {:else if sentence}<p class="outcome">{sentence}</p>
   {:else if impact}<p class="outcome">{impact}</p>
   {:else if condition}<p class="outcome">{document.ref.name} must be {condition.state.toLowerCase()} for {condition.owner && 'name' in condition.owner ? condition.owner.name : 'this ability'}.</p>{/if}
   {#if document.description && document.description !== impact}<p>{document.description}</p>{/if}

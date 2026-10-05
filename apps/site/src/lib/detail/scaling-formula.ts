@@ -38,9 +38,7 @@ export function scalingBreakdown(scaling: EffectScaling): ScalingBreakdown {
   if (scaling.baseAmount !== 0 && scaling.baseKind !== 'unknown') {
     const amount = Math.abs(scaling.baseAmount);
     if (scaling.baseKind === 'flat') {
-      parts.push(scaling.healing && scaling.baseStat
-        ? { id: 'base', label: 'Base healing', amount: signed(scaling.baseAmount, formatNumber(amount)) }
-        : { id: 'base', label: scaling.healing ? 'Base healing' : `${category ? `${category} damage` : 'Base damage'}`, amount: signed(scaling.baseAmount, formatNumber(amount)) });
+      parts.push({ id: 'base', label: scaling.healing ? 'Base healing' : `${category ? `${category} damage` : 'Base damage'}`, amount: signed(scaling.baseAmount, formatNumber(amount)) });
     } else {
       const which = scaling.baseKind === 'percentMax' ? 'maximum' : 'current';
       parts.push({ id: `base-${which}`, label: `Target's ${which} ${scaling.baseStat ? '' : 'amount'}`,
@@ -57,6 +55,26 @@ export function scalingBreakdown(scaling: EffectScaling): ScalingBreakdown {
     ...(scaling.baseKind === 'unknown' && scaling.baseAmount !== 0
       ? { note: `The game lists an amount of ${formatNumber(scaling.baseAmount)}, but how it is calculated is not known.` } : {}),
   };
+}
+
+/**
+ * A rank's parts as one sentence, for a preview without room for the table:
+ * "Deals 250% main hand and off hand weapon damage + 25 Slicing damage + 100% of the caster's Intellect."
+ */
+export function scalingSentence(scaling: EffectScaling): string | undefined {
+  const terms = scalingBreakdown(scaling).parts.map((part) => {
+    const negative = part.amount.startsWith('−');
+    const amount = negative ? part.amount.slice(1) : part.amount;
+    const name = part.ref ? ('name' in part.ref ? part.ref.name : part.ref.label) : '';
+    const text = part.id === 'weapon' ? `${amount} ${part.label.charAt(0).toLowerCase()}${part.label.slice(1)}`
+      : part.id === 'base' ? (scaling.healing ? amount : `${amount} ${part.label === 'Base damage' ? 'damage' : part.label}`)
+      : part.id.startsWith('base-') ? `${amount} of the target's ${part.id === 'base-maximum' ? 'maximum' : 'current'} ${name || 'amount'}`
+      : `${amount} of the caster's ${name}`;
+    return { negative, text };
+  });
+  if (!terms.length) return undefined;
+  const sum = terms.map((term, index) => `${index ? (term.negative ? ' − ' : ' + ') : term.negative ? '−' : ''}${term.text}`).join('');
+  return `${scaling.healing ? 'Heals' : 'Deals'} ${sum}.`;
 }
 
 /** Rows of parts across ranks: one row per part, one amount per rank, blank where a rank lacks that part. */

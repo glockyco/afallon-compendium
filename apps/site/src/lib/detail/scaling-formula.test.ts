@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { EffectScaling, Ref } from '@afallon/contracts/public';
-import { hasScaling, rankStatNote, scalingBreakdown, scalingRows } from './scaling-formula';
+import { hasScaling, rankStatNote, scalingBreakdown, scalingRows, scalingSentence } from './scaling-formula';
 
 const intellect: Ref = { key: 'stats:3', kind: 'stats', name: 'Intellect', slug: 'intellect' };
 const strength: Ref = { key: 'stats:4', kind: 'stats', name: 'Strength', slug: 'strength' };
@@ -48,4 +48,13 @@ test('the tooltip note names stats only when one damage or one healing calculati
     .toBe("Adds 100% of the caster's Intellect − 50% of the caster's Strength to the Slicing Damage.");
   expect(rankStatNote([row(damage), row({ ...damage, baseAmount: 40 })], 0)).toBeUndefined();
   expect(rankStatNote([row(damage, 1)], 0)).toBeUndefined();
+});
+
+test('a preview sentence adds up every part, with healing amounts unlabeled and penalties subtracted', () => {
+  expect(scalingSentence(damage)).toBe("Deals 200% main hand weapon damage + 25 Slicing damage + 100% of the caster's Intellect + 50% of the caster's Strength.");
+  expect(scalingSentence({ ...damage, healing: true, weaponPercent: 0, weapons: [], category: undefined, baseAmount: 240, stats: [damage.stats[0]!] }))
+    .toBe("Heals 240 + 100% of the caster's Intellect.");
+  expect(scalingSentence({ ...damage, category: undefined, weaponPercent: 0, stats: [{ stat: strength, coefficientPercent: -50, source: 'explicit' }] }))
+    .toBe("Deals 25 damage − 50% of the caster's Strength.");
+  expect(scalingSentence({ ...damage, baseAmount: 0, weaponPercent: 0, stats: [] })).toBeUndefined();
 });
