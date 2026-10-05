@@ -122,7 +122,8 @@ Rows that have the same counterpart and the same values, and differ only in the 
 
 ### Requirement: Long relation tables show their first rows
 
-A relation with up to ten rows SHALL show every row. A relation with more than ten rows SHALL preview its first eight in its current sort order and offer Show N more, where N is the number of hidden rows. A list on a detail page that hides rows behind Show more or Show all SHALL follow the same rule. An address that names a hidden row SHALL reveal it and scroll to it; this SHALL also work inside a hidden tab or closed disclosure.
+A relation with up to ten rows SHALL show every row. A relation with more than ten rows SHALL preview its first eight in its current sort order and offer Show N more, where N is the number of hidden rows. A list on a detail page that hides rows behind Show more or Show all SHALL follow the same rule. Every linked row SHALL also be present in prerendered HTML inside a native disclosure that a reader without JavaScript can open. An address that names a hidden row SHALL reveal it and scroll to it; this SHALL also work inside a hidden tab or closed disclosure.
+Linked entities that otherwise appear only inside an inactive talent or stat tab SHALL also have a native static disclosure so no-JavaScript readers can reach them.
 
 #### Scenario: Long drop list
 - **WHEN** an NPC has 22 drop rows
@@ -139,6 +140,15 @@ A relation with up to ten rows SHALL show every row. A relation with more than t
 #### Scenario: Link to a hidden row
 - **WHEN** a reader opens a link to a variant anchored in row 20
 - **THEN** the row is revealed and scrolled into view
+
+#### Scenario: Static merchant wares
+- **WHEN** the Interior Decorator lists 41 wares behind Show more
+- **THEN** all 41 linked wares appear in its prerendered HTML
+- **AND** without JavaScript the extra wares can be opened through a native disclosure
+
+#### Scenario: Linked inactive tabs
+- **WHEN** a class talent or stat source has a linked ability, item, or effect in a tab that is not selected on the static page
+- **THEN** the linked entity appears inside a native static disclosure without changing the hydrated tab's first view
 
 ### Requirement: Relation tables fit narrow screens
 
@@ -189,11 +199,11 @@ Sections SHALL label probabilities, quantities, and conditions in plain language
 
 ### Requirement: Reader text shows no record ids or internal words
 
-Page text, table cells, and labels SHALL NOT show a native record id or an internal enum word, such as "Mob". The NPC type MOB SHALL NOT appear, because it marks an ordinary NPC. The NPC types BOSS, MERCHANT, and BANK SHALL NOT appear, because the roles already name them. A connection SHALL NOT show the authored kind of its teleport. Category values SHALL read in title case on pages, in tooltips, in list cells and filters, and on the map: item types and slots, gear types, rarities, roles and map categories, quest start types, NPC and creature types, place types, and kind labels. A short word inside a category value, such as "of", SHALL stay lowercase.
+Page text, table cells, labels, descriptions, hints, accessibility text, empty states, and generated publication text SHALL NOT show a native record id or an internal enum word, such as "Mob". Reader-facing text SHALL describe known facts and unknown gaps without pipeline terms such as published, publication, authored, recorded, captured, configured, source row, outcomes, loot weight, or a hedging setting or record. Creature distinctions SHALL read as versions instead of variants. The NPC type MOB SHALL NOT appear, because it marks an ordinary NPC. The NPC types BOSS, MERCHANT, and BANK SHALL NOT appear, because the roles already name them. A connection SHALL NOT show the internal kind of its teleport. Category values SHALL read in title case on pages, in tooltips, in list cells and filters, and on the map: item types and slots, gear types, rarities, roles and map categories, quest start types, NPC and creature types, place types, and kind labels. A short word inside a category value, such as "of", SHALL stay lowercase. Sentences SHALL use sentence case, with no semicolons or em dashes in rewritten text.
 
 #### Scenario: Variants without readable labels
 - **WHEN** three variants of an NPC differ in stats but not in place, area, level, or type
-- **THEN** the Variants table labels them "Variant 1", "Variant 2", and "Variant 3"
+- **THEN** the Versions table labels them "Version 1", "Version 2", and "Version 3"
 
 #### Scenario: Ordinary creature
 - **WHEN** an NPC has the type MOB
@@ -202,6 +212,15 @@ Page text, table cells, and labels SHALL NOT show a native record id or an inter
 #### Scenario: Enum word and authored value in one filter
 - **WHEN** the item types include the enum word QUEST_ITEM and the authored value "Fishing rod"
 - **THEN** the Type filter lists "Quest Item" and "Fishing Rod"
+
+#### Scenario: Reader sees an unknown fact
+- **WHEN** a page lacks a known location, level, or chance
+- **THEN** it explains that the fact is unknown rather than claiming the game has no location, level, or chance
+
+#### Scenario: Reader text never uses internal pipeline words
+- **WHEN** a reader explores a page, search result, tooltip, chart description, empty state, or generated document
+- **THEN** site-authored text describes game facts or their unknown status without internal pipeline words
+- **AND** genuine game names and quoted game-provided text remain faithful to the game
 
 ### Requirement: Facts carry information
 
@@ -217,7 +236,8 @@ A page SHALL NOT show a stat whose amount is zero. A creature whose roles are al
 
 ### Requirement: NPC pages show who the NPC is, where it is, and what it gives
 
-A combat creature with a published encounter SHALL show its useful level and positive health in a side facts card, with positive experience per kill and respawn as secondary facts when applicable. A lone fact SHALL sit in the title identity line instead of occupying a full stat strip. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. An NPC without drops SHALL not lead with an empty Drops answer. A friendly NPC without drops SHALL lead with its published service or flight destinations, when present. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL use the common side-card frame for meaningful combat stats, faction, aggro range, and immunities without repeating the answer, and SHALL omit the column when it has no useful content. Negative health and unplaced default combat values SHALL NOT appear as facts. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL prioritize the NPC's available stock, quests, or abilities ahead of secondary placement, with Where to find grouped by place with counts when there is a published spot, followed by variant differences. A missing spot SHALL be omitted rather than presented as a framed no-location answer. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience. An adventurer of the world roster SHALL show its class with a linked entity preview, its race, and its party role in a compact facts card, with a link to the adventurer roster mechanics, and an adventurer without a role of its own SHALL read Damage by default. Its Gear card SHALL open with its gear preference. Its side SHALL show an Arrival card with its starting level, when it joins, and a link to the guide on inviting it. Where it has no known location, Where to find SHALL say that the Friends panel finds it once it has joined. A Talents section SHALL name its class, its preferred talent tree linked to that tree on its class page, and the abilities that it learns first. A roster adventurer takes its stats from its race and class at its level, so its page SHALL show no stats of its NPC record. An NPC's abilities SHALL be a section of the main column. An NPC that fights with the abilities of its class instead of the phase abilities of its record SHALL show no phase abilities, and ability pages SHALL NOT name it among the NPCs that use an ability.
+A combat creature with a published encounter SHALL show its useful level and positive health, with positive experience per kill and respawn as secondary facts when applicable. On a phone, a boss's level and health SHALL precede a long Drops answer. A lone fact SHALL sit in the title identity line instead of occupying a full stat strip. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. An NPC without drops SHALL not lead with an empty Drops answer. A friendly NPC without drops SHALL lead with its published service or flight destinations, when present. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. For combat creatures with available stats, the main column SHALL show a Combat Stats section after Where to find. Its primary values SHALL be Health, Strength, Armor, and Magic armor in one bordered strip, each label above its value. On phones four values SHALL form two rows of two, and fewer SHALL stay in one row. A creature whose level varies, a boss that scales with the player included, SHALL offer a compact creature-level control beside that section's heading and a muted place and level range below it; fixed-level creatures SHALL show their stats at their level without a level control. A disclosure SHALL follow the values with a sentence about the calculation and the shared relation table of each stat's start, bonus, and gain per level, and a muted line SHALL name the creature's other known stat bonuses that are not complete stats. The side SHALL use the common side-card frame for meaningful level, faction, aggro range, and immunities without repeating the answer, and SHALL omit the column when it has no useful content. A scaling qualifier SHALL occupy its own muted line rather than splitting inside a level value. Negative health and unplaced default combat values SHALL NOT appear as facts. When the published kill experience has its level difference and the character level cap, an Experience per kill card in the side column SHALL show the experience per kill with a control for the reader's remembered character level, a creature-level control when the creature's level varies, and a link to the kill calculator, without a duplicate static side fact. The creature level SHALL start at the level that the creature spawns at for the reader's level, and SHALL be one value shared with the Combat Stats section, so both always describe the same creature level. An NPC's stock SHALL lead its remaining sections when it sells items. A creature without stock SHALL list its quests before Where to find, and an NPC without a published spot SHALL show its abilities before its quests. Where to find SHALL be grouped by place with counts when there is a published spot. For a creature you fight, Combat Stats, its abilities, and the effects they apply SHALL follow Where to find, so a reader learns where to find it before how to fight it. Variant differences SHALL come last. A missing spot SHALL be omitted rather than presented as a framed no-location answer. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience. An adventurer of the world roster SHALL show its class with a linked entity preview, its race, and its party role in a compact facts card, with a link to the adventurer roster mechanics, and an adventurer without a role of its own SHALL read Damage by default. Its Gear card SHALL open with its gear preference. Its side SHALL show an Arrival card with its starting level, when it joins, and a link to the guide on inviting it. Where it has no known location, Where to find SHALL say that the Friends panel finds it once it has joined. A Talents section SHALL name its class, its preferred talent tree linked to that tree on its class page, and the abilities that it learns first. A roster adventurer takes its stats from its race and class at its level, so its page SHALL show no stats of its NPC record. An NPC's abilities SHALL be a section of the main column. An NPC that fights with the abilities of its class instead of the phase abilities of its record SHALL show no phase abilities, and ability pages SHALL NOT name it among the NPCs that use an ability.
+Only calculable primary values SHALL appear in the strip or the calculation table. Missing operands SHALL NOT produce an Unknown value, a misleading bonus in place of a total, or a table full of unknown inputs. When no effective stat can be calculated, the Combat Stats section SHALL be absent while the known authored additions remain in the published facts. If some values can be calculated, other known bonuses SHALL remain visible in the muted line after the disclosure. The explanatory sentence SHALL live inside that disclosure, in words that hold for every creature.
 
 #### Scenario: Boss of one place
 - **WHEN** an NPC is boss of one place
@@ -237,11 +257,12 @@ A combat creature with a published encounter SHALL show its useful level and pos
 
 #### Scenario: Gear preference of an adventurer
 - **WHEN** a reader opens Agra Emberhide, whose specialization is Leather, Staff, and Strength
-- **THEN** the side reads Gear preference: Leather armor, Staff, favours Strength, with a link to the Adventurers mechanics page's gear section
+- **THEN** the Gear card opens with her preference for Leather armor and Staff and links to the Adventurers mechanics page's gear section
 
 #### Scenario: Experience at the reader's level
 - **WHEN** a reader at character level 15 opens a creature that spawns at levels 10 to 20 and scales with the player
-- **THEN** its Experience per kill card shows the experience of a level 15 kill, computed as the kill calculator computes it without followers, Heroic, or bonuses
+- **THEN** its Experience per kill card starts at creature level 15 and shows the experience of a level 15 kill, computed as the kill calculator computes it without followers, Heroic, or bonuses
+- **AND** choosing creature level 18 in that card or in Combat Stats updates both the experience and the combat values for level 18
 
 #### Scenario: Adventurer without a respawn time
 - **WHEN** a reader opens Eldeth Goldvein, whose NPC record says 1 to 2 minutes
@@ -270,7 +291,12 @@ A combat creature with a published encounter SHALL show its useful level and pos
 
 #### Scenario: Negative NPC health
 - **WHEN** a creature's published stat amount for Health is negative
-- **THEN** neither the title nor side cards present it as health
+- **THEN** neither the title nor its Combat Stats section presents negative health as a full health value
+
+#### Scenario: Level-dependent combat stats
+- **WHEN** a reader opens Fangchill or Bandit and changes the creature level
+- **THEN** the four verified combat values update for the selected level, while the level range and source place remain visible
+- **AND** Eldroth, a boss that scales with the player, offers the same control, while Aquarius shows its fixed-level stats without a creature level control
 
 ### Requirement: Quest pages follow the course of the quest
 
@@ -618,7 +644,7 @@ A place where new characters of at least one playable race start SHALL say so in
 
 ### Requirement: Pages compute values at the reader's levels
 
-The site SHALL remember the character level and the skill levels that a reader sets on any page, across pages and visits, in the browser. A page that computes a value from one of these levels SHALL start at the remembered level, or at a stated default before the reader sets one, and SHALL show the control that changes it next to the value, so that no remembered level changes a value out of sight. A level outside a control's range SHALL show at the nearest end without changing the remembered level.
+The site SHALL remember the character level and the skill levels that a reader sets on any page, across pages and visits, in the browser. A page that computes a value from one of these levels SHALL start at the remembered level, or at a stated default before the reader sets one, and SHALL show the control that changes it next to the value, so that no remembered level changes a value out of sight. A level outside a control's range SHALL show at the nearest end without changing the remembered level. The level control SHALL use the shared stepper and slider, whose accessible buttons and keyboard commands adjust within the visible range.
 
 #### Scenario: Level carries to another page
 - **WHEN** a reader sets their Fishing level to 75 on Golden Swirl and opens Teeming Fishing Hole
@@ -711,11 +737,12 @@ NPC pages SHALL link published effects whose appliers name that NPC through an a
 
 ### Requirement: Relation tables build only the rows they show
 
-A relation table SHALL build page content only for the rows that it shows. Rows that its preview hides SHALL NOT be built, on the server or in the browser, until Show N more or an address reveals them. Revealed rows SHALL be added in steps, the first step at once, so that no step blocks the page for long. A row that an address names SHALL be built before it scrolls into view.
+Interactive relation tables SHALL build only their visible rows after hydration. Additional rows SHALL have their linked content in a native disclosure in the server-rendered HTML; that disclosure SHALL remain usable without JavaScript and SHALL be replaced by the original Show N more control after hydration. Revealed interactive rows SHALL be added in steps, the first step at once, so that no step blocks the page for long. A row that an address names SHALL be built before it scrolls into view.
 
 #### Scenario: Long hidden relation
 - **WHEN** a reader opens the Gold page, whose relations hold 659 rows of which 36 show
-- **THEN** the page builds 36 relation rows and still offers each Show N more control with its full count
+- **THEN** the hydrated page builds 36 interactive relation rows and still offers each Show N more control with its full count
+- **AND** its prerendered HTML contains the links in the remaining rows inside native disclosures
 
 #### Scenario: Reader shows the hidden rows
 - **WHEN** a reader selects Show 615 more on a relation
@@ -732,3 +759,79 @@ A page SHALL show a game description with the line breaks that the game shows. A
 #### Scenario: Mount description
 - **WHEN** a reader opens Brown Mare
 - **THEN** "Mounted speed 40%" and "Can't be used indoors" read on separate lines
+
+### Requirement: Detail answers stay prominent and readable
+
+Entity detail pages SHALL lead with the fact a reader needs to understand that entity, keeping long related lists and explanations available after the answer. On phones, a boss's known level and any verified health, adventurer's race, class, role and arrival, quest rewards, class talent tree links, and zone contents SHALL precede long loot, gear, chain, or lore content. An ability's effect and use SHALL have the main column before learner lists while costs and requirements remain accessible. Desktop SHALL retain a main answer beside secondary facts. Entity names, action labels, and separators SHALL not split into misleading line fragments.
+
+#### Scenario: Boss and adventurer on a phone
+- **WHEN** a reader opens Kraath the Hivebreaker or Agra Emberhide at 390 px
+- **THEN** Kraath's level and verified health precede the long drops list, and Agra's identity and arrival precede the gear kit
+
+#### Scenario: Quest and class on a phone
+- **WHEN** a reader opens A Bite in the Brew or Shieldmaster at 390 px
+- **THEN** quest rewards precede the chain, and the class's talent tree links precede its long starting gear list
+- **AND** the quest's Show on Map action remains together when its location row wraps
+
+#### Scenario: Place and ability answers
+- **WHEN** a reader opens Coalway Swamp on a phone or Ambush on a desktop
+- **THEN** zone content counts and jump links precede long lore, and the ability's effect occupies the main answer before its learner list
+
+### Requirement: Detail facts avoid repetition and preserve context
+
+A detail page SHALL not repeat a source, reward, experience amount, set piece total, or item count in neighboring cards when one presentation gives the same answer. Distinct acquisition methods and differing conditions SHALL remain available. An item belonging to a gear set SHALL show the equipped bonus summary with a way to reach the full roster. Source names and metadata SHALL wrap at entity boundaries without orphan punctuation. Quantities and heading counts SHALL name their units. Explanations SHALL only refer to chance values that the page displays or explicitly identifies.
+
+#### Scenario: Item sources and set membership
+- **WHEN** a reader opens Mandrith Carapace Cleaver, Adventurer's Fire Sword, or Adept Necromancer Chest
+- **THEN** identical boss drops or sole quest rewards appear once, set bonuses remain visible without listing every set piece in the stat card, and source names and separators wrap intact
+
+#### Scenario: Gathering yield and on-hit effect
+- **WHEN** a reader opens Aetherium Vein at 390 px or Adventurer's Fire Sword
+- **THEN** yield values retain their chance heading, the required Mining level is distinguished from the reader's level and extra yield, and on-hit text does not promise a missing chance column
+
+#### Scenario: Repeated counts
+- **WHEN** a reader opens the item-power stat or Adept Necromancer gear set
+- **THEN** the item count and set piece count each appear once in nearby summary and section controls
+
+### Requirement: Section controls never obscure detail content
+
+The section navigator SHALL float in the lower-right corner at every width. Where the page margin can hold it, it SHALL rest in the margin without overlapping readable content. Where the margin cannot hold it, it SHALL withdraw while the reader scrolls down and return when the reader scrolls up, reaches the page end, or moves keyboard focus to it, so it never rests over text that the reader is moving through. The page SHALL leave room below its last line so the control never covers the end of the page. The control SHALL still reach each rendered section.
+
+#### Scenario: Scrolling a boss page on a phone
+- **WHEN** a reader scrolls down Kraath the Hivebreaker's long loot section at 390 px
+- **THEN** the section control withdraws and does not cover a loot row or its chance
+- **AND** it returns when the reader scrolls up or reaches the page end
+
+#### Scenario: Reading a detail page on a desktop
+- **WHEN** a reader scrolls a detail page at 1440 px
+- **THEN** the section control stays visible in the page margin without overlapping the content columns
+
+### Requirement: Chances and ability outcomes have player context
+
+An item's concise kill-drop answer SHALL state its per-kill chance beside the source without stray punctuation or internal qualifiers. A linked hint on that answer and the full chance table SHALL explain the assumption of no Loot Chance, how Luck affects it in this version, and link to Loot Chance, Luck, and the loot mechanics explanation. Level restrictions SHALL remain visible. An ability SHALL link only effects with a player-facing name; fallback unnamed effect labels SHALL not appear in its answer or Versions table when its native description already explains the outcome.
+The chance hint SHALL use the same round help mark and baseline alignment as other detail explanations, directly after the chance without a dangling period.
+
+#### Scenario: Boss item drop rate
+- **WHEN** a reader opens Mandrith Carapace Cleaver
+- **THEN** Kraath's route states 18.31% per kill followed by the baseline-aligned round linked help mark, without a detached separator, trailing period, or unexplained 0 Loot Chance qualifier
+
+#### Scenario: Ability with an internal effect
+- **WHEN** a reader opens Ambush
+- **THEN** its native description retains the teleport outcome, but no Unnamed Teleport Effect link appears in the answer or Versions comparison
+
+### Requirement: Phone detail facts retain their labels and columns
+
+The NPC identity line SHALL wrap at fact boundaries without starting a line with a separator or fusing two facts. On phones, loot column headings SHALL remain associated with their values, and creature icon and name SHALL stay in one aligned name cell. A mixed item-source table SHALL distinguish computed chances from listed rates once for each group, without repeating the rate kind in every cell. The shared relation table styling SHALL keep each heading over its values. Sidebar level ranges SHALL remain whole and place scaling on a separate muted line. Zone service labels SHALL use consistent title casing. Gathering instructions SHALL separate the required skill level, selected reader level, and extra-yield odds in plain sentences.
+On phones, a table with a name, quantity, and chance SHALL give the name its own full-width row, put the quantity below it as a muted × amount, and keep the chance right-aligned under an unbroken one-line heading. The hidden quantity heading SHALL remain available to assistive technology. Desktop SHALL retain the three side-by-side columns. When a To gather card already states a node's level requirement, the yield answer SHALL not repeat it; without that card, the answer SHALL retain the requirement.
+
+#### Scenario: Mixed Wolf Fang drops
+- **WHEN** a reader opens Wolf Fang at 390 px
+- **THEN** listed rates and per-kill chances have distinct grouped context, each value reads as a percentage only, each icon and full name share a row, quantities appear beneath the names, and the chance heading stays on one line above right-aligned values
+
+#### Scenario: Creature and zone facts on phones
+- **WHEN** a reader opens Fangchill, Coalway Woods, or Aetherium Vein at 390 px
+- **THEN** Fangchill's title facts separate cleanly and its level scaling has its own line, Coalway Woods shows consistently cased Services labels, and Aetherium Vein shows the gathering requirement once alongside its selected-level extra-yield explanation
+
+#### Scenario: Content and gathering yields on a phone
+- **WHEN** a reader opens Soaked Bag contents or Aetherium Vein yields at 390 px
+- **THEN** item names take a full row, × quantities follow under them, chance headings remain legible above right-aligned values, and desktop tables retain their original columns

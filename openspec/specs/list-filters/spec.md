@@ -113,7 +113,7 @@ The quest list SHALL offer a Reward type filter over the reward types of its que
 
 ### Requirement: Filter state lives in the URL
 
-The list SHALL keep its name search, sort, facet values, ranges, and stat filters in the URL. Opening or reloading a URL SHALL restore the controls and the results. Back and Forward SHALL restore earlier selections. Labels, chips, and columns SHALL use reader-facing names, not record ids or raw enum words.
+The list SHALL keep its name search, sort, facet values, ranges, and stat filters in the URL. Opening or reloading a URL SHALL restore the controls and the results. Back and Forward SHALL restore earlier selections. Labels, chips, and columns SHALL use reader-facing names, not record ids or raw enum words. The URL SHALL omit the sort only when it equals the list's default, and SHALL omit the direction only when it equals the default sort's direction or, for another column, that column's first-click direction (A to Z for text, high to low for numbers). A URL that names a sort without a direction SHALL use that same direction. Numeric column headings SHALL align their label with the numbers below them.
 
 #### Scenario: Shared filtered list
 - **WHEN** a reader opens `/items/?class=Shieldmaster&slot=BOOTS&stat=Stamina:10:`
@@ -122,6 +122,14 @@ The list SHALL keep its name search, sort, facet values, ranges, and stat filter
 #### Scenario: Clear and return
 - **WHEN** a reader selects Clear all and then Back
 - **THEN** the previous filters and results return
+
+#### Scenario: Name sort on a list sorted by a count
+- **WHEN** a reader sorts the Effects list by name, in either direction, and reloads the page
+- **THEN** the same name order returns
+
+#### Scenario: Sort without a direction
+- **WHEN** a reader opens `/stats/?sort=name`
+- **THEN** the stats appear from A to Z
 
 ### Requirement: Filters do not rank content
 
@@ -268,7 +276,7 @@ The Items, NPCs, and Abilities lists SHALL hide by default only entries for whic
 
 ### Requirement: Hidden reveals respect the current search and filters
 
-A list SHALL count hidden entries matching its current name search, selected facets, numeric ranges, and stat filters. The reveal SHALL be offered only when that count is positive, and activating it SHALL show the matching hidden entries. The count SHALL never present the total hidden across the kind as the matching count of a narrowed search.
+A list SHALL count hidden entries matching its current name search, selected facets, numeric ranges, and stat filters. The reveal SHALL be offered only when that count is positive, and activating it SHALL show the matching hidden entries. The count SHALL never present the total hidden across the kind as the matching count of a narrowed search. Its sentence-case button SHALL say what is missing for its kind: "Show 91 items without a known source", "Show 3 NPCs not found in the world", or "Show 49 abilities nobody uses", with singular forms for one entry. On hover, focus, and tap, the reveal SHALL offer the shared explanation "These are in the game's files, but we found no way to get, meet, or use them in this version." Availability facets and selected chips SHALL use readable kind-specific labels rather than "Known Way" or "No Known Way". An ability with no known use SHALL show "Nobody Uses It" only in the Availability filter and chip, not in the Source column or filter.
 
 #### Scenario: Shout is hidden by default
 - **WHEN** the reader searches the Abilities list for Shout before revealing entries with no known use
@@ -278,6 +286,21 @@ A list SHALL count hidden entries matching its current name search, selected fac
 #### Scenario: Other filters narrow the reveal
 - **WHEN** the reader searches by name and selects a facet or an inclusive numeric range
 - **THEN** the hidden reveal counts only entries satisfying those choices
+
+#### Scenario: Hidden item is explained and revealed
+- **WHEN** the reader sees an Items reveal button and hovers, focuses, or taps its explanation control
+- **THEN** the reader sees the same plain explanation and the button names the number of items without a known source
+- **AND** selecting the reveal retains search and shows an Availability chip reading "Without a Known Source"
+
+#### Scenario: Hidden NPC and ability have distinct wording
+- **WHEN** an NPC or ability list contains hidden entries
+- **THEN** each reveal button names NPCs not found in the world or abilities nobody uses, with the singular form when exactly one matches
+- **AND** an ability revealed through a name search has an empty Source cell and shows "Nobody Uses It" only in Availability
+
+#### Scenario: Hidden entries stay out of the way
+- **WHEN** a list offers a reveal for hidden entries
+- **THEN** the reveal appears as a muted text link at the end of the result bar, without a border, fill, or accent color
+- **AND** the count, active filter chips, and Clear All remain the most prominent controls in the bar
 
 ### Requirement: List columns reflect matching entries
 
@@ -303,3 +326,37 @@ An adventurer SHALL show an Adventurer badge and a badge naming its party role, 
 #### Scenario: Boss and enemy markers
 - **WHEN** an NPC carries Boss and Enemy encounter markers
 - **THEN** the role badges read Boss, not Boss and Enemy
+
+### Requirement: Browse views keep useful facts aligned
+
+Gallery and table SHALL share the same sentence-case name filter and result count, including their spacing above the content. Property rows SHALL show a known currency beside each amount and the known income interval; an absent currency SHALL leave the amount readable without an invented unit. Property artwork SHALL fill the same wide scene frame whether the picture comes from artwork or an icon. Place cards SHALL show a level range once. Ordinary zones SHALL not advertise zero bosses in their table cards and SHALL show available creature or quest counts instead. Gear-set piece counts SHALL align with other numeric columns. Every recipe and station row SHALL show its skill, and a blank cell SHALL never stand for a known skill. The Skill column SHALL be left out only when every row's skill matches its station's name. The Abilities Source filter SHALL not offer an unavailable zero-count value before its entries are revealed. At 1100–1280 px, the Quest list SHALL keep the quest, level, chain, and area readable without cutting words, and MAY omit the giver from that view. Race table cards SHALL preserve the starting place and class availability even when they match across races. A faction with no count SHALL say the count is unavailable. On phones, a mechanics description SHALL use its card width.
+
+#### Scenario: Gallery and table controls
+- **WHEN** a reader switches between Gallery and Table at desktop or phone width
+- **THEN** the filter and count use the same words, size, and position above content
+
+#### Scenario: Property price and income
+- **WHEN** a property has a purchase price, currency, income, and income interval
+- **THEN** both views name the currency and say how often active play pays that income
+- **AND** a missing currency omits its unit without substituting a placeholder
+
+#### Scenario: Place comparisons
+- **WHEN** a place name ends with its displayed level range
+- **THEN** the browse card or row names that range only once
+- **AND** ordinary zones show useful creatures or quests instead of an empty boss count
+
+#### Scenario: Hidden ability sources
+- **WHEN** abilities without a known use have not been revealed
+- **THEN** the Source filter does not offer a zero-count option for those hidden abilities
+
+#### Scenario: Distinct row facts
+- **WHEN** the Furnace uses Metallurgy while the other crafting stations share their skill's name, or a faction has no NPC count
+- **THEN** every station row shows its skill, and the unavailable faction count is explained
+
+#### Scenario: Races and mechanics on phones
+- **WHEN** a reader compares races or reads a mechanics table card on a phone
+- **THEN** race cards show starting places and class availability, and descriptions span the mechanics card
+
+#### Scenario: Readable desktop tables
+- **WHEN** a reader opens gear sets at desktop width or quests at 1100–1280 px
+- **THEN** piece counts align right and visible quest names and areas do not end mid-word

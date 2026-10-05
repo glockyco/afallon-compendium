@@ -44,7 +44,7 @@ A quest preview SHALL prioritize level, giver, main reward, and at most one cont
 
 ### Requirement: Search and map navigation stay in place
 
-Search SHALL show a spinner inside its input while loading, without changing page height. Its placeholder SHALL name only kinds that are searchable in the current publication. The site navigation SHALL name its map "Map" and link to `/map`. All reader text SHALL call the interactive map "the map" and SHALL NOT call it "the atlas".
+Search SHALL show a spinner inside its input while loading, without changing page height. Its sentence-case placeholder SHALL name only kinds that are searchable in the current publication. The site navigation SHALL name its map "Map" and link to `/map`. All reader text SHALL call the interactive map "the map" and SHALL NOT call it "the atlas". Map location actions across search results and detail pages SHALL use the shared title-case label "Show on Map". A gathering-node search result with published map spots SHALL offer a map link to all its spots.
 
 #### Scenario: Search data is loading
 - **WHEN** a reader starts a search before its data loads
@@ -53,13 +53,17 @@ Search SHALL show a spinner inside its input while loading, without changing pag
 
 #### Scenario: Link to a map location
 - **WHEN** a page links a character's location on the map
-- **THEN** the link reads "View on map"
+- **THEN** the link reads "Show on Map"
 - **AND** it opens the matching location at `/map` with its map query state
 
 #### Scenario: Publication changes searchable kinds
 - **WHEN** a searchable kind is added to or removed from the publication
 - **THEN** the search placeholder names only kinds that are searchable in the current publication
 - **AND** it does not claim to search an unpublished kind
+
+#### Scenario: Placed gathering node search hit
+- **WHEN** a reader searches for Aetherium Vein
+- **THEN** its result offers Show on Map and opens all of that node's published spots
 
 ### Requirement: Map has its own route
 
@@ -96,7 +100,7 @@ The shared top navigation SHALL show the brand, direct links to Map, Items, Ques
 #### Scenario: Mechanics topics
 - **WHEN** a reader opens the Browse panel of a publication with ten mechanics pages
 - **THEN** a column labeled Mechanics links Adventurers, Character Progression, Corruption, Crafting and Gathering, Heroic Tier, and Loot in that order
-- **AND** the column ends with an "All 10 mechanics" link to the mechanics list, and no Browse or hub text calls these pages guides
+- **AND** the column ends with an "All 10 Mechanics" link to the mechanics list, and no Browse or hub text calls these pages guides
 
 #### Scenario: Long mechanics name
 - **WHEN** a reader points at Crafting and Gathering in the Browse panel at 1100 px
@@ -104,7 +108,7 @@ The shared top navigation SHALL show the brand, direct links to Map, Items, Ques
 
 ### Requirement: Footer identifies the accepted data
 
-The shared footer SHALL show the accepted game release version, the publication data date, and a link to the Steam patch notes for that same release. It SHALL NOT infer a version from the build number or use a generic patch-notes index as a matching article. The displayed version, date, and link SHALL belong to the selected publication.
+The shared footer SHALL show the accepted game release version, the publication data date, and a link to the Steam patch notes for that same release. It SHALL NOT infer a version from the build number or use a generic patch-notes index as a matching article. The displayed version, date, and link SHALL belong to the selected publication. On a short page the footer SHALL sit at the bottom of the viewport.
 
 #### Scenario: Reader checks the current release
 - **WHEN** a reader opens the hub or a detail page for a selected publication
@@ -114,6 +118,10 @@ The shared footer SHALL show the accepted game release version, the publication 
 #### Scenario: Candidate release evidence does not match
 - **WHEN** a candidate's patch-notes article does not match its declared version or build
 - **THEN** the candidate cannot replace the accepted publication
+
+#### Scenario: Short 404 page
+- **WHEN** a reader opens the 404 page on a tall phone viewport
+- **THEN** the footer rests at the bottom rather than halfway down the screen
 
 ### Requirement: Development map cards show useful facts
 
@@ -135,7 +143,7 @@ Map selection cards SHALL remain development-only. A selected published page SHA
 
 ### Requirement: Shared presentation remains accessible
 
-Across home, lists, guides, detail pages, and hover cards, the root text size SHALL be 100% of the reader's browser preference and CSS type sizes SHALL use rem units. Body text SHALL be at least 1rem with line height at least 1.5; other readable text SHALL not be smaller than .875rem. Labels SHALL use readable case without letter-spaced capitals. Text SHALL contrast at least 4.5:1 with every background on which it appears, including dark, hover, rarity, and overlay surfaces. Interactive controls SHALL have targets at least 24 by 24 px. Rarity and status SHALL be identified by text and not by color alone. Focus, tap, and hover SHALL provide equivalent access to interactive information.
+Across home, lists, guides, detail pages, and hover cards, the root text size SHALL be 100% of the reader's browser preference and CSS type sizes SHALL use rem units. Body text SHALL be at least 1rem with line height at least 1.5; other readable text SHALL not be smaller than .875rem. Labels SHALL use readable case without letter-spaced capitals. Text SHALL contrast at least 4.5:1 with every background on which it appears, including dark, hover, rarity, and overlay surfaces. Interactive controls SHALL have targets at least 24 by 24 px. Rarity and status SHALL be identified by text and not by color alone. Focus, tap, and hover SHALL provide equivalent access to interactive information. Short headings, leads, and supporting text SHALL balance their wrapping where supported so a single isolated word does not form the last line when the available width permits a better break.
 
 #### Scenario: Browser prefers larger text
 - **WHEN** the browser uses a larger default text size on a list or the home page
@@ -149,9 +157,13 @@ Across home, lists, guides, detail pages, and hover cards, the root text size SH
 - **WHEN** rendered text is measured against each surface and state on which it appears
 - **THEN** every text pairing meets a contrast ratio of at least 4.5:1
 
+#### Scenario: Short lead near a line boundary
+- **WHEN** a short heading, introduction, or supporting line wraps on a list, home, Mechanics, or detail page
+- **THEN** its final line does not contain a lone word when balanced wrapping can distribute its words over the available width
+
 ### Requirement: Abilities list identifies what an ability does and where it comes from
 
-The Abilities list SHALL show each ability's published icon and name alongside a Source column, one line per row, without descriptions. Source SHALL prefer a learning class and talent tree, otherwise show one or two creature names or a creature count, otherwise show item names, otherwise state No Known Use. Source and Class SHALL be filters. Abilities with No Known Use SHALL remain published and reachable on their detail pages but SHALL be hidden in default list results; the Source filter SHALL reveal them with their count visible. The list SHALL fit a 390 px viewport without horizontal page scrolling.
+The Abilities list SHALL show each ability's published icon and name alongside a Source column, one line per row, without descriptions. Source SHALL prefer a learning class and talent tree, otherwise show one or two creature names or a creature count, otherwise show item names. If no learner or user is known, the Source cell SHALL remain empty and the Source filter SHALL not offer a missing-use value. Source and Class SHALL be filters for abilities with a known source. Abilities without a known use SHALL remain published and reachable on their detail pages but SHALL be hidden in default list results; the Availability filter SHALL reveal them with their count visible. The list SHALL fit a 390 px viewport without horizontal page scrolling.
 
 #### Scenario: Learned ability
 - **WHEN** a reader opens the Abilities list and finds Ambush
@@ -164,8 +176,9 @@ The Abilities list SHALL show each ability's published icon and name alongside a
 
 #### Scenario: Unattributed abilities
 - **WHEN** a reader opens the list without filters
-- **THEN** the count excludes abilities with No Known Use and offers a counted action to reveal them
-- **AND** selecting No Known Use in Source reveals those abilities without removing their detail pages
+- **THEN** the count excludes abilities nobody uses and offers a counted action to reveal them
+- **AND** selecting "Nobody Uses It" in Availability reveals those abilities without removing their detail pages
+- **AND** the Source cell is empty and the Source filter contains no "Nobody Uses It" option
 
 #### Scenario: Filter by class
 - **WHEN** a reader selects Assassin in Class

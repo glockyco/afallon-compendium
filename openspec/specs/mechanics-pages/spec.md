@@ -25,7 +25,7 @@ The publication SHALL provide a `mechanics` page kind with versioned documents f
 
 ### Requirement: Character Progression shows a level curve
 
-The Character Progression page SHALL show the character level cap from the class level template. It SHALL plot experience to advance from each playable level below that cap on a labeled logarithmic experience axis. It SHALL offer a level control from the first level through the cap. For its selected level, the page SHALL show experience to the next level, experience earned before that level, and experience left to reach the cap. The earned and remaining amounts SHALL sum the template's level-to-next-level values. At the cap, the next and remaining amounts SHALL be zero. The labels SHALL name these amounts as totals from the first level, so that they read as a fresh character's totals and need no note. Chart labels and the level control SHALL remain usable without color or hover.
+The Character Progression page SHALL show the character level cap from the class level template. It SHALL plot experience to advance from each playable level below that cap on a labeled logarithmic experience axis. It SHALL offer the shared stepper and slider from the first level through the cap. For its selected level, the page SHALL show experience to the next level, experience earned before that level, and experience left to reach the cap. The earned and remaining amounts SHALL sum the template's level-to-next-level values. At the cap, the next and remaining amounts SHALL be zero. The labels SHALL name these amounts as totals from the first level, so that they read as a fresh character's totals and need no note. Chart labels and the level control SHALL remain usable without color or hover.
 
 #### Scenario: Selected level
 - **WHEN** a reader selects level 2 in a template whose first row is 20 and second row is 40
@@ -35,7 +35,6 @@ The Character Progression page SHALL show the character level cap from the class
 #### Scenario: Level cap
 - **WHEN** a reader selects the template's cap
 - **THEN** the control shows zero experience to the next level and zero left to the cap
-- **AND** the chart does not plot a nonexistent next level
 
 ### Requirement: Character Progression explains earned experience
 
@@ -70,7 +69,7 @@ The page SHALL show the starting talent points, the points gained per character 
 
 ### Requirement: Heroic Tier explains its rewards and effects
 
-The Heroic Tier page SHALL open with its overview and three short answers: how to turn the tier on, what changes, and what it gives, each with its values from the rules and a link to its detailed section. Its sections SHALL follow in three parts: Getting started, What changes, and Rewards.
+The Heroic Tier page SHALL open with its overview and three short answers: what it gives, how to turn the tier on, and what changes, each with its values from the rules and a link to its detailed section. The opening SHALL leave console locations and the recommended level to Getting started rather than repeating them. Its sections SHALL follow in three parts: Getting started, What changes, and Rewards.
 
 Getting started SHALL name the places that hold a Heroic Console as links, how to confirm entry, the recommended level as advice rather than a requirement, both ways to leave, that the choice belongs to the character and survives death, and the places and dungeon states in which the tier pauses. What changes SHALL state which creatures become empowered, their health and damage multipliers, how the reader's gear score raises them up to a cap, and a table of creature strength at three gear scores. It SHALL state the affix chances, the guaranteed affixes of Rare and Boss creatures, the affix limit, what each affix does, and the affix loot multiplier. A text SHALL NOT show the record id of a status effect.
 
@@ -88,9 +87,10 @@ Rewards SHALL show the Heroic kill experience multiplier and SHALL distinguish k
 
 #### Scenario: Turning the tier on
 - **WHEN** a reader opens the Heroic Tier page
-- **THEN** the opening names Coalway Woods, Coalway Swamp, and Chillwind Heights as console places and links them
-- **AND** it states the recommended level 25 as advice
-- **AND** Getting started states that a console or a right-click on the Heroic World Tier buff turns the tier off
+- **THEN** the opening leads with the rewards before a short invitation to turn it on
+- **AND** Getting started names Coalway Woods, Coalway Swamp, and Chillwind Heights as console places and links them
+- **AND** Getting started states the recommended level 25 as advice and says that a console or a right-click on the Heroic World Tier buff turns the tier off
+- **AND** the detailed opening explains confirmation only once and keeps the console choice distinct from the buff's behavior after death
 
 #### Scenario: Where the tier pauses
 - **WHEN** the rules name five excluded places and the dungeon timer and corruption states
@@ -115,7 +115,7 @@ The Character Progression document SHALL include each published creature whose k
 
 ### Requirement: Character Progression calculates evidence-bounded kill experience
 
-The page SHALL provide keyboard-accessible controls for character level, creature, creature level, Heroic status when the multiplier is available, living followers from zero through ten, and a nonnegative Experience Bonus percentage. The creature level SHALL offer each level at which the creature spawns at the selected place, through the level cap when the zone range has no maximum. It SHALL default to the character level, limited to those levels, whenever the reader selects another creature or character level. The selected character level SHALL remain synchronized with the level curve, and selecting a creature SHALL NOT change it. The page SHALL calculate the lowest and highest *possible modeled* experience for one kill, applying these stages in game order for each possible integer base roll: authored minimum through maximum minus one, or the minimum when the bounds are equal; plus the selected creature level times the creature's experience per level; an explicitly unmodeled game-modifier stage; the selected creature's higher-level percentage if the selected creature level is above the character level, its lower-level percentage if below, or no level adjustment if equal; Heroic multiplication and nearest-integer rounding with halfway ties to even, when selected; division by one plus the number of living followers with the integer result rounded down for nonnegative experience; then the positive Experience Bonus percentage. The level adjustment SHALL truncate each percentage contribution toward zero before addition, rather than rounding the adjusted total. The bonus-stage estimate SHALL remain unrounded: the game applies a world multiplier afterward and can convert the final award to an integer. It SHALL not present the model as the exact in-game award when game modifiers or world modifiers are unaccounted for.
+The page SHALL provide keyboard-accessible controls for character level, creature, creature level, Heroic status when the multiplier is available, living followers from zero through ten, and a nonnegative Experience Bonus percentage. Numeric settings SHALL use the shared stepper, with a slider where the range is finite. The creature level SHALL offer each level at which the creature spawns at the selected place, through the level cap when the zone range has no maximum. It SHALL default to the character level, limited to those levels, whenever the reader selects another creature or character level. The selected character level SHALL remain synchronized with the level curve, and selecting a creature SHALL NOT change it. The page SHALL calculate the lowest and highest *possible modeled* experience for one kill, applying these stages in game order for each possible integer base roll: authored minimum through maximum minus one, or the minimum when the bounds are equal; plus the selected creature level times the creature's experience per level; an explicitly unmodeled game-modifier stage; the selected creature's higher-level percentage if the selected creature level is above the character level, its lower-level percentage if below, or no level adjustment if equal; Heroic multiplication and nearest-integer rounding with halfway ties to even, when selected; division by one plus the number of living followers with the integer result rounded down for nonnegative experience; then the positive Experience Bonus percentage. The level adjustment SHALL truncate each percentage contribution toward zero before addition, rather than rounding the adjusted total. The bonus-stage estimate SHALL remain unrounded: the game applies a world multiplier afterward and can convert the final award to an integer. It SHALL not present the model as the exact in-game award when game modifiers or world modifiers are unaccounted for.
 
 #### Scenario: Creature level follows the character
 - **WHEN** the character level is 12 and the selected creature spawns near the character's level within 15 to 30
@@ -148,7 +148,7 @@ The page SHALL provide keyboard-accessible controls for character level, creatur
 
 ### Requirement: Character Progression relates kills to the level curve
 
-For the selected player level, the page SHALL show the template's experience needed to advance from zero current experience at that level and the range of whole kills needed using the calculator's modeled minimum and maximum, with the shortest count based on the maximum and longest on the minimum. These counts SHALL round the quotient upward. An estimated kill amount of zero SHALL NOT produce a finite kill count. At the level cap, the page SHALL show no next-level requirement or misleading finite kill count. The creature picker SHALL lead the calculator, with the selected creature's page link, levels, base roll, and both level modifiers beneath it. The settings and the result SHALL sit side by side on wide screens and stack on narrow screens. One box SHALL hold the experience per kill, the kills to the next level with the experience that this level needs, the stages that produced the range, and the caveat about world and game modifiers. The level curve, the quest and skill guidance, and the talent progression SHALL remain available.
+For the selected player level, the page SHALL show the template's experience needed to advance from zero current experience at that level and the range of whole kills needed using the calculator's modeled minimum and maximum, with the shortest count based on the maximum and longest on the minimum. These counts SHALL round the quotient upward. An estimated kill amount of zero SHALL NOT produce a finite kill count. At the level cap, the page SHALL show no next-level requirement or misleading finite kill count. The settings card SHALL lead with the creature picker and SHALL offer the selected creature level when several published spawn levels are possible, living followers, nonnegative Experience Bonus and conditional Heroic empowerment. The selected creature's page link and place SHALL accompany the result, and its levels, base roll, and level modifiers SHALL remain accessible in a named disclosure. The settings and the result SHALL sit side by side with aligned tops and equal heights on wide screens. On narrow screens the result SHALL precede the settings card so the answer is visible before the controls, with the source facts following both. The result box SHALL identify the experience per kill, the kills to the next level with the experience that this level needs, a disclosure of the stages that produced the range, and the caveat about world and game modifiers. The level curve, the quest and skill guidance, and the talent progression SHALL remain available.
 
 #### Scenario: Kill count range
 - **WHEN** the next level needs 20 experience and the modeled possible award is 6 to 9
@@ -160,13 +160,13 @@ For the selected player level, the page SHALL show the template's experience nee
 
 #### Scenario: Calculator layout
 - **WHEN** a reader opens the Character Progression page at 390 px
-- **THEN** every calculator control, result, and linked creature fact remains readable without horizontal page overflow
+- **THEN** the result appears before the settings card, and every calculator control, result, and linked creature fact remains readable without horizontal page overflow
 - **AND** the curve and progression guidance remain accessible
 
 #### Scenario: Wide calculator
 - **WHEN** a reader opens the Character Progression page at 1440 px
-- **THEN** the settings and the result box sit side by side below the creature picker and its facts
-- **AND** the result box contains the stages and the caveat
+- **THEN** the open settings and result cards sit side by side at equal height, with the creature picker first inside the settings card
+- **AND** the result card contains disclosed stages and a visible caveat
 
 ### Requirement: Character Progression orders sections by reader need
 
@@ -183,7 +183,7 @@ The Character Progression page SHALL show its sections in this order: the overvi
 
 ### Requirement: Mechanics guides are organized by topic
 
-Each mechanics page SHALL start with an overview of no more than three sentences. Titled topic sections SHALL follow the overview. Each section SHALL cover one mechanic or one context of its topic, such as one source of loot, and SHALL NOT be numbered or presented as a step of a sequence. Each section SHALL lead with a concise answer and SHALL group longer rules into short titled subsections, linked examples, or details disclosed on request. A section that its lead explains in full MAY have no rules, and a rule that only repeats a lead or adds nothing a player can use SHALL be folded into the lead or left out. Mechanics text SHALL speak to the player in plain sentences: it SHALL say what the player gets or must do, and SHALL leave out paraphrases of game code, descriptions of the data source, and notes that only qualify other text. The key values, tables, and worked examples of a mechanic SHALL appear in its section. Character Progression SHALL show its level curve first, because readers come to that page for the experience that each level needs. Each section SHALL have a stable anchor, and an entity's How it works link SHALL target the section that explains its value. Reader text SHALL NOT name game methods, decompilations, evidence records, rule numbers, or the pages where a rule also appears; the rules record and the catalog keep that evidence. Example entities SHALL link their published page or section, and the mechanics page SHALL distinguish computed examples from universal game rules. A section lead SHALL NOT repeat the overview or a phrase of its rules. A rule phrase SHALL name its links where they read naturally: inside the sentence, or as a closing list that the phrase leads into and that reads as a list. A closing list of more than ten links SHALL show eight of them and offer the rest on request.
+Each mechanics page SHALL start with an overview of no more than three sentences. Titled topic sections SHALL follow the overview. Each section SHALL cover one mechanic or one context of its topic, such as one source of loot, and SHALL NOT be numbered or presented as a step of a sequence. Each section SHALL lead with a concise answer and SHALL group longer rules into short titled subsections, linked examples, or details disclosed on request. A section that its lead explains in full MAY have no rules, and a rule that only repeats a lead or adds nothing a player can use SHALL be folded into the lead or left out. Mechanics text SHALL speak to the player in plain sentences: it SHALL say what the player gets or must do, and SHALL leave out paraphrases of game code, descriptions of the data source, and notes that only qualify other text. The key values, tables, and worked examples of a mechanic SHALL appear in its section. Character Progression SHALL show its level curve first, because readers come to that page for the experience that each level needs. Each section SHALL have a stable anchor, and an entity's How it works link SHALL target the section that explains its value. Reader text SHALL NOT name game methods, decompilations, evidence records, rule numbers, or the pages where a rule also appears; the rules record and the catalog keep that evidence. Example entities SHALL link their published page or section, and the mechanics page SHALL distinguish computed examples from universal game rules. A section lead SHALL NOT repeat the overview or a phrase of its rules. A rule phrase SHALL name its links where they read naturally: inside the sentence, or as a closing list that the phrase leads into and that reads as a list. A closing list of more than ten links SHALL show eight of them and offer the rest on request. Travel, Adventurers, Factions, and World Quests SHALL give orientation in their introduction without immediately repeating their first section's answer. Creature Drops SHALL surface its drop-table answer before disclosing the remaining rules in distinct titled groups.
 
 #### Scenario: Entity links a crafting section
 - **WHEN** a crafted item shows the level where its base experience falls to half
@@ -194,6 +194,7 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **WHEN** a reader opens `/mechanics/loot`
 - **THEN** it shows one section each for items that open a chest, supply packs, cloth from kills, world objects, quest items, and the Dungeon Finder
 - **AND** no section is numbered or titled as a step
+- **AND** Items that open a chest gives the specific bags and their item amounts without repeating the lead's instruction to open a bag
 
 #### Scenario: Guide on a phone
 - **WHEN** a reader opens any mechanics page at 390 px
@@ -233,6 +234,15 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **WHEN** a reader opens the Kill experience section of `/mechanics/character-progression`
 - **THEN** it says that a kill gives a random amount within the creature's experience range
 - **AND** its creature counts read as one sentence without a note that qualifies them
+
+#### Scenario: Creature drops on a phone
+- **WHEN** a reader opens the Loot guide at 390 px
+- **THEN** Creature Drops shows a concise answer before its detailed rules
+- **AND** those rules remain readable under distinct headings when expanded
+
+#### Scenario: Guide introductions
+- **WHEN** a reader opens the Travel, Adventurers, Factions, or World Quests guide
+- **THEN** the introduction offers orientation and the first section supplies a distinct answer
 
 ### Requirement: An Adventurers guide explains adventurers
 
@@ -300,3 +310,83 @@ The Heroic Tier rules SHALL use status-effect references for each named affix, t
 - **WHEN** the reader views the Heroic Tier Affixes section
 - **THEN** Beacon of Chaos, Engorged, Fel Raiser, and Imperious appear with their respective effect icons and names
 - **AND** the Engorged toxin and Imperiously Empowered are linked where their roles are explained
+
+### Requirement: Character Progression answers for one remembered level
+
+The Character Progression page SHALL lead its curve section with the published experience from the selected character level to the next, and a conditional range of whole kills of a linked published creature at a published place and spawn level, based on the verified kill calculation without followers, Heroic empowerment, or Experience Bonus. The example SHALL name these conditions and explain that other game and world effects can change an actual award. At the cap it SHALL not promise another level or a finite number of kills. The selected-level answer SHALL sit beside the one always-visible complete labeled logarithmic curve on wide screens and stack above it on phones. Its axis and level tick labels SHALL remain legible at small text size across viewport widths, and its selected point SHALL follow the remembered level. A full-width experience journey strip SHALL follow the answer and chart. A named disclosure SHALL retain every published level breakpoint without repeating the chart. The journey bar SHALL report the selected level's share of total published experience to the cap in numbers as well as visually, and SHALL identify the experience share in the last ten levels as experience distribution, not time or predicted effort.
+
+The page SHALL offer exactly one character-level control shared by its curve answer, kill calculator, and level-up talent point example. Its saved value SHALL use the same browser-local reader level used by the site's other character examples, with a visible fallback when no level has been saved and no silent change to a previously selected level when the creature changes. The opening example SHALL prefer a published ordinary open-world creature at the selected level over challenge variants, named elites, or internal names with parenthetical qualifiers when such a creature is available. The Heroic creature comparison SHALL align its creature-and-place selector and character/gear level controls within their columns. One comparison card SHALL show Normal and conditional Heroic kill experience side by side, with Heroic health and damage factors relative to Normal in separate rows and dashes instead of invented absolute Normal values. It SHALL explain that only some creatures become Heroic while the tier is active and retain its affix and Essence conditions below the table; absolute combat values SHALL remain absent until verified and published.
+
+#### Scenario: Linked kill estimate
+- **WHEN** a reader selects level 40 with Enraged Ent at its published Oakshade Logging Camp spawn, alongside level-matched challenge-stone variants and an elite
+- **THEN** the opening estimate names Enraged Ent at creature level 40 and shows 24,496 experience to the next level with about 598 kills at 41 experience each
+- **AND** it links the ordinary creature and place, without an internal parenthetical variant name, and states the absent followers, Heroic status and Experience Bonus and possible other effects
+
+#### Scenario: Journey proportion
+- **WHEN** a reader selects a level below the cap
+- **THEN** earned and remaining percentages use cumulative published experience and sum to 100 percent before display rounding
+- **AND** the share for levels 50 through 60 is calculated from the same published rows, rather than being a fixed label
+
+#### Scenario: Remembered level
+- **WHEN** a reader saved a character level on another page and opens Character Progression
+- **THEN** the visible control, opening answer, kill calculator, and level-up talent point example all use that saved level
+- **AND** changing it updates all those results and the saved value
+
+#### Scenario: One visible curve with inspectable breakpoints
+- **WHEN** a reader opens Character Progression at 1440, 1100, or 390 px
+- **THEN** the answer card sits beside one visible full curve on wide screens and above it on phones, with a marked selected level and readable muted axis labels
+- **AND** the full-width journey strip follows those two, and the table of every breakpoint stays in a disclosure without a second chart
+
+#### Scenario: Aligned calculator and Heroic controls
+- **WHEN** a reader compares a creature's kill experience at 1440 px
+- **THEN** the open settings card contains the creature select as its first control, while that settings card and the result card align with equal heights and the award identifies experience
+- **AND** the Heroic creature-and-place select and level controls fit their comparison columns without mismatched widths
+
+#### Scenario: Heroic relative strength without empty baselines
+- **WHEN** a reader compares a normal eligible creature with its conditional Heroic outcome
+- **THEN** one card shows Normal and Heroic columns with kill experience in each and no 1× baseline rows
+- **AND** Maximum health and Damage rows show dashes for Normal and verified relative factors for Heroic, with affix and Essence conditions beneath the table
+
+#### Scenario: Level cap and small screen
+- **WHEN** the selected level is the cap on a 390 px screen
+- **THEN** the page shows completion instead of a next-level kill count, keeps a readable numerical journey share and selected curve marker state, and offers the full chart and breakpoints without horizontal page overflow
+- **AND** the calculator's immediate answer precedes optional settings and detailed calculation stages in reading order
+
+### Requirement: Heroic Tier compares eligible creatures and gear
+
+The Heroic Tier page SHALL let readers choose a published creature at a place where the tier can be active and compare its Normal and conditional Empowered outcomes side by side. It SHALL remember an entered equipped gear score in browser storage and constrain it from zero through the verified cap. Creature strength SHALL use verified health and damage factors at that score and show absolute combat numbers only when a published baseline and all required modifiers make those numbers valid. Kill experience SHALL use the published roll and rule under clearly identified player level, creature level, and modifier assumptions. It SHALL distinguish possible affixes from the guaranteed first affix on empowered Rare and Boss creatures. It SHALL identify Heroic Essence eligibility and Heroic gear drops as conditional, not guaranteed per kill. It SHALL explain that the tier pauses in excluded places and dungeons with a timer or corruption.
+
+The page SHALL also compare a published eligible item in its Normal and Heroic versions with tooltips and a What Changes table. It SHALL derive the fixed-stat bonus and weapon damage from that item's published facts and the verified rules, leaving random rolls, gems, and enchantments unchanged. It SHALL not suggest that a selected creature necessarily drops the compared item.
+
+#### Scenario: Gear score boundaries
+- **WHEN** the verified base factors are three for health and two for damage, the per-point bonus is 0.08%, and the cap is at 1,250 score
+- **THEN** gear score zero yields 3× health and 2× damage, score 625 yields 4.5× and 3×, and score 1,250 or greater yields 6× and 4×
+
+#### Scenario: Outdoor creature and paused dungeon
+- **WHEN** a reader chooses a published creature encounter
+- **THEN** the selectable encounters omit places where Heroic Tier pauses, while the page names the pause conditions
+- **AND** the Empowered results are explicitly conditional on empowerment and the identified experience assumptions
+
+#### Scenario: Normal and Heroic equipment
+- **WHEN** a reader chooses eligible creature-drop gear with fixed stats or weapon damage
+- **THEN** its Normal and Heroic tooltips and What Changes table use that item's published values
+- **AND** possible Heroic gear is never described as a guaranteed drop
+
+#### Scenario: Saved score
+- **WHEN** the reader adjusts the gear score, leaves the page and returns
+- **THEN** the score and derived creature factors remain consistent across visits without an account or network request
+
+### Requirement: Loot guide explains Loot Chance
+
+Within Creature Drops, the Loot guide SHALL provide an anchored subsection titled Loot Chance and Luck. It SHALL explain in plain language that Loot Chance affects ordinary creature drops, Luck raises Loot Chance, and in this game version a higher Loot Chance makes ordinary creature drops rarer rather than more common. It SHALL state that chances shown on item pages use no Loot Chance bonus and that a table's minimum pick can still give an item. Loot Chance and Luck SHALL link their stat pages. The explanation SHALL use only verified game rules and SHALL not repeat the same rule in the detailed disclosure.
+
+#### Scenario: Reader understands item-page chances
+- **WHEN** a reader opens `/mechanics/loot/#loot-chance`
+- **THEN** the Loot Chance and Luck subsection is visible within Creature Drops
+- **AND** it distinguishes item-page chances with no Loot Chance from the odds after a player gains Luck
+- **AND** it links the Loot Chance and Luck stat pages
+
+#### Scenario: Minimum pick still gives items
+- **WHEN** a Creature Drops table has a minimum pick
+- **THEN** the subsection explains that it can still give an item despite the Loot Chance effect
+- **AND** the rule appears only once in the Creature Drops section
