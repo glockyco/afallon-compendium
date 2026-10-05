@@ -2,7 +2,7 @@
 
 ### Requirement: Search and map navigation stay in place
 
-Search SHALL show a spinner inside its input while loading, without changing page height. Its sentence-case placeholder SHALL name only kinds that are searchable in the current publication. The site navigation SHALL name its map "Map" and link to `/map`. All reader text SHALL call the interactive map "the map" and SHALL NOT call it "the atlas".
+Search SHALL show a spinner inside its input while loading, without changing page height. Its sentence-case placeholder SHALL name only kinds that are searchable in the current publication. The site navigation SHALL name its map "Map" and link to `/map`. All reader text SHALL call the interactive map "the map" and SHALL NOT call it "the atlas". Map location actions across search results and detail pages SHALL use the shared title-case label "Show on Map". A gathering-node search result with published map spots SHALL offer a map link to all its spots.
 
 #### Scenario: Search data is loading
 - **WHEN** a reader starts a search before its data loads
@@ -18,6 +18,10 @@ Search SHALL show a spinner inside its input while loading, without changing pag
 - **WHEN** a searchable kind is added to or removed from the publication
 - **THEN** the search placeholder names only kinds that are searchable in the current publication
 - **AND** it does not claim to search an unpublished kind
+
+#### Scenario: Placed gathering node search hit
+- **WHEN** a reader searches for Aetherium Vein
+- **THEN** its result offers Show on Map and opens all of that node's published spots
 
 ### Requirement: Top navigation groups published destinations
 
