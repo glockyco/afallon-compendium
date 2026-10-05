@@ -105,7 +105,7 @@
         <ScalingFormula ranks={scalingRanks} {registry} label={`${document.ref.name} ${first?.scaling?.healing ? 'healing' : 'damage'}`} />
       {/if}
       {#if (document.type === 'Damage Over Time' || document.type === 'Heal Over Time') && scales}
-        <p>Each pulse uses your stats at that moment.</p>
+        <p>Each pulse uses the caster's stats at that moment.</p>
       {/if}
       {#if document.description && document.description !== impact && !document.explainedBy.length}<p>{document.description}</p>{/if}
       {#if actions.length && !['Instant Damage', 'Damage Over Time', 'Instant Heal', 'Heal Over Time', 'Pet'].includes(document.type)}
