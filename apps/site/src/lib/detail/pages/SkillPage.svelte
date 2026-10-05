@@ -151,7 +151,7 @@
         <RelationTable columns={nodePlan.columns} rows={sortedNodes} label="Gathering nodes" sort={{ id: 'level', dir: 'asc' }}>
           <svelte:fragment slot="cell" let:row let:column>
             {#if column === 'node'}<EntityLink ref={row.node} {registry} />{#if extraRequirements(row).length}<small><Requirements requirements={extraRequirements(row)} {registry} kindLabels={false} /></small>{/if}
-            {:else if column === 'level'}{gateLevel(row) === undefined ? 'No gate' : formatNumber(gateLevel(row)!)}
+            {:else if column === 'level'}{gateLevel(row) === undefined ? 'None' : formatNumber(gateLevel(row)!)}
             {:else if column === 'experience' && row.experience !== undefined}{formatNumber(row.experience)}{/if}
           </svelte:fragment>
         </RelationTable>
