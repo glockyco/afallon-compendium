@@ -75,11 +75,11 @@
   } satisfies HintControl;
 </script>
 
+<!-- The panel follows the anchor without a space, so punctuation after a hint stays next to its term. -->
 <span class="hint" bind:this={anchor} role="group" on:pointerenter={pointerEnter} on:pointerleave={() => floating.closeAfterIntent()}>
   {#if wrapsControl}<slot {control} />
   {:else}<button type="button" class="term" aria-label={label} aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:click={control.show} on:keydown={control.keydown}><slot {control} /></button>{/if}
-</span>
-{#if open}<span {id} bind:this={panel} class="hint-panel" role="tooltip" use:position on:focusout={closeAfterFocusLeaves} on:pointerenter={() => floating.keepOpen()} on:pointerleave={() => floating.closeAfterIntent()}><slot name="explanation">{text}</slot></span>{/if}
+</span>{#if open}<span {id} bind:this={panel} class="hint-panel" role="tooltip" use:position on:focusout={closeAfterFocusLeaves} on:pointerenter={() => floating.keepOpen()} on:pointerleave={() => floating.closeAfterIntent()}><slot name="explanation">{text}</slot></span>{/if}
 
 <style>
   .hint { display: inline-flex; max-width: 100%; }
