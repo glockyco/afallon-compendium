@@ -133,13 +133,16 @@ export type Price = Static<typeof PriceSchema>;
 // Relation rows are shared by both endpoints: an NPC's `drops` and an item's `droppedBy` use the
 // same `DropRow` with `counterpart` pointing across.
 //
-// A drop row describes one item of a loot table. `chance` is the authored entry rate shown in the Adventure Guide.
-// `killChance` is an exact per-kill baseline conditional on a player-rewarded kill, zero Luck, neutral loot
-// multipliers, no active game modifiers, and the published eligibility. `chanceLevel` specifies the creature level
-// used for a level-dependent result. `tableChance` is the baseline probability that one kill rolls the table, present
-// only below 100; unlike a world binding, a creature-specific binding truncates the random gate before comparing.
-// `tableMinimum` and `tableLimit` bound its item count. `oddsUnavailable` explains a missing input when a full
-// probability cannot be calculated. World loot's `creatureLevel` gives eligible levels; its counterpart can restrict rank.
+// A drop row describes one item of a loot table. `chance` is the authored entry rate, rounded to one decimal; a boss's
+// Adventure Guide loot tab shows it multiplied by the table's authored roll rate. `killChance` is an exact per-kill
+// baseline conditional on a player-rewarded kill, zero Luck, neutral loot multipliers, no active game modifiers, and the
+// published eligibility, whatever the reader's quests. `questOnly` marks an item that drops only while one of the
+// reader's quests has an open task for it, and its `killChance` applies during that task. `chanceLevel` specifies the
+// creature level used for a level-dependent result. `tableChance` is the baseline probability that one kill rolls the
+// table, present only below 100; unlike a world binding, a creature-specific binding truncates the random gate before
+// comparing. `tableMinimum` and `tableLimit` bound its item count. `oddsUnavailable` explains a missing input when a
+// full probability cannot be calculated. World loot's `creatureLevel` gives eligible levels; its counterpart can
+// restrict rank.
 //
 // A row never carries placement ids. Each document already lists its own `locations`, and the
 // counterpart's locations belong to the counterpart's document, so repeating them per row would
@@ -152,7 +155,7 @@ export const CreatureLevelSchema = Type.Object({ min: count, max: optional(count
 export type CreatureLevel = Static<typeof CreatureLevelSchema>;
 const dropRowFields = {
   counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent), killChance: optional(percent),
-  chanceLevel: optional(count), oddsUnavailable: optional(text),
+  chanceLevel: optional(count), oddsUnavailable: optional(text), questOnly: optional(Type.Literal(true)),
   tableChance: optional(percent), tableMinimum: optional(itemCount), tableLimit: optional(itemCount),
   creatureLevel: optional(CreatureLevelSchema), requirements,
 };

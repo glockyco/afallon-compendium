@@ -33,6 +33,7 @@
   $: listed = rows.filter((row) => row.killChance === undefined);
   $: plan = planColumns(columns, rows);
   $: line = plan.shared.some((shared) => shared.column.id === 'perKill') && rows[0] ? dropsPerKillText(rows[0]) : undefined;
+  $: questOnly = rows.some((row) => row.questOnly);
 </script>
 
 {#snippet table(groupRows: DropRow[], computed: boolean)}
@@ -62,14 +63,14 @@
       {#if calculated.length}
         <div>
           {#if listed.length}<h3>Calculated chance per kill</h3>{/if}
-          <p>Chance for each eligible kill, assuming no Loot Chance. <LootChanceHint /></p>
+          <p>Chance for each eligible kill{questOnly ? ' while one of your quests needs this item' : ''}, assuming no Loot Chance. <LootChanceHint /></p>
           {@render table(calculated, true)}
         </div>
       {/if}
       {#if listed.length}
         <div>
           {#if calculated.length}<h3>Listed rates</h3>{/if}
-          <p>The game lists these rates before choosing how many items drop. They are not chances per kill.</p>
+          <p>{questOnly ? 'This item drops only while one of your quests needs it. ' : ''}The game lists these rates before choosing how many items drop. They are not chances per kill.</p>
           {@render table(listed, false)}
         </div>
       {/if}

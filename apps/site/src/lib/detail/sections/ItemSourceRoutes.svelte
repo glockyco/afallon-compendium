@@ -75,9 +75,9 @@
             {/if}
             {#if rate && entry.drop}
               {#if entry.drop.killChance === undefined}
-                {rate} <Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>listed rate</Hint>.
+                {rate} <Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>listed rate</Hint>.{#if entry.drop.questOnly}{' '}It drops only while one of your quests needs it.{/if}
               {:else}
-                {rate.startsWith('About ') ? rate : `${rate} per kill`}{' '}<LootChanceHint />
+                {rate.startsWith('About ') ? rate : `${rate} per kill`}{entry.drop.questOnly ? ' while one of your quests needs it' : ''}{' '}<LootChanceHint />
               {/if}
             {/if}
             {#if entry.detail}

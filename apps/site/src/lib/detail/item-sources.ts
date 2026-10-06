@@ -18,7 +18,7 @@ export interface SummaryLine {
   spotCount?: number;
   detail?: string;
   /** A creature item's rate, kept separate from the loot list roll. */
-  drop?: Pick<DropRow, 'chance' | 'killChance' | 'chanceLevel' | 'oddsUnavailable'>;
+  drop?: Pick<DropRow, 'chance' | 'killChance' | 'chanceLevel' | 'oddsUnavailable' | 'questOnly'>;
   /** The text of the link to the full source section, when "See full <label> sources" reads badly. */
   linkText?: string;
 }

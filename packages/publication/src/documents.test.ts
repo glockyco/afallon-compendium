@@ -396,6 +396,42 @@ test("published loot odds distinguish a truncated creature gate from a qualifyin
   expect((unknown.get("items:1") as PublicItem).collectedFrom[0]?.openChance).toBeUndefined();
 });
 
+test("creature drop odds follow the item's own loot lists and the quest state", () => {
+  const other: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Bear Hide" };
+  const quest: CatalogEntityRow = { ...entities[0]!, entityKey: "items:3", nativeId: 3, name: "Venom Sac" };
+  const table = (id: number, entries: [string, number][], limit?: number): CatalogFacts["itemLootTables"][number] => ({
+    id, name: `List ${id}`, levelBandGear: false, includeWorldLoot: false, worldLootShare: 0, bonusDropChance: 0,
+    hasMinimumDrops: id === 9, minDroppedItems: 1, limitDroppedItems: limit !== undefined, maxDroppedItems: limit ?? 0,
+    worldLootStats: null, worldLootArmorType: null,
+    entries: entries.map(([entityKey, rate]) => ({ item: { entityKey, label: entityKey }, min: 1, max: 1, rate })) });
+  const drop = (lootTableId: number, entryIndex: number, entityKey: string, rate: number, tableLimit: number | null = null): CatalogRelations["drops"][number] => ({
+    ...relations.drops[0]!, item: { entityKey, label: entityKey }, lootTableId, entryIndex, min: 1, max: 1, rawRate: rate, displayedChance: rate,
+    tableRate: 100, tableMinimum: lootTableId === 9 ? 1 : null, tableLimit });
+  const sourceFacts = (limit?: number): CatalogFacts => ({ ...facts, items: [...facts.items,
+    { ...facts.items[0]!, entityKey: other.entityKey }, { ...facts.items[0]!, entityKey: quest.entityKey, questDropOnly: true }],
+    itemLootTables: [table(4, [["items:1", 3]]), table(9, [[quest.entityKey, 100]]), table(12, [[quest.entityKey, 50], [other.entityKey, 40]], limit)] });
+  const drops = (limit: number | null) => [drop(4, 0, "items:1", 3), drop(9, 0, quest.entityKey, 100), drop(12, 0, quest.entityKey, 50, limit), drop(12, 1, other.entityKey, 40, limit)];
+  const rowsOf = (published: ReadonlyMap<string, PublicDocument>) => (published.get("npcs:2") as PublicNpc).drops
+    .map((row) => [row.lootGroup, row.counterpart.key, row.killChance, row.questOnly, row.oddsUnavailable]);
+
+  // A quest item in other lists, or ahead of an item in a list without an item limit, cannot change its chance.
+  const open = project([...entities, other, quest], sourceFacts(), { ...relations, drops: drops(null) }).documents;
+  expect(rowsOf(open)).toEqual([
+    [4, "items:1", 3, undefined, undefined],
+    [9, quest.entityKey, 100, true, undefined],
+    [12, quest.entityKey, 100, true, undefined],
+    [12, other.entityKey, 40, undefined, undefined],
+  ]);
+  expect((open.get(quest.entityKey) as PublicItem).droppedBy[0]).toMatchObject({ killChance: 100, questOnly: true });
+
+  // When the quest item can fill the list's only slot first, the later item's chance depends on the quest.
+  const full = project([...entities, other, quest], sourceFacts(1), { ...relations, drops: drops(1) }).documents;
+  expect(rowsOf(full).filter(([group]) => group === 12)).toEqual([
+    [12, quest.entityKey, 100, true, undefined],
+    [12, other.entityKey, undefined, undefined, "A quest item in this loot list changes this chance while a quest needs it."],
+  ]);
+});
+
 test("projects one symmetric boss drop row and strips native rich text", () => {
   const { documents } = project(entities, facts, relations, new Map([
     ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["boss"] }],

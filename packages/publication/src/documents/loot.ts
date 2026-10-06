@@ -1,5 +1,5 @@
 import type { CatalogCondition, CatalogDropRow } from "@afallon/contracts/catalog";
-import { creatureDropOdds } from "./loot-chances";
+import { creatureDropOdds, questOnlyItem } from "./loot-chances";
 import { type DocumentProjectionInput, optionalChance, optionalCount, requirementsFor } from "./projection";
 
 // A value of 100 always passes. Creature bindings truncate the random draw before comparing, while World Loot
@@ -21,6 +21,7 @@ export function lootFields(row: CatalogDropRow, conditions: ReadonlyMap<string, 
     ...(optionalChance(row.displayedChance) === undefined ? {} : { chance: optionalChance(row.displayedChance) }),
     ...("chance" in odds ? { killChance: odds.chance, ...(odds.level === undefined ? {} : { chanceLevel: odds.level }) }
       : { oddsUnavailable: odds.unavailable }),
+    ...(questOnlyItem(input, row.item.entityKey) ? { questOnly: true as const } : {}),
     ...(tableChance === undefined ? {} : { tableChance }),
     ...(row.tableMinimum === null ? {} : { tableMinimum: row.tableMinimum }),
     ...(row.tableLimit === null ? {} : { tableLimit: row.tableLimit }),

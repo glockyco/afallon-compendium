@@ -400,11 +400,11 @@ export interface CatalogRequirement {
 }
 
 // Loot rows of the tables that creatures and the world loot settings bind, one row per table entry. `rawRate` is the
-// authored entry rate, and `displayedChance` rounds it to one decimal, which is the value that the Adventure Guide
-// shows for creature loot. `tableRate` is the authored chance that a kill rolls the table. `tableMinimum` and
-// `tableLimit` are the fewest and the most items that one roll gives. The limit is set only when the table has more
-// entries than the limit. World loot rows carry `creatureLevel`: the creature levels that can drop the item, with an
-// open maximum as null.
+// authored entry rate, and `displayedChance` rounds it to one decimal. A boss's Adventure Guide loot tab shows
+// `rawRate × tableRate / 100`, also rounded to one decimal. `tableRate` is the authored chance that a kill rolls the
+// table. `tableMinimum` and `tableLimit` are the fewest and the most items that one roll gives. The limit is set only
+// when the table has more entries than the limit. World loot rows carry `creatureLevel`: the creature levels that can
+// drop the item, with an open maximum as null.
 export interface CatalogDropRow {
   context: "npc" | "world";
   owner: CatalogEndpoint;

@@ -41,7 +41,7 @@
 {#snippet rateTable(group: NpcDropRow[], computed: boolean, label: string)}
   <RelationTable columns={groupColumns(group, computed)} rows={group} {label} sort={{ id: 'rate', dir: 'desc' }} mobileAlignedNumbers>
     <svelte:fragment slot="cell" let:row let:column>
-      {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
+      {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />{#if row.questOnly}<small>Drops while a quest needs it</small>{/if}
       {:else if column === 'quantity'}{#if row.min !== undefined || row.max !== undefined}{rangeText(row.min, row.max)}{:else}<MissingValue explanation={nameOf(row.counterpart) === 'Gold' ? 'The game gives no valid gold amount for this drop' : 'Drop quantity unknown'} />{/if}
       {:else if column === 'rate'}
         {@const value = dropRateText(row)}
