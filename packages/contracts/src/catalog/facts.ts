@@ -183,6 +183,8 @@ export interface CatalogNpcFacts {
   isMerchant: boolean;
   isQuestGiver: boolean;
   isCombatEnabled: boolean;
+  /** A dummy target never dies: the game keeps its health up or ignores the damage, so no kill rolls its loot. */
+  isDummyTarget: boolean;
   isAuctioneer: boolean;
   isBanker: boolean;
   isFlightMaster: boolean;

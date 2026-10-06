@@ -7,6 +7,7 @@
 
 - [x] 2.1 Change the drop row, item, and Loot guide schemas: drop rows lose `creatureLevel` and `chanceLevel`, items gain `worldLoot`, and the Loot guide gains World Loot and cloth by creature level. Move the fightable-NPC rule into the public contracts. Verify with the contract tests and `bun run check`.
 - [x] 2.2 Publish World Loot in items and the Loot guide instead of in `droppedBy`, keep the creature drops rule on pages that show World Loot, and count World Loot as a source in coverage, list visibility, search source kinds, and the enchanting materials of the crafting guide. Remove the catalog's World Loot reference level. Verify with the publication and catalog tests.
+- [x] 2.3 Record whether an NPC is a dummy target in the catalog, and give dummy targets no World Loot or cloth. Verify in the running game that dummy targets cannot be killed while ordinary creatures can, build a candidate catalog, and compare it with the accepted one.
 
 ## 3. Show the Groups
 

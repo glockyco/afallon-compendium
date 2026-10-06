@@ -18,7 +18,7 @@ import { type DocumentProjectionInput, endpointOrUnknown, grantedByActions, merg
 import { objectiveForRow } from "./quests";
 import { appliedEffectsByAbility } from "./effects";
 
-const EMPTY_NPC_FACTS: Omit<CatalogNpcFacts, "entityKey"> = { minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
+const EMPTY_NPC_FACTS: Omit<CatalogNpcFacts, "entityKey"> = { minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, isDummyTarget: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
 
 export function npcFact(key: string, indexes: RelationIndexes): CatalogNpcFacts {
   return indexes.npcFacts.get(key) ?? { entityKey: key, ...EMPTY_NPC_FACTS };
@@ -233,10 +233,11 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
   // A kill that rewards the player rolls World Loot and cloth after the creature's own loot lists. A page shows them for a
   // creature that a player can fight at a known level, and names the versions that make a roll when not every version does.
-  // The authored combat flag does not decide this: creatures such as Neonate Vampire have it off, yet give kill experience.
+  // A dummy target never dies, so it makes no roll.
   const fightable = level !== undefined && !onlyFriendlyRoles(roles) && adventurerFacts === undefined;
   const sharedDrops: NpcSharedDrop[] = !fightable ? [] : (["worldLoot", "cloth"] as const).flatMap((roll) => {
-    const anchors = records.filter(({ fact }) => roll === "worldLoot" ? rollsWorldLoot(input, fact.npcType) : dropsCloth(input, fact.creatureType))
+    const anchors = records.filter(({ fact }) => !fact.isDummyTarget
+      && (roll === "worldLoot" ? rollsWorldLoot(input, fact.npcType) : dropsCloth(input, fact.creatureType)))
       .map(({ member }) => member.anchor);
     return anchors.length === 0 ? [] : [{ roll, ...(anchors.length === records.length ? {} : { variants: anchors }) }];
   });

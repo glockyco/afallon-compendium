@@ -2,7 +2,7 @@
 
 ### Requirement: Creature pages show every roll of a kill
 
-A creature page that a player can fight at a known level SHALL show one group per roll of a kill, in the game's order: each of its own loot lists, World Loot, and cloth for a creature type that drops it. Each row SHALL show its own group's chance per kill, so an item in two loot lists of one creature has each list's chance. World Loot and cloth SHALL show one named creature level, the level that the page's creature level control selects.
+A creature page that a player can fight at a known level SHALL show one group per roll of a kill, in the game's order: each of its own loot lists, World Loot, and cloth for a creature type that drops it. Each row SHALL show its own group's chance per kill, so an item in two loot lists of one creature has each list's chance. World Loot and cloth SHALL show one named creature level, the level that the page's creature level control selects. A dummy target, which the game never lets die, SHALL show neither World Loot nor cloth.
 
 #### Scenario: A boss with three loot lists
 - **WHEN** a reader opens Fangbloom, a level 27 Elemental boss
@@ -27,6 +27,10 @@ A creature page that a player can fight at a known level SHALL show one group pe
 - **WHEN** a reader opens a merchant whose every role is a friendly service
 - **THEN** its page shows no Drops, World Loot, or Cloth groups
 
+#### Scenario: A dummy target
+- **WHEN** a reader opens Trapped Dwarf Miner, Captured Villager, or Training Dummy, whose records the game marks as dummy targets
+- **THEN** the page shows no World Loot or Cloth groups
+
 ### Requirement: Item pages show World Loot by creature level
 
 An item that World Loot can give SHALL have a World Loot section after Dropped by, separate from the creatures that drop the item from their own loot lists. The section SHALL state the creature levels that can give the item and SHALL list the item's chance per kill at each of them, merging only levels with equal chances. Dropped by SHALL list only creatures and SHALL count only creatures.
@@ -42,6 +46,30 @@ An item that World Loot can give SHALL have a World Loot section after Dropped b
 - **AND** World Loot shows one row for every creature level with about 0.24% per kill
 
 ## MODIFIED Requirements
+
+### Requirement: Creature drop chances follow the item's own loot lists
+
+A creature drop's Chance per Kill SHALL depend only on the loot list of its row, because each of a creature's loot lists rolls on its own. An item that shares a loot list with a quest item SHALL show its Chance per Kill when the chance is the same whether or not a quest needs the quest item, and SHALL otherwise keep its Listed Rate with the reason. A quest item's Chance per Kill SHALL apply while one of the reader's quests needs the item, and every view of that value SHALL say so.
+
+#### Scenario: Gear beside a quest item's loot list
+- **WHEN** Fangbloom drops gear from one loot list, Heart of Corruption from a second and Fangbloom's Venom Sac from a third
+- **THEN** its gear and Heart of Corruption show Chance per Kill instead of Listed Rate
+
+#### Scenario: Quest item
+- **WHEN** a reader opens Fangbloom's Venom Sac
+- **THEN** its Fangbloom source shows a 100% chance per kill while one of the reader's quests needs the item
+
+#### Scenario: Item sharing a loot list with a quest item
+- **WHEN** Bear Hide shares a loot list without an item limit or a minimum with the quest item Unmarred Bear Hide
+- **THEN** Bear Hide shows its Chance per Kill, because the quest state cannot change it
+
+#### Scenario: Quest state changes a chance
+- **WHEN** a quest item rolls before another item in a loot list whose item limit it can fill
+- **THEN** the later item keeps its Listed Rate and names the quest state as the reason
+
+#### Scenario: An item in two loot lists of one creature
+- **WHEN** Deathseer has Staff of the Pyromancer in two loot lists
+- **THEN** the staff's page lists Deathseer once for each list, each with that list's Chance per Kill
 
 ### Requirement: Sections explain their own values
 

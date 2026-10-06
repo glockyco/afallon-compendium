@@ -58,7 +58,7 @@ const facts: CatalogFacts = {
     sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, currency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     equipmentRequirements, useConditions: [], actionAbilities: [], gameActions: [], useLines: [{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }], conditionIds: ["oathbreaker"], gearSet: { entityKey: "gearSets:17", label: "Adept Leather" } }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
-    faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
+    faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isDummyTarget: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
     minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { entityKey: "stats:5", label: "Item power" } } }],
   quests: [{ entityKey: "quests:3", chainName: null, chainOrder: null, repeatable: false, turnInWithoutNpc: false, completedDescription: null,
@@ -1512,19 +1512,19 @@ test("World Loot gives chances by creature level, apart from the creatures that 
     placements: [{ page: "npcs", target: "drops", scope: "all" }, { page: "items", target: "dropped-by", scope: "all" }] };
   // The general list gives Blade at any level. The level-band list rolls at levels 7 to 20, and gives an item only within
   // four levels of its level requirement, so the catalog gives the gloves levels 7 to 12 and the band levels 15 to 20.
-  const worldFacts: CatalogFacts = { ...facts, entities: [...entities, gloves, band],
+  const worldFacts = (dummy = false): CatalogFacts => ({ ...facts, entities: [...entities, gloves, band],
     progression: { ...facts.progression, mechanicsRules: [rule] },
-    npcs: [{ ...facts.npcs[0]!, npcType: "MOB", creatureType: "UNDEAD" }],
+    npcs: [{ ...facts.npcs[0]!, npcType: "MOB", creatureType: "UNDEAD", isDummyTarget: dummy }],
     items: [...facts.items, { ...facts.items[0]!, entityKey: gloves.entityKey, levelRequirement: 8 }, { ...facts.items[0]!, entityKey: band.entityKey, levelRequirement: 19 }],
     itemLootTables: [lootList(133, [["items:1", 50]]),
-      lootList(142, [[gloves.entityKey, 4], [band.entityKey, 4]], { levelBandGear: true, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true, maxDroppedItems: 2 })] };
+      lootList(142, [[gloves.entityKey, 4], [band.entityKey, 4]], { levelBandGear: true, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true, maxDroppedItems: 2 })] });
   const worldRelations = (role: "boss" | "friendly"): CatalogRelations => ({ ...relations,
     placements: relations.placements.map((placement) => ({ ...placement, roles: [{ role, npcEntityKey: "npcs:2", scope: "authored" }] })),
     drops: [...relations.drops, worldRow(133, 0, "items:1", 50, { min: 1, max: null }),
       worldRow(142, 0, gloves.entityKey, 4, { min: 7, max: 12 }), worldRow(142, 1, band.entityKey, 4, { min: 15, max: 20 })] });
   const placements = new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: ["boss" as const] }]]);
   const levels = new Map([["p1", new Map([["npcs:2", { min: 10, max: 10, scales: false }]])]]);
-  const run = (role: "boss" | "friendly") => project([...entities, gloves, band], worldFacts, worldRelations(role), placements, new Map([["world", []]]), levels,
+  const run = (role: "boss" | "friendly", dummy = false) => project([...entities, gloves, band], worldFacts(dummy), worldRelations(role), placements, new Map([["world", []]]), levels,
     undefined, undefined, undefined, { worldLootTables: [worldBinding(133, 30), worldBinding(142, 5, 7, 20)] });
   const { documents, input } = run("boss");
   const world = projectWorldLoot(input)!;
@@ -1544,9 +1544,10 @@ test("World Loot gives chances by creature level, apart from the creatures that 
   expect(page(gloves.entityKey).placedRules.map((entry) => entry.target)).toContain("dropped-by");
   expect(readerCoverage([page(gloves.entityKey)]).gaps.some((gap) => gap.gap === "itemWithoutSource")).toBe(false);
   // A creature that a player fights rolls World Loot. This build has no cloth tiers, so it has no cloth roll. A friendly
-  // NPC makes no roll.
+  // NPC and a dummy target, which never dies, make no roll.
   expect((documents.get("npcs:2") as PublicNpc).sharedDrops).toEqual([{ roll: "worldLoot" }]);
   expect((run("friendly").documents.get("npcs:2") as PublicNpc).sharedDrops).toEqual([]);
+  expect((run("boss", true).documents.get("npcs:2") as PublicNpc).sharedDrops).toEqual([]);
 });
 
 test("a cloth item gives its chance per kill by creature level and counts as sourced", () => {
