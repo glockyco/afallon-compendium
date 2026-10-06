@@ -17,7 +17,7 @@ An item that belongs to a gear set SHALL include a reference to the set, the set
 
 ### Requirement: An item page shows its tooltip and sources
 
-An item page SHALL show its name and applicable map action in the title, and its in-game tooltip once in the side column (after its answer on narrow screens). Its How to get it answer SHALL show one linked route per available source kind—craft, mine, loot, search, buy, quest reward, starting gear, another item, a world object that spawns a chest, a dungeon reward, a Dungeon Finder run, a quest pickup, or a cloth drop—ordered by guaranteed yield then known spot count, without treating a chance as guaranteed. Each route SHALL identify a useful example, relevant quantity or chance, and its full anchored source section. An item with no known source but a useful description SHALL lead with what it does and state the unknown source quietly rather than creating two empty cards. A crafted route SHALL show the materials, known teacher, skill and level, and base experience before modifiers, with level-by-level experience and its mechanics link behind disclosure. Its sections SHALL follow Teaches, Used for, then applicable Crafting, Mined from, Dropped by, Sold by, Found in objects, Found in containers, and Quest rewards. Recipe relations SHALL use equations; full relations SHALL remain accessible. Price and stack size SHALL remain available as secondary facts without repetition. A starting-gear route SHALL name only published classes and link their Starting gear sections. A self-removal action SHALL NOT appear as an item granted or a standalone When used section.
+An item page SHALL show its name and applicable map action in the title, and its in-game tooltip once in the side column (after its answer on narrow screens). Its How to get it answer SHALL show one linked route per available source kind—craft, mine, loot, search, buy, quest reward, starting gear, another item, a world object that spawns a chest, a dungeon reward, a Dungeon Finder run, a quest pickup, World Loot, or a cloth drop—ordered by guaranteed yield then known spot count, without treating a chance as guaranteed. Each route SHALL identify a useful example, relevant quantity or chance, and its full anchored source section. An item with no known source but a useful description SHALL lead with what it does and state the unknown source quietly rather than creating two empty cards. A crafted route SHALL show the materials, known teacher, skill and level, and base experience before modifiers, with level-by-level experience and its mechanics link behind disclosure. Its sections SHALL follow Teaches, Used for, then applicable Crafting, Mined from, Dropped by, World Loot, Cloth Loot, Sold by, Found in objects, Found in containers, and Quest rewards. Recipe relations SHALL use equations; full relations SHALL remain accessible. Price and stack size SHALL remain available as secondary facts without repetition. A starting-gear route SHALL name only published classes and link their Starting gear sections. A self-removal action SHALL NOT appear as an item granted or a standalone When used section.
 
 #### Scenario: Item has several sources
 - **WHEN** an item drops from seven creatures and is sold by two vendors
@@ -85,6 +85,11 @@ An item page SHALL show its name and applicable map action in the title, and its
 #### Scenario: Cloth drop
 - **WHEN** Linen Cloth is a tier of the supplemental cloth drops
 - **THEN** its page shows a Cloth loot section for Humanoid and Undead creatures with the roll chance, the count, and the chance per kill for each range of creature levels
+
+#### Scenario: World Loot route
+- **WHEN** creatures of levels 21 to 29 can give Bloodtrack Gloves as World Loot
+- **THEN** How to get it has a World Loot route that names those levels and the range of the item's chances per kill
+- **AND** the route links the World Loot section
 
 ### Requirement: Property facts come from authored for-sale signs
 

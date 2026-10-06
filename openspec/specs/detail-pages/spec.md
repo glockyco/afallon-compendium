@@ -177,16 +177,17 @@ Sections SHALL label probabilities, quantities, and conditions in plain language
 
 #### Scenario: World loot with level and rank restrictions
 - **WHEN** a world-loot item can drop from elite creatures of levels 21 to 29
-- **THEN** its summary identifies the level range and elite-rank restriction as eligibility, and states the level and zero Loot Chance used for any computed chance per eligible kill
+- **THEN** its summary identifies the level range and elite-rank restriction as eligibility, and states the range of its chances per eligible kill at zero Loot Chance
+- **AND** its World Loot section names the creature level of each chance
 
 #### Scenario: Chest and gathering sources
 - **WHEN** an item is obtained from a chest and from gathering
 - **THEN** the displayed chest item chance is identified as per open and the gathering yield chance as per use
 
 #### Scenario: Cloth from creatures
-- **WHEN** the game sets a base cloth roll rate before loot bonuses and the creature's level selects a cloth tier
-- **THEN** the item summary and the Cloth Loot section name the base rate instead of claiming a verified chance per kill
-- **AND** the level table explains that its rates are before loot bonuses
+- **WHEN** the game gives Humanoid and Undead creatures a 75% cloth roll and the creature's level selects a cloth tier
+- **THEN** the item summary and the Cloth Loot section show the cloth's chance per kill by creature level
+- **AND** the level table explains that inside a range of levels the chance moves steadily from its first value to its last
 
 #### Scenario: Footman's World Loot And World Object
 - **WHEN** Footman's Bulwark appears in level-band World Loot table 142 at creature level 10, zero Loot Chance, and after the character's first gear drop
@@ -838,7 +839,7 @@ On phones, a table with a name, quantity, and chance SHALL give the name its own
 
 ### Requirement: Creature drop chances follow the item's own loot lists
 
-A creature drop's Chance per Kill SHALL depend only on the creature's loot lists that contain the item. An item that shares a loot list with a quest item SHALL show its Chance per Kill when the chance is the same whether or not a quest needs the quest item, and SHALL otherwise keep its Listed Rate with the reason. A quest item's Chance per Kill SHALL apply while one of the reader's quests needs the item, and every view of that value SHALL say so.
+A creature drop's Chance per Kill SHALL depend only on the loot list of its row, because each of a creature's loot lists rolls on its own. An item that shares a loot list with a quest item SHALL show its Chance per Kill when the chance is the same whether or not a quest needs the quest item, and SHALL otherwise keep its Listed Rate with the reason. A quest item's Chance per Kill SHALL apply while one of the reader's quests needs the item, and every view of that value SHALL say so.
 
 #### Scenario: Gear beside a quest item's loot list
 - **WHEN** Fangbloom drops gear from one loot list, Heart of Corruption from a second and Fangbloom's Venom Sac from a third
@@ -855,3 +856,52 @@ A creature drop's Chance per Kill SHALL depend only on the creature's loot lists
 #### Scenario: Quest state changes a chance
 - **WHEN** a quest item rolls before another item in a loot list whose item limit it can fill
 - **THEN** the later item keeps its Listed Rate and names the quest state as the reason
+
+#### Scenario: An item in two loot lists of one creature
+- **WHEN** Deathseer has Staff of the Pyromancer in two loot lists
+- **THEN** the staff's page lists Deathseer once for each list, each with that list's Chance per Kill
+
+### Requirement: Creature pages show every roll of a kill
+
+A creature page that a player can fight at a known level SHALL show one group per roll of a kill, in the game's order: each of its own loot lists, World Loot, and cloth for a creature type that drops it. Each row SHALL show its own group's chance per kill, so an item in two loot lists of one creature has each list's chance. World Loot and cloth SHALL show one named creature level, the level that the page's creature level control selects. A dummy target, which the game never lets die, SHALL show neither World Loot nor cloth.
+
+#### Scenario: A boss with three loot lists
+- **WHEN** a reader opens Fangbloom, a level 27 Elemental boss
+- **THEN** Drops shows Drop Group 1, Drop Group 2, and Drop Group 3, then World Loot at creature level 27
+- **AND** World Loot says that 11.4% of kills give 1 or 2 of its 111 items and lists Bloodtrack Gloves among them
+- **AND** no Cloth group appears
+
+#### Scenario: An Undead creature
+- **WHEN** a reader opens Rotbound Effigy, an Undead creature of levels 28 to 29, at creature level 28
+- **THEN** a Cloth group follows World Loot and says that 75% of kills give 1 to 3 pieces of one of its cloths, with Silk Cloth at about 27.4% per kill
+
+#### Scenario: A scaling creature
+- **WHEN** a reader whose creature level is 27 opens a creature that scales with the player from level 15 to 30
+- **THEN** the World Loot and Cloth groups show creature level 27 once the page has loaded the level
+- **AND** the prerendered page shows them at creature level 15, the level that its groups name
+
+#### Scenario: An item in two loot lists of one creature
+- **WHEN** Staff of the Pyromancer is in two loot lists of Deathseer
+- **THEN** each Drop Group shows the chance that its own list gives the staff
+
+#### Scenario: A friendly NPC
+- **WHEN** a reader opens a merchant whose every role is a friendly service
+- **THEN** its page shows no Drops, World Loot, or Cloth groups
+
+#### Scenario: A dummy target
+- **WHEN** a reader opens Trapped Dwarf Miner, Captured Villager, or Training Dummy, whose records the game marks as dummy targets
+- **THEN** the page shows no World Loot or Cloth groups
+
+### Requirement: Item pages show World Loot by creature level
+
+An item that World Loot can give SHALL have a World Loot section after Dropped by, separate from the creatures that drop the item from their own loot lists. The section SHALL state the creature levels that can give the item and SHALL list the item's chance per kill at each of them, merging only levels with equal chances. Dropped by SHALL list only creatures and SHALL count only creatures.
+
+#### Scenario: A level-matched World Loot item
+- **WHEN** a reader opens Bloodtrack Gloves
+- **THEN** its World Loot section lists creature levels 21 to 29, with about 0.35% per kill at level 21 and about 0.21% at level 29
+- **AND** the page has no Dropped by section
+
+#### Scenario: An item that creatures and World Loot both give
+- **WHEN** a reader opens Jade Band
+- **THEN** Dropped by counts 13 creatures and states their shared loot-list rule once
+- **AND** World Loot shows one row for every creature level with about 0.24% per kill
