@@ -264,7 +264,7 @@ function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string
     if (!enchant) return [];
     return [{ item: { ...item.ref, variant: "enchants" }, fits: enchant.fits, stats: enchant.tiers[0]!.stats,
       ...(item.crafting?.skill ? { crafting: item.crafting.skill } : {}),
-      vendors: item.soldBy.map((row) => row.counterpart), drops: item.droppedBy.map((row) => row.counterpart) }];
+      vendors: item.soldBy.map((row) => row.counterpart), drops: item.droppedBy.map((row) => row.counterpart), ...(item.worldLoot ? { worldLoot: true as const } : {}) }];
   }).sort((a, b) => a.item.name.localeCompare(b.item.name));
   // A skill page lists its recipes and its gathering nodes, so the published skill pages name where each activity starts.
   const skills = [...entityDocuments.values()].flatMap((document) => document.ref.kind === "skills" ? [document as PublicSkill] : [])
@@ -403,10 +403,11 @@ function worldQuestLinks(documents: ReadonlyMap<string, PublicDocument>): WorldQ
     .sort((left, right) => left.ref.name.localeCompare(right.ref.name));
 }
 
-/** Project reviewed guides and the guide derived from captured Corruption facts. */
+/** Project reviewed guides and the guide derived from captured Corruption facts. `levelLoot` is what the World Loot and
+ * cloth rolls of a kill give at each creature level, which the Loot guide carries for the pages that read it. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
   entityDocuments: ReadonlyMap<string, PublicDocument>, bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
-  rewards?: CorruptionRewards, consoles: readonly HeroicConsoleLocation[] = []): ReadonlyMap<string, PublicMechanics> {
+  rewards?: CorruptionRewards, consoles: readonly HeroicConsoleLocation[] = [], levelLoot: Pick<LootGuide, "worldLoot" | "cloth"> = {}): ReadonlyMap<string, PublicMechanics> {
   const topics = new Set(facts.progression.mechanicsRules.flatMap((rule) => rule.topic === null ? [] : [rule.topic]));
   const documents: PublicMechanics[] = [
     ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve, entityDocuments)] : []),
@@ -420,7 +421,8 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
         ? [{ stat: resolve({ entityKey: fact.entityKey, label: fact.name ?? fact.entityKey }),
           entries: fact.details.regeneration.filter((entry) => entry.amount !== 0 && entry.interval > 0) }] : []),
     } satisfies CombatGuide] : []),
-    ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_DETAILS.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
+    ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_DETAILS.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve),
+      ...(levelLoot.worldLoot ? { worldLoot: levelLoot.worldLoot } : {}), ...(levelLoot.cloth ? { cloth: levelLoot.cloth } : {}) } satisfies LootGuide] : []),
     ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_DETAILS["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve), seeAlso: worldQuestLinks(entityDocuments) } satisfies WorldQuestsGuide] : []),
     ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_DETAILS.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),
   ];

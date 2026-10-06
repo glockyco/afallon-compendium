@@ -17,15 +17,14 @@ function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicI
 
 test('routes keep loot probabilities separate from guarantees and lowest vendor price', () => {
   const thornmaw = npc(1, 'Thornmaw'), wraith = npc(2, 'Frost Wraith');
-  const lines = itemSourceLines(item([
-    drop(thornmaw, 100), drop(wraith, 12),
-    drop({ key: null, label: 'Any creature' }, 3, { creatureLevel: { min: 18, max: 26 } }),
-  ], [sale(npc(4, 'Wizard Merchant'), 55), sale(npc(5, 'General Goods'), 50)]));
-  expect(lines.map((entry) => entry.label)).toEqual(['Loot', 'Buy']);
+  const source = item([drop(thornmaw, 100), drop(wraith, 12)], [sale(npc(4, 'Wizard Merchant'), 55), sale(npc(5, 'General Goods'), 50)]);
+  source.worldLoot = { min: 1, max: 1, levels: [{ minLevel: 18, maxLevel: 26, chance: 0.3 }] };
+  const lines = itemSourceLines(source);
+  expect(lines.map((entry) => entry.label)).toEqual(['Loot', 'World Loot', 'Buy']);
   expect(lines[0]?.guaranteedYield).toBeUndefined();
   expect(lines[0]?.drop).toBeUndefined();
-  expect(lines[0]?.detail).toContain('creatures of level 18 to 26');
-  expect(lines[1]?.lowestPrice?.amount).toBe(50);
+  expect(lines[1]?.killChances).toEqual({ low: 0.3, high: 0.3 });
+  expect(lines[2]?.lowestPrice?.amount).toBe(50);
 });
 
 test('known spot count ranks distinct place spots ahead of unplaced chance routes', () => {
@@ -96,18 +95,18 @@ test('timed dungeon reward distinguishes a guaranteed token from chance gear', (
   expect(gearRoute?.detail).toBe('Chance from boss reward bags');
 });
 
-test('world loot keeps level eligibility separate from creature rank and the listed item rate', () => {
-  const gear = item([drop({ key: null, label: 'Creatures of rank Elite or higher' }, 4, {
-    creatureLevel: { min: 21, max: 29 }, tableChance: 5, tableMinimum: 1, tableLimit: 2,
-  })], []);
+test('World Loot names its whole level ranges and rank, and the range of its chances per kill', () => {
+  const gear = item([], []);
+  gear.worldLoot = { minimumRank: 'Elite', levels: [{ minLevel: 21, maxLevel: 22, chance: 0.35 }, { minLevel: 23, maxLevel: 29, chance: 0.21 }] };
   const [route] = itemSourceLines(gear);
-  expect(route?.text).toBe('Creatures of rank Elite or higher at levels 21 to 29 can drop it as World Loot.');
-  expect(route?.drop?.chance).toBe(4);
-  expect(route?.detail).toBe('The World Loot list rolls on 5% of eligible kills and gives 1 or 2 items.');
-  gear.droppedBy[0]!.killChance = 0.5;
-  gear.droppedBy[0]!.chanceLevel = 25;
-  expect(itemSourceLines(gear)[0]?.drop?.chanceLevel).toBe(25);
-  expect(itemSourceLines(gear)[0]?.drop?.killChance).toBe(0.5);
+  expect(route).toMatchObject({ id: 'world-loot', text: 'Elite or higher creatures of levels 21 to 29 can drop it as World Loot.', killChances: { low: 0.21, high: 0.35 } });
+  gear.worldLoot = { levels: [{ minLevel: 7, maxLevel: 12, chance: 5 }, { minLevel: 15, maxLevel: 20, chance: 5 }] };
+  expect(itemSourceLines(gear)[0]?.text).toBe('Creatures of levels 7 to 12 or 15 to 20 can drop it as World Loot.');
+  gear.worldLoot = { levels: [{ minLevel: 1, chance: 0.24 }] };
+  expect(itemSourceLines(gear)[0]?.text).toBe('Creatures of any level can drop it as World Loot.');
+  gear.worldLoot = { levels: [{ minLevel: 35 }], oddsUnavailable: 'A World Loot table roll rate is unavailable.' };
+  expect(itemSourceLines(gear)[0]).toMatchObject({ text: 'Creatures of levels 35 and higher can drop it as World Loot.' });
+  expect(itemSourceLines(gear)[0]).not.toHaveProperty('killChances');
 });
 
 test('chest and gathering summary chances name the triggering action', () => {
@@ -119,10 +118,10 @@ test('chest and gathering summary chances name the triggering action', () => {
   expect(lines.find((entry) => entry.id === 'from-items')?.detail?.toLowerCase()).toContain('chance per open: 20%');
 });
 
-test('cloth tier rates remain distinct from a chance per kill', () => {
+test('cloth names its highest chance per kill and the creature level that gives it', () => {
   const cloth = item([], []);
   cloth.clothDrop = { creatureTypes: ['HUMANOID'], chance: 80, min: 1, max: 3,
     levels: [{ minLevel: 1, maxLevel: 6, startChance: 20, endChance: 35 }, { minLevel: 7, startChance: 12 }] };
   const route = itemSourceLines(cloth).find((entry) => entry.id === 'cloth-loot');
-  expect(route?.detail).toBe('The base rate is up to 35% at creature level 6 before loot bonuses.');
+  expect(route?.detail).toBe('Up to 35% per kill at creature level 6');
 });

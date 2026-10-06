@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MechanicsTopic, PublicDocument, PublicDocumentOf, PublicKindEntry, PublicMechanics, PublicPageKind, StaticDocument } from '@afallon/contracts/public';
   import type { ItemPickerOption } from './item-picker-options';
+  import type { LevelLoot } from './level-loot';
   import type { Component } from 'svelte';
   import AbilityPage from './pages/AbilityPage.svelte';
   import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
@@ -47,6 +48,8 @@
   export let heroicItems: ItemPickerOption[] | undefined = undefined;
   export let corruptionItems: ItemPickerOption[] | undefined = undefined;
   export let effectSubtitle: string | undefined = undefined;
+  /** What World Loot and cloth give at a creature page's lowest level, for its prerendered groups. */
+  export let levelLoot: LevelLoot | undefined = undefined;
   $: detail = page.kind === 'mechanics' ? null
     : pages[page.kind] as Component<DetailProps<PublicDocument>>;
   $: guide = page.kind === 'mechanics'
@@ -60,6 +63,8 @@
   <EffectPage document={page.document} {registry} subtitle={effectSubtitle} />
 {:else if page.kind === 'currencies'}
   <CurrencyPage document={page.document} {registry} {inlineItem} />
+{:else if page.kind === 'npcs'}
+  <NpcPage document={page.document} {registry} {levelLoot} />
 {:else if detail}
   <svelte:component this={detail} document={page.document} {registry} />
 {/if}

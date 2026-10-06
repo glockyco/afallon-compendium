@@ -63,7 +63,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "creature-drops", title: "Creature Drops", lead: "Only a player or party that earns a creature's kill rewards can get items from its own tables and eligible World Loot tables." },
       { id: "chests", title: "Items that open a chest", lead: "Use a bag to open its chest of possible loot. The item's page shows what can be inside." },
       { id: "supply-packs", title: "Supply Packs", lead: "Open a supply pack to get items from the table for your class and level. The pack's page shows what you can get and how to obtain the pack. The details of each pick are below." },
-      { id: "cloth", title: "Cloth from Kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows base rates before loot bonuses by creature level." },
+      { id: "cloth", title: "Cloth from Kills", lead: "Some creatures drop cloth on top of their other loot." },
       { id: "world-objects", title: "World Objects", lead: "Some objects in the world hold loot, such as graves and sacrificial altars." },
       { id: "quest-items", title: "Quest Items", lead: "Some items only drop or appear while a quest needs them." },
       { id: "dungeon-finder", title: "Dungeon Finder", lead: "The Dungeon Finder sends you to a dungeon that you choose, or to a random one when you queue for a Random run." },

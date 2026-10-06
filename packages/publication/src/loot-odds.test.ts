@@ -19,63 +19,77 @@ const shieldEntries = levelTenRates.split(",").map((part) => {
 });
 const shieldWorld: LootOddsTable = { mode: "world", gateRate: 5, minimum: 1, limit: 2, entries: shieldEntries };
 const shieldObject: LootOddsTable = { ...shieldWorld, mode: "object", gateRate: 100 };
+const shield = new Set(["815"]), target = new Set(["target"]), x = new Set(["x"]);
 
 test("boss independently rolls nine entries before weighted minimum and cap", () => {
-  expect(lootItemProbability([boss], "410")).toBeCloseTo(0.1830531362382172, 12);
-  expect(lootItemProbability([boss], "410", { lootChance: 50 })).toBeCloseTo(0.15236581481967215, 12);
+  expect(lootItemProbability([boss], new Set(["410"]))).toBeCloseTo(0.1830531362382172, 12);
+  expect(lootItemProbability([boss], new Set(["410"]), { lootChance: 50 })).toBeCloseTo(0.15236581481967215, 12);
   // A late entry is prevented by two earlier successes, rather than weighted against them.
-  expect(lootItemProbability([npc([{ itemKey: "a", rate: 100 }, { itemKey: "b", rate: 100 }, { itemKey: "target", rate: 100 }], 0, 2)], "target")).toBe(0);
+  expect(lootItemProbability([npc([{ itemKey: "a", rate: 100 }, { itemKey: "b", rate: 100 }, { itemKey: "target", rate: 100 }], 0, 2)], target)).toBe(0);
 });
 
 test("creature gates truncate the random draw, world and object gates do not", () => {
-  expect(lootItemProbability([{ ...npc([{ itemKey: "x", rate: 100 }]), gateRate: 5 }], "x")).toBeCloseTo(0.06, 12);
-  expect(lootItemProbability([{ ...npc([{ itemKey: "x", rate: 100 }]), gateRate: 5.5 }], "x")).toBeCloseTo(0.06, 12);
-  expect(lootItemProbability([{ mode: "object", gateRate: 5, minimum: 0, entries: [{ itemKey: "x", rate: 100 }] }], "x", { lootChance: 50 })).toBeCloseTo(0.05, 12);
-  expect(lootItemProbability([{ ...shieldObject, gateRate: 12.5 }], "815")).toBeCloseTo(0.125 * 0.02459213239254054, 12);
+  expect(lootItemProbability([{ ...npc([{ itemKey: "x", rate: 100 }]), gateRate: 5 }], x)).toBeCloseTo(0.06, 12);
+  expect(lootItemProbability([{ ...npc([{ itemKey: "x", rate: 100 }]), gateRate: 5.5 }], x)).toBeCloseTo(0.06, 12);
+  expect(lootItemProbability([{ mode: "object", gateRate: 5, minimum: 0, entries: [{ itemKey: "x", rate: 100 }] }], x, { lootChance: 50 })).toBeCloseTo(0.05, 12);
+  expect(lootItemProbability([{ ...shieldObject, gateRate: 12.5 }], shield)).toBeCloseTo(0.125 * 0.02459213239254054, 12);
 });
 
 test("level-ten shield respects earlier world occupancy and the shared cap", () => {
-  expect(lootItemProbability([earlierWorld, shieldWorld], "815", { worldLimit: 2 })).toBeCloseTo(0.001219089739240664, 12);
-  expect(lootItemProbability([earlierWorld, shieldWorld], "815", { worldLimit: 2, lootChance: 50 })).toBeCloseTo(0.0011505591598822977, 12);
-  expect(lootItemProbability([shieldObject], "815")).toBeCloseTo(0.02459213239254054, 12);
-  expect(lootItemProbability([shieldObject], "815", { lootChance: 50, worldLimit: 0 })).toBeCloseTo(0.02459213239254054, 12);
-  expect(lootItemProbability([earlierWorld, shieldObject], "815", { worldLimit: 0 })).toBeCloseTo(0.02459213239254054, 12);
-  expect(() => lootItemProbability([shieldWorld], "815")).toThrow("worldLimit");
-  expect(lootItemProbability([earlierWorld, shieldWorld], "815", { worldLimit: 0 })).toBe(0);
+  expect(lootItemProbability([earlierWorld, shieldWorld], shield, { worldLimit: 2 })).toBeCloseTo(0.001219089739240664, 12);
+  expect(lootItemProbability([earlierWorld, shieldWorld], shield, { worldLimit: 2, lootChance: 50 })).toBeCloseTo(0.0011505591598822977, 12);
+  expect(lootItemProbability([shieldObject], shield)).toBeCloseTo(0.02459213239254054, 12);
+  expect(lootItemProbability([shieldObject], shield, { lootChance: 50, worldLimit: 0 })).toBeCloseTo(0.02459213239254054, 12);
+  expect(lootItemProbability([earlierWorld, shieldObject], shield, { worldLimit: 0 })).toBeCloseTo(0.02459213239254054, 12);
+  expect(() => lootItemProbability([shieldWorld], shield)).toThrow("worldLimit");
+  expect(lootItemProbability([earlierWorld, shieldWorld], shield, { worldLimit: 0 })).toBe(0);
 });
 
 test("a large authored table remains exact without enumerating entry subsets", () => {
   const entries = Array.from({ length: 74 }, (_, index) =>
     ({ itemKey: index === 73 ? "target" : `other:${index}`, rate: index === 0 ? 100 : index === 73 ? 3 : 1 }));
-  expect(lootItemProbability([npc(entries, 0, 2)], "target")).toBeCloseTo(0.03 * 0.99 ** 72, 12);
+  expect(lootItemProbability([npc(entries, 0, 2)], target)).toBeCloseTo(0.03 * 0.99 ** 72, 12);
 });
 
 test("two minimum picks remove selected indices and respect weighted remaining rows", () => {
   const rows = npc([{ itemKey: "other", rate: 100 }, { itemKey: "target", rate: 0 }, { itemKey: "other2", rate: 0 }], 2, 2);
-  expect(lootItemProbability([rows], "target")).toBeCloseTo(0.5, 12);
+  expect(lootItemProbability([rows], target)).toBeCloseTo(0.5, 12);
   const noOrdinary = npc([{ itemKey: "target", rate: 0 }, { itemKey: "other", rate: 0 }, { itemKey: "another", rate: 0 }], 2, 2);
-  expect(lootItemProbability([noOrdinary], "target")).toBeCloseTo(2 / 3, 12);
-  expect(lootItemProbability([{ ...noOrdinary, limit: 1 }], "target")).toBeCloseTo(1 / 3, 12);
+  expect(lootItemProbability([noOrdinary], target)).toBeCloseTo(2 / 3, 12);
+  expect(lootItemProbability([{ ...noOrdinary, limit: 1 }], target)).toBeCloseTo(1 / 3, 12);
   const catalogMinTwo = npc([100, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 3, 5, 3, 3, 3, 1, 1, 1]
     .map((rate, index) => ({ itemKey: index === 18 ? "target" : String(index), rate })), 2, 2);
   // Table 40: its guaranteed first success leaves one slot. The last row
   // succeeds ordinarily only if all preceding non-guaranteed rows fail.
   const noEarlierSuccess = 0.95 ** 10 * 0.98 * 0.97 ** 4 * 0.99 ** 2;
-  expect(lootItemProbability([catalogMinTwo], "target")).toBeCloseTo(noEarlierSuccess * (0.01 + 0.99 / 67), 12);
+  expect(lootItemProbability([catalogMinTwo], target)).toBeCloseTo(noEarlierSuccess * (0.01 + 0.99 / 67), 12);
 });
 
 test("duplicate rows and tables return a union, not a sum of marginals", () => {
   const duplicates = npc([{ itemKey: "x", rate: 50 }, { itemKey: "x", rate: 50 }]);
-  expect(lootItemProbability([duplicates], "x")).toBeCloseTo(0.75, 12);
-  expect(lootItemProbability([duplicates, duplicates], "x")).toBeCloseTo(0.9375, 12);
+  expect(lootItemProbability([duplicates], x)).toBeCloseTo(0.75, 12);
+  expect(lootItemProbability([duplicates, duplicates], x)).toBeCloseTo(0.9375, 12);
   const capped = npc([{ itemKey: "x", rate: 50 }, { itemKey: "other", rate: 100 }, { itemKey: "x", rate: 100 }], 0, 1);
-  expect(lootItemProbability([capped], "x")).toBeCloseTo(0.5, 12);
+  expect(lootItemProbability([capped], x)).toBeCloseTo(0.5, 12);
+});
+
+test("several targets give the chance of any of them, with the minimum picks", () => {
+  const pair = new Set(["a", "b"]);
+  expect(lootItemProbability([npc([{ itemKey: "a", rate: 50 }, { itemKey: "b", rate: 50 }, { itemKey: "c", rate: 50 }])], pair)).toBeCloseTo(0.75, 12);
+  // Two picks without ordinary successes take two of the three rows, so a target is always among them.
+  expect(lootItemProbability([npc([{ itemKey: "a", rate: 0 }, { itemKey: "b", rate: 0 }, { itemKey: "c", rate: 0 }], 2, 2)], pair)).toBeCloseTo(1, 12);
+  // One pick takes a target two times in three.
+  expect(lootItemProbability([npc([{ itemKey: "a", rate: 0 }, { itemKey: "b", rate: 0 }, { itemKey: "c", rate: 0 }], 1, 1)], pair)).toBeCloseTo(2 / 3, 12);
+  // Every row of the shared World Loot rolls is a target, so the result is the chance that a kill gives any of them.
+  const every = new Set([...earlierWorld.entries, ...shieldWorld.entries].map((entry) => entry.itemKey));
+  const nothing = (1 - 0.3 * (1 - earlierWorld.entries.reduce((none, entry) => none * (1 - entry.rate / 100), 1))) * (1 - 0.05);
+  expect(lootItemProbability([earlierWorld, shieldWorld], every, { worldLimit: 2 })).toBeCloseTo(1 - nothing, 12);
 });
 
 test("ineligible and zero-rate rows never roll ordinarily but zero rate remains in minimum weights", () => {
   const rows = npc([{ itemKey: "x", rate: 0 }, { itemKey: "other", rate: 0 }, { itemKey: "x", rate: 100, eligible: false }], 1, 1);
-  expect(lootItemProbability([rows], "x")).toBeCloseTo(0.5, 12);
-  expect(lootItemProbability([{ ...rows, minimum: 0 }], "x")).toBe(0);
-  expect(lootItemProbability([npc([{ itemKey: "x", rate: 100, eligible: false }], 1)], "x")).toBe(0);
-  expect(() => lootItemProbability([npc([{ itemKey: "x", rate: 100 }], 3)], "x")).toThrow("minimums from 0 to 2");
+  expect(lootItemProbability([rows], x)).toBeCloseTo(0.5, 12);
+  expect(lootItemProbability([{ ...rows, minimum: 0 }], x)).toBe(0);
+  expect(lootItemProbability([npc([{ itemKey: "x", rate: 100, eligible: false }], 1)], x)).toBe(0);
+  expect(() => lootItemProbability([npc([{ itemKey: "x", rate: 100 }], 3)], x)).toThrow("minimums from 0 to 2");
 });

@@ -89,6 +89,14 @@ export const publicMarkerCategory = Type.Union([
   Type.Literal("travelPoint"),
 ]);
 
+// A player cannot fight an NPC whose every role is a friendly service, so its combat values are only defaults.
+const FRIENDLY_ROLES: Readonly<Partial<Record<PublicMarkerCategory, true>>> = {
+  questGiver: true, merchant: true, townsfolk: true, banker: true, auctioneer: true, flightPoint: true,
+};
+export function onlyFriendlyRoles(roles: readonly PublicMarkerCategory[]): boolean {
+  return roles.length > 0 && roles.every((role) => FRIENDLY_ROLES[role]);
+}
+
 export const PublicLevelRangeSchema = Type.Object({
   min: count,
   max: count,

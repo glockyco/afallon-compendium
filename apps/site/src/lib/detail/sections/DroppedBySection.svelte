@@ -5,13 +5,13 @@
   import Hint from '../../Hint.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import Requirements from '../../Requirements.svelte';
-  import { creatureLevelText, dropRateText, dropsPerKillText, KILL_CHANCE_HINT, LISTED_RATE_HINT, nameOf, rangeText } from '../../format';
+  import { dropRateText, dropsPerKillText, KILL_CHANCE_HINT, LISTED_RATE_HINT, nameOf, rangeText } from '../../format';
   import { omitWhenShared, planColumns, stateInHeading, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import LootChanceHint from '../LootChanceHint.svelte';
   import Section from '../Section.svelte';
 
-  /** The sources of an item page that drop it: creatures, and world loot of creatures by level. */
+  /** The creatures whose own loot lists give the item, one row for each list. */
   export let rows: DropRow[];
   export let registry: PublicKindEntry[];
   export let guide: PlacedRule | undefined = undefined;
@@ -22,8 +22,6 @@
       value: (row) => rangeText(row.min, row.max) ?? undefined, sort: (row) => row.max ?? row.min, whenShared: omitWhenShared('1') },
     { id: 'rate', label: 'Listed Rate', hint: LISTED_RATE_HINT, numeric: true,
       value: (row) => row.killChance ?? row.chance ?? 'Unknown', sort: (row) => row.killChance ?? row.chance },
-    { id: 'level', label: 'Level', hint: 'The levels of the creatures that can drop the item.', numeric: true,
-      value: (row) => row.creatureLevel ? creatureLevelText(row.creatureLevel) : undefined, sort: (row) => row.creatureLevel?.min },
     { id: 'perKill', label: 'Loot List Roll', hint: 'The chance that one kill rolls the loot list and the number of items that list can give.',
       value: dropsPerKillText, whenShared: stateInHeading },
     { id: 'requirements', label: 'Requirement', value: (row) => row.requirements.length ? JSON.stringify(row.requirements) : undefined },
@@ -34,6 +32,8 @@
   $: plan = planColumns(columns, rows);
   $: line = plan.shared.some((shared) => shared.column.id === 'perKill') && rows[0] ? dropsPerKillText(rows[0]) : undefined;
   $: questOnly = rows.some((row) => row.questOnly);
+  // A creature with the item in two of its loot lists has a row for each list, and counts once.
+  $: creatures = new Set(rows.map((row) => row.counterpart.key ?? `label:${nameOf(row.counterpart)}`)).size;
 </script>
 
 {#snippet table(groupRows: DropRow[], computed: boolean)}
@@ -43,14 +43,12 @@
   <RelationTable columns={groupPlan.columns} rows={groupRows} label={computed ? 'Calculated chance per kill' : 'Listed drop rates'} sort={{ id: 'rate', dir: 'desc' }} mobileAlignedNumbers>
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
-      {:else if column === 'level'}{#if row.creatureLevel}{creatureLevelText(row.creatureLevel)}{/if}
       {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
       {:else if column === 'rate'}
         {@const value = dropRateText(row)}
         {#if value === undefined}<MissingValue explanation={row.oddsUnavailable ?? 'Listed rate unknown'} />
         {:else if row.oddsUnavailable}<Hint text={`${computed ? KILL_CHANCE_HINT : LISTED_RATE_HINT} ${row.oddsUnavailable}`}>{value}</Hint>
         {:else}{value}{/if}
-        {#if computed && row.chanceLevel !== undefined}<small>At creature level {row.chanceLevel} <LootChanceHint /></small>{/if}
       {:else if column === 'perKill'}{dropsPerKillText(row)}
       {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
     </svelte:fragment>
@@ -58,7 +56,7 @@
 {/snippet}
 
 {#if rows.length}
-  <Section id="dropped-by" title="Dropped by" count={rows.length} countUnit={rows.length === 1 ? 'creature' : 'creatures'} {line}>
+  <Section id="dropped-by" title="Dropped by" count={creatures} countUnit={creatures === 1 ? 'creature' : 'creatures'} {line}>
     <div class="rate-groups">
       {#if calculated.length}
         <div>

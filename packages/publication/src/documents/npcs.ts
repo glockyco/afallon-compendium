@@ -1,5 +1,5 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogNpcFacts, CatalogPlacementRow } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, collectRefs, type NpcAppliedEffect, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
+import { type AvailabilityRule, collectRefs, type NpcAppliedEffect, type NpcFacts, type NpcLocation, type NpcSharedDrop, type NpcVariantFacts, type NpcVariantField, onlyFriendlyRoles, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "../categories";
 import { phaseAbilities, recordStats } from "../adventurers";
 import { characterLevelCap, killExperience } from "../experience";
@@ -11,7 +11,9 @@ import { flightNetworks, npcFlights } from "../flight-network";
 import type { PublishedPage } from "../references";
 import { plainText } from "../text";
 import { shownNpcStats } from "../variants";
+import { dropsCloth } from "./cloth";
 import { lootFields } from "./loot";
+import { rollsWorldLoot } from "./world-loot-drops";
 import { type DocumentProjectionInput, endpointOrUnknown, grantedByActions, mergeRefs, optionalFactRef, pageBase, projectAvailability, type RelationIndexes, requirementsFor } from "./projection";
 import { objectiveForRow } from "./quests";
 import { appliedEffectsByAbility } from "./effects";
@@ -227,6 +229,17 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     const rows = indexes.dropsByOwner.get(member.entity.entityKey) ?? [];
     return { anchor: member.anchor, rows: rows.map((row) => ({ counterpart: input.resolve(row.item), lootGroup: row.lootTableId, ...lootFields(row, conditions, input) })) };
   }));
+  // An adventurer on the world roster shows its class, role, preferred tree, and arrival, with the guide's roster.
+  const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
+  // A kill that rewards the player rolls World Loot and cloth after the creature's own loot lists. A page shows them for a
+  // creature that a player can fight at a known level, and names the versions that make a roll when not every version does.
+  // The authored combat flag does not decide this: creatures such as Neonate Vampire have it off, yet give kill experience.
+  const fightable = level !== undefined && !onlyFriendlyRoles(roles) && adventurerFacts === undefined;
+  const sharedDrops: NpcSharedDrop[] = !fightable ? [] : (["worldLoot", "cloth"] as const).flatMap((roll) => {
+    const anchors = records.filter(({ fact }) => roll === "worldLoot" ? rollsWorldLoot(input, fact.npcType) : dropsCloth(input, fact.creatureType))
+      .map(({ member }) => member.anchor);
+    return anchors.length === 0 ? [] : [{ roll, ...(anchors.length === records.length ? {} : { variants: anchors }) }];
+  });
   const sells = attributedRows(records.map(({ member }) => ({ anchor: member.anchor, rows: (indexes.vendorsByNpc.get(member.entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.item), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
@@ -244,7 +257,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const roster = new Set((input.facts.adventurerInviteEffects ?? []).map((effect) => effect.adventurer.entityKey));
   const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve)
     .filter((rule) => rule.target !== "adventurers" || roster.has(member.entity.entityKey))
-    .filter((rule) => rule.target !== "drops" || drops.length > 0))
+    .filter((rule) => rule.target !== "drops" || drops.length > 0 || sharedDrops.length > 0))
     .filter((rule) => {
       const key = `${rule.target}\u0000${rule.guide.key}\u0000${rule.section}`;
       if (placedRuleKeys.has(key)) return false;
@@ -259,8 +272,6 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
       const type = itemTypeLabel(itemKind(input.facts.items.find((item) => item.entityKey === key)));
       return { item: input.resolve({ entityKey: key, label: key }), ...(type ? { type } : {}) };
     });
-  // An adventurer on the world roster shows its class, role, preferred tree, and arrival, with the guide's roster.
-  const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
   const flights = records.some(({ fact }) => fact.flightNetwork?.stopId) ? npcFlights(input.facts, memberKeys, flightNetworks(input.facts, input.resolve)) : [];
   const effects = appliedEffects(page, input, records, adventurers);
   const summonedBy = summoningEffects(memberKeys, input);
@@ -286,7 +297,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     }),
     locations, places: placeSpots(locations.flatMap((location) => location.placements)),
     spotCount: new Set(locations.flatMap((location) => location.placements.map((spot) => spot.placementId))).size,
-    drops, sells, quests, summonedBy, spawnedBy, recruitedByActions,
+    drops, sharedDrops, sells, quests, summonedBy, spawnedBy, recruitedByActions,
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
     usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
     appliedEffects: effects,

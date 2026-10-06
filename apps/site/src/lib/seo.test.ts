@@ -5,22 +5,22 @@ import { absolutePageUrl, entityDescription, entitySocialArt, jsonLdScript } fro
 const item = (overrides: Record<string, unknown> = {}): StaticDocument => ({
   kind: 'items', document: {
     ref: { name: "Footman's Bulwark" }, facts: { rarity: 'Uncommon', itemType: 'Shield' },
-    droppedBy: [{ counterpart: { name: 'Forest Scout' }, creatureLevel: { min: 6, max: 14 } }],
+    droppedBy: [{ counterpart: { name: 'Forest Scout' } }],
     soldBy: [], inContainers: [], collectedFrom: [], ...overrides,
   },
 }) as unknown as StaticDocument;
 
-test('summarizes item rarity and level-restricted drops without implying every creature drops it', () => {
-  expect(entityDescription(item())).toContain('uncommon shield in Afallon. Forest Scout can drop it at levels 6–14.');
+test('summarizes item rarity and the creature that drops it', () => {
+  expect(entityDescription(item())).toContain('uncommon shield in Afallon. Forest Scout can drop it.');
 });
 
-test('a world drop from any creature states its actual eligible levels', () => {
-  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 6, max: 14 } }] }))).toContain('It can drop from creatures at levels 6–14.');
-  expect(entityDescription(item({ droppedBy: [{ counterpart: { key: null, label: 'Any creature' }, creatureLevel: { min: 1 } }] }))).toContain('It can drop from creatures.');
+test('a World Loot item states the creature levels that can drop it', () => {
+  expect(entityDescription(item({ droppedBy: [], worldLoot: { levels: [{ minLevel: 6, maxLevel: 14, chance: 0.12 }] } }))).toContain('It can drop as World Loot from creatures of levels 6 to 14.');
+  expect(entityDescription(item({ droppedBy: [], worldLoot: { levels: [{ minLevel: 1, chance: 0.24 }] } }))).toContain('It can drop as World Loot from creatures of any level.');
 });
 
 test('uses an available container source before creature drops and never invents absent sources', () => {
-  expect(entityDescription(item({ collectedFrom: [{ label: 'Wooden Treasure Chest (Locked)' }] }))).toContain('Found in locked wooden treasure chests. Forest Scout can drop it at levels 6–14.');
+  expect(entityDescription(item({ collectedFrom: [{ label: 'Wooden Treasure Chest (Locked)' }] }))).toContain('Found in locked wooden treasure chests. Forest Scout can drop it.');
   expect(entityDescription(item({ droppedBy: [] }))).not.toMatch(/can drop|sells it|Found in/);
 });
 

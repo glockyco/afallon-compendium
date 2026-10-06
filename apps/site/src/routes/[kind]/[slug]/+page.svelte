@@ -19,6 +19,6 @@
 <SeoHead title={data.title} description={summary} type="article" art={entitySocialArt(data.page)} imageAlt={document.ref.name} noindex={data.page.kind === 'effects' && data.page.document.type === 'Teleport'} />
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
-  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} effectSubtitle={data.effectSubtitle} />
+  <DetailPage page={data.page} registry={data.registry} inlineItem={data.inlineItem} heroicItems={data.heroicItems} corruptionItems={data.corruptionItems} effectSubtitle={data.effectSubtitle} levelLoot={data.levelLoot} />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>

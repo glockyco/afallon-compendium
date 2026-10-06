@@ -13,7 +13,8 @@ const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
 // Only minimums 0, 1 and 2 are supported exactly. The two-pick case needs
 // single-success identities, but never an exponential set of selected rows.
-function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number, capacity: number, divisor: number): Counts {
+// `withoutItem` counts the outcomes that give none of the target items.
+function tableCounts(entries: readonly Entry[], targets: ReadonlySet<string>, minimum: number, capacity: number, divisor: number): Counts {
   const total = new Float64Array(capacity + 1);
   const withoutItem = new Float64Array(capacity + 1);
   total[0] = withoutItem[0] = 1;
@@ -24,7 +25,7 @@ function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number
   for (const entry of entries) {
     const weight = Math.max(0.01, entry.rate);
     weightSum += weight;
-    if (entry.itemKey === itemKey) itemWeight += weight;
+    if (targets.has(entry.itemKey)) itemWeight += weight;
   }
 
   for (const entry of entries) {
@@ -35,7 +36,7 @@ function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number
       total[count + 1] = total[count + 1]! + ordinary;
       const remaining = withoutItem[count]! * chance;
       withoutItem[count] = withoutItem[count]! - remaining;
-      if (entry.itemKey !== itemKey) withoutItem[count + 1] = withoutItem[count + 1]! + remaining;
+      if (!targets.has(entry.itemKey)) withoutItem[count + 1] = withoutItem[count + 1]! + remaining;
     }
   }
 
@@ -49,7 +50,7 @@ function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number
     let withoutItemPick = itemWeight === 0 ? 1 : 0;
     if (itemWeight > 0) {
       for (const entry of entries) {
-        if (entry.itemKey === itemKey) continue;
+        if (targets.has(entry.itemKey)) continue;
         const weight = Math.max(0.01, entry.rate);
         withoutItemPick += (weight / weightSum) * (1 - (itemWeight / (weightSum - weight)));
       }
@@ -74,7 +75,7 @@ function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number
       for (let index = 0; index < entries.length; index++) {
         const entry = entries[index]!;
         const chance = clamp(Math.max(0, entry.rate) / divisor);
-        if (entry.itemKey !== itemKey) {
+        if (!targets.has(entry.itemKey)) {
           const weight = Math.max(0.01, entry.rate);
           noTargetAfterPick += prefixFailures * chance * suffixFailures[index + 1]! *
             (1 - itemWeight / (weightSum - weight));
@@ -89,13 +90,13 @@ function tableCounts(entries: readonly Entry[], itemKey: string, minimum: number
   return { total, withoutItem };
 }
 
-/** Probability of obtaining at least one matching item at neutral world/Heroic multipliers.
+/** Probability of obtaining at least one of the target items at neutral world/Heroic multipliers.
  * Caller supplies eligible rows and, for world tables, the catalog's shared world limit.
  * NPC and world probabilities are conditional on an eligible rewarded kill; object
  * probabilities are per qualifying interaction. Minimums above two are unsupported.
  */
 export function lootItemProbability(
-  tables: readonly LootOddsTable[], itemKey: string,
+  tables: readonly LootOddsTable[], targets: ReadonlySet<string>,
   options: { worldLimit?: number; lootChance?: number } = {},
 ): number {
   const hasWorld = tables.some((table) => table.mode === "world");
@@ -126,7 +127,7 @@ export function lootItemProbability(
       const capacity = Math.max(0, Math.min(entries.length, table.limit ?? entries.length, available));
       let counts = countsByCapacity.get(capacity);
       if (!counts) {
-        counts = tableCounts(entries, itemKey, table.minimum, capacity, divisor);
+        counts = tableCounts(entries, targets, table.minimum, capacity, divisor);
         countsByCapacity.set(capacity, counts);
       }
       for (let selected = 0; selected <= capacity; selected++) {

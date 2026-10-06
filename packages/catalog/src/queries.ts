@@ -582,12 +582,11 @@ export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]
     const limit = table.limitDroppedItems === true && typeof table.maxDroppedItems === "number" && table.maxDroppedItems >= 1 ? table.maxDroppedItems : null;
     // The minimum-drop pass fills up to the minimum, never past the limit, and picks each entry at most once.
     const minimum = table.hasMinimumDrops === true && typeof table.minDroppedItems === "number" && table.minDroppedItems >= 1 ? Math.min(table.minDroppedItems, limit ?? row.entry_count, row.entry_count) : null;
-    let creatureLevel: CatalogDropRow["creatureLevel"] = null, worldReferenceLevel: number | null = null;
+    let creatureLevel: CatalogDropRow["creatureLevel"] = null;
     if (row.context === "world") {
       const sourceKey = `${row.item_entity_key}|${row.binding_index}:${row.entry_index}`;
       if (row.level_band_gear === 1 && !requiredLevels.has(sourceKey)) throw new Error(`World loot entry ${sourceKey} of a level-band table has no level eligibility.`);
       const requiredLevel = row.level_band_gear === 1 ? requiredLevels.get(sourceKey) ?? null : null;
-      worldReferenceLevel = requiredLevel !== null && requiredLevel > 0 ? requiredLevel : null;
       creatureLevel = worldCreatureLevel(typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0, typeof binding.maximumNPCLevel === "number" ? binding.maximumNPCLevel : 0, requiredLevel, rules.levelBandRange);
       // No creature level passes both the binding range and the level band, so the game never gives this entry.
       if (creatureLevel === null) continue;
@@ -598,7 +597,6 @@ export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]
       item: endpoint(refs, row.item_entity_key, row.item_entity_key), lootTableId: row.loot_table_id, entryIndex: row.entry_index,
       min: row.min_count, max: row.max_count, rawRate: row.raw_rate, displayedChance: row.raw_rate === null ? null : Math.round(row.raw_rate * 10) / 10,
       tableRate: row.table_rate, tableMinimum: minimum, tableLimit: limit !== null && row.entry_count > limit ? limit : null, creatureLevel,
-      ...(worldReferenceLevel !== null ? { worldReferenceLevel } : {}),
       conditionIds: row.condition_id === null ? [] : [row.condition_id], placementIds: row.owner_entity_key === null ? [] : placements.get(row.owner_entity_key) ?? [],
     });
   }

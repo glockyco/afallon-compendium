@@ -5,11 +5,12 @@
   import ItemTooltip from '../../ItemTooltip.svelte';
   import ObjectiveText from '../../ObjectiveText.svelte';
   import Price from '../../Price.svelte';
-  import { formatNumber, intervalText, nameOf, rarityTone } from '../../format';
+  import { CLOTH_CHANCE_HINT, formatNumber, intervalText, nameOf, percentText, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import LootChanceHint from '../LootChanceHint.svelte';
   import LevelControl from '../LevelControl.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
   import { itemSourceLines, levelRangeText, packBandText, unboundLootTableNames } from '../item-sources';
@@ -27,6 +28,7 @@
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import ItemSourceRoutes from '../sections/ItemSourceRoutes.svelte';
   import VendorSection from '../sections/VendorSection.svelte';
+  import WorldLootSection from '../sections/WorldLootSection.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import SideCard from '../SideCard.svelte';
@@ -96,7 +98,7 @@
   $: pickupPlan = planColumns(pickupColumns, document.questPickups);
   const clothColumns: RelationColumn<NonNullable<PublicItem['clothDrop']>['levels'][number]>[] = [
     { id: 'level', label: 'Creature Level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
-    { id: 'chance', label: 'Base Rate', hint: 'The base cloth roll rate for this cloth before loot bonuses. Inside a range of levels, it changes steadily from the first value to the second. It is not your chance per kill.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
+    { id: 'chance', label: 'Chance per Kill', hint: `${CLOTH_CHANCE_HINT} Inside a range of levels, the chance moves steadily from its first value to its last.`, numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
   ];
   const effectColumns: RelationColumn<PublicItem['appliesEffects'][number]>[] = [
     { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
@@ -293,15 +295,17 @@
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
     {#if document.buys.length}<PurchasesSection id="buys" title="Buys" rows={document.buys} subjectCurrency={facts.currency} {registry} />{/if}
     {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} guide={document.placedRules.find((rule) => rule.target === 'dropped-by')} {registry} />{/if}
+    {#if document.worldLoot}<WorldLootSection loot={document.worldLoot} guide={document.placedRules.find((rule) => rule.target === 'dropped-by')} />{/if}
     {#if document.clothDrop}
       <Section id="cloth-loot" title="Cloth Loot">
         <div class="c-stack">
-          <p>Each kill of a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature rolls for cloth at a base rate of {formatNumber(document.clothDrop.chance)}% before loot bonuses. A successful roll gives {document.clothDrop.min === document.clothDrop.max ? formatNumber(document.clothDrop.min) : `${formatNumber(document.clothDrop.min)} to ${formatNumber(document.clothDrop.max)}`} {document.clothDrop.max === 1 ? 'piece' : 'pieces'}. The creature's level decides which cloth it is.</p>
+          <p>{formatNumber(document.clothDrop.chance)}% of kills of {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creatures give {document.clothDrop.min === document.clothDrop.max ? formatNumber(document.clothDrop.min) : `${formatNumber(document.clothDrop.min)} to ${formatNumber(document.clothDrop.max)}`} {document.clothDrop.max === 1 ? 'piece' : 'pieces'} of one cloth. The creature's level decides which cloth it is.</p>
           {#if clothGuide}<HowItWorks guide={clothGuide.guide} section={clothGuide.section} label="How cloth loot works" />{/if}
-          <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Base cloth rate by creature level">
+          <p class="rate-line">Chance for each kill. <LootChanceHint cloth /></p>
+          <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Cloth chance per kill by creature level">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'level'}{levelRangeText(row.minLevel, row.maxLevel)}
-              {:else}{formatNumber(row.startChance)}%{#if row.endChance !== undefined}{' to '}{formatNumber(row.endChance)}%{/if}{/if}
+              {:else}{percentText(row.startChance)}{#if row.endChance !== undefined}{' to '}{percentText(row.endChance)}{/if}{/if}
             </svelte:fragment>
           </RelationTable>
         </div>
@@ -386,6 +390,7 @@
   .enchant-stats :global(.fact-list) { margin-top: .6rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
   .adventurer-gear { display: grid; gap: .5rem; line-height: 1.55; }
+  .rate-line { color: var(--c-text-dim); }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .used-quest { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; }
 </style>

@@ -3,7 +3,7 @@
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Hint from '../../Hint.svelte';
-  import { dropRateText, formatNumber, itemDropText, LISTED_RATE_HINT } from '../../format';
+  import { dropRateText, formatNumber, itemDropText, killChanceRangeText, LISTED_RATE_HINT } from '../../format';
   import CraftExperience from '../CraftExperience.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import LootChanceHint from '../LootChanceHint.svelte';
@@ -68,24 +68,24 @@
           {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How dungeon rewards work" />{/if}
         {:else}
           <p>
-            {#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} href={routeHref(entry)} stackPrice={entry.id === 'sold-by'} suffix={entry.id === 'dropped-by' && !entry.text && (rate || entry.detail) ? ':' : undefined} />{/if}
+            <SummaryValue {entry} {registry} href={routeHref(entry)} stackPrice={entry.id === 'sold-by'} suffix={entry.id === 'dropped-by' && rate ? ':' : undefined} />
             {#if entry.id === 'from-quests' && onlyQuest}<span class="source-separator">{' · '}</span><span class="source-meta">{onlyQuest.roles.join(' and ')}{#if onlyQuest.count && onlyQuest.count > 1}{', '}{formatNumber(onlyQuest.count)} items{/if}</span>{/if}
-            {#if entry.id === 'dropped-by' && (rate || entry.detail)}
-              {entry.text && !entry.text.endsWith('.') ? ': ' : ' '}
-            {/if}
             {#if rate && entry.drop}
+              {' '}
               {#if entry.drop.killChance === undefined}
                 {rate} <Hint text={`${LISTED_RATE_HINT}${entry.drop.oddsUnavailable ? ` ${entry.drop.oddsUnavailable}` : ''}`}>listed rate</Hint>.{#if entry.drop.questOnly}{' '}It drops only while one of your quests needs it.{/if}
               {:else}
                 {rate.startsWith('About ') ? rate : `${rate} per kill`}{entry.drop.questOnly ? ' while one of your quests needs it' : ''}{' '}<LootChanceHint />
               {/if}
             {/if}
+            {#if entry.killChances}
+              {@const chances = killChanceRangeText(entry.killChances.low, entry.killChances.high)}
+              {' '}Chance per kill: {chances.startsWith('About ') ? `about ${chances.slice('About '.length)}` : chances}{' '}<LootChanceHint />
+            {/if}
             {#if entry.detail}
               {#if entry.id === 'from-items'}<span class="source-separator">{' · '}</span><span class="source-meta">{entry.detail.replace(' · ', ', ')}</span>
-              {:else}{#if entry.id === 'dropped-by'}{rate || entry.text?.endsWith('.') ? ' ' : ''}
-                {:else if entry.id === 'cloth-loot'}{' '}
-                {:else if entry.id === 'gathered-from'}{'. '}
-                {:else}{' · '}{/if}{entry.detail}{/if}
+              {:else if entry.id === 'cloth-loot'}{' '}{entry.detail}{' '}<LootChanceHint cloth />
+              {:else}{entry.id === 'gathered-from' ? '. ' : ' · '}{entry.detail}{/if}
             {/if}
             {#if entry.id === 'dropped-by' && singleDropInAnswer && onlyDrop}<span class="drop-rule">{itemDropText(onlyDrop)}</span>{/if}
             {#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}

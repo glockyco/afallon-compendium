@@ -49,8 +49,8 @@ test("a requirement group carries worded requirements whose spans link the named
 test("relation rows accept an unresolved endpoint and omit an unmeasured chance", () => {
   const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [] };
   Assert(DropRowSchema, drop);
-  Assert(DropRowSchema, { ...drop, counterpart: boss, chance: 12.5, tableChance: 5, tableMinimum: 1, tableLimit: 2, creatureLevel: { min: 18 } });
-  Assert(DropRowSchema, { ...drop, chance: 12.5, killChance: 2.4, chanceLevel: 10 });
+  Assert(DropRowSchema, { ...drop, counterpart: boss, chance: 12.5, tableChance: 5, tableMinimum: 1, tableLimit: 2 });
+  Assert(DropRowSchema, { ...drop, chance: 12.5, killChance: 2.4 });
   Assert(DropRowSchema, { ...drop, chance: 12.5, oddsUnavailable: "The required player level is unknown." });
   expect(() => Assert(DropRowSchema, { ...drop, killChance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, tableMinimum: 0 })).toThrow();
@@ -121,7 +121,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
   npcs: { ...base, ref: boss, facts: { level: { min: 21, max: 21, scales: false }, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, variantFields: [], variants: [{ key: "npcs:286", anchor: "n286", label: "Duskfall Depths", facts: {} }],
     locations: [{ label: "Duskfall Depths", placements: [placement], spotCount: 1, availability: [], level: { min: 21, max: 21, scales: false }, variants: ["n286"], roles: ["boss"], quests: [] }],
     places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", placementIds: ["p1"], spotCount: 1 }], spotCount: 1,
-    drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], summonedBy: [], spawnedBy: [], recruitedByActions: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [] } satisfies PublicNpc,
+    drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sharedDrops: [{ roll: "worldLoot" }], sells: [], quests: [], summonedBy: [], spawnedBy: [], recruitedByActions: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [] } satisfies PublicQuest,
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], entrances: [{ place: { key: "scenes:47", kind: "places", name: "Afallon", slug: "afallon" }, placements: [placement] }], placesToEnter: [], startingRaces: [], allPlayableRacesStartHere: false, regions: [],
     dungeonFinder: { supplyPack: item }, timedDungeon: { totalSeconds: 800, thresholds: [{ remainingSeconds: 500, tokenLevels: 2 }, { remainingSeconds: 300, tokenLevels: 1 }], maxLootItems: 3, altars: [placement],

@@ -14,15 +14,15 @@ const identity = StaticResourceIdentityFields;
 // Register each paged kind once. Schema getters are deferred because entity references use the
 // kind union before the document schemas (which themselves contain entity references) are defined.
 const PAGE_DOCUMENTS = {
-  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v24" },
-  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v14" },
+  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v25" },
+  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v15" },
   quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
   properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
   abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v8" },
   classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v9" },
   skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
-  mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v18" },
+  mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v19" },
   gatheringNodes: { schema: () => PublicGatheringNodeSchema, schemaId: "compendium.static-gathering-node.v6" },
   gearSets: { schema: () => PublicGearSetSchema, schemaId: "compendium.static-gear-set.v1" },
   currencies: { schema: () => PublicCurrencySchema, schemaId: "compendium.static-currency.v1" },
@@ -133,16 +133,15 @@ export type Price = Static<typeof PriceSchema>;
 // Relation rows are shared by both endpoints: an NPC's `drops` and an item's `droppedBy` use the
 // same `DropRow` with `counterpart` pointing across.
 //
-// A drop row describes one item of a loot table. `chance` is the authored entry rate, rounded to one decimal; a boss's
-// Adventure Guide loot tab shows it multiplied by the table's authored roll rate. `killChance` is an exact per-kill
-// baseline conditional on a player-rewarded kill, zero Luck, neutral loot multipliers, no active game modifiers, and the
-// published eligibility, whatever the reader's quests. `questOnly` marks an item that drops only while one of the
-// reader's quests has an open task for it, and its `killChance` applies during that task. `chanceLevel` specifies the
-// creature level used for a level-dependent result. `tableChance` is the baseline probability that one kill rolls the
-// table, present only below 100; unlike a world binding, a creature-specific binding truncates the random gate before
-// comparing. `tableMinimum` and `tableLimit` bound its item count. `oddsUnavailable` explains a missing input when a
-// full probability cannot be calculated. World loot's `creatureLevel` gives eligible levels; its counterpart can
-// restrict rank.
+// A drop row describes one item of one of a creature's own loot lists. `chance` is the authored entry rate, rounded to
+// one decimal; a boss's Adventure Guide loot tab shows it multiplied by the table's authored roll rate. `killChance` is
+// the exact chance that one kill gives the item from this list, conditional on a player-rewarded kill, zero Luck,
+// neutral loot multipliers, no active game modifiers, and the published eligibility, whatever the reader's quests.
+// Each list rolls on its own, so an item in two lists of one creature has a row for each. `questOnly` marks an item
+// that drops only while one of the reader's quests has an open task for it, and its `killChance` applies during that
+// task. `tableChance` is the baseline probability that one kill rolls the table, present only below 100; a creature's
+// binding truncates the random gate before comparing. `tableMinimum` and `tableLimit` bound its item count.
+// `oddsUnavailable` explains a missing input when a full probability cannot be calculated.
 //
 // A row never carries placement ids. Each document already lists its own `locations`, and the
 // counterpart's locations belong to the counterpart's document, so repeating them per row would
@@ -151,16 +150,42 @@ export type Price = Static<typeof PriceSchema>;
 // placements produce it and the reader reaches them through the map, which already highlights
 // every placement of an item key or a marker category.
 const itemCount = Type.Integer({ minimum: 1 });
-export const CreatureLevelSchema = Type.Object({ min: count, max: optional(count) }, { additionalProperties: false });
-export type CreatureLevel = Static<typeof CreatureLevelSchema>;
 const dropRowFields = {
   counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent), killChance: optional(percent),
-  chanceLevel: optional(count), oddsUnavailable: optional(text), questOnly: optional(Type.Literal(true)),
-  tableChance: optional(percent), tableMinimum: optional(itemCount), tableLimit: optional(itemCount),
-  creatureLevel: optional(CreatureLevelSchema), requirements,
+  oddsUnavailable: optional(text), questOnly: optional(Type.Literal(true)),
+  tableChance: optional(percent), tableMinimum: optional(itemCount), tableLimit: optional(itemCount), requirements,
 };
 export const DropRowSchema = Type.Object(dropRowFields, { additionalProperties: false });
 export type DropRow = Static<typeof DropRowSchema>;
+
+// A chance per kill for the creature levels from `minLevel` to `maxLevel`. Without `maxLevel`, it holds for every
+// higher level. Without `chance`, the chance at these levels is unknown, and its owner's `oddsUnavailable` says why.
+export const LevelChanceSchema = Type.Object({ minLevel: count, maxLevel: optional(count), chance: optional(percent) }, { additionalProperties: false });
+export type LevelChance = Static<typeof LevelChanceSchema>;
+const levelChances = Type.Array(LevelChanceSchema, { minItems: 1 });
+
+// What World Loot gives at each creature level. Every kill that rewards the player rolls the World Loot lists after the
+// creature's own loot lists, and they give at most `maxItems` items between them. `minimumRank` is the lowest creature
+// rank that rolls World Loot, present when it is not the lowest rank. `any` is the chance that a kill gives any World
+// Loot. An item's `levels` are the creature levels that can give it, with its chance per kill, and an item page carries
+// the same fields for its own item. `questOnly` marks an item that drops only while a quest needs it.
+const worldLootChanceFields = { min: optional(count), max: optional(count), levels: levelChances, oddsUnavailable: optional(text) };
+export const ItemWorldLootSchema = Type.Object({ ...worldLootChanceFields, minimumRank: optional(text) }, { additionalProperties: false });
+export type ItemWorldLoot = Static<typeof ItemWorldLootSchema>;
+export const WorldLootItemSchema = Type.Object({ item: RefSchema, ...worldLootChanceFields, questOnly: optional(Type.Literal(true)) }, { additionalProperties: false });
+export type WorldLootItem = Static<typeof WorldLootItemSchema>;
+export const WorldLootSchema = Type.Object({
+  maxItems: optional(itemCount), minimumRank: optional(text), any: levelChances, items: Type.Array(WorldLootItemSchema), oddsUnavailable: optional(text),
+}, { additionalProperties: false });
+export type WorldLoot = Static<typeof WorldLootSchema>;
+// What cloth gives at each creature level. A kill of a creature of one of `creatureTypes` gives `min` to `max` pieces of
+// one cloth on `chance` percent of kills, and the creature's level decides which cloth. An item's `levels` give its
+// chance per kill.
+export const ClothLootSchema = Type.Object({
+  creatureTypes: Type.Array(text, { minItems: 1, uniqueItems: true }), chance: percent, min: count, max: count,
+  items: Type.Array(Type.Object({ item: RefSchema, levels: levelChances }, { additionalProperties: false }), { minItems: 1 }),
+}, { additionalProperties: false });
+export type ClothLoot = Static<typeof ClothLootSchema>;
 
 const vendorRowFields = { counterpart: RefSchema, price: PriceSchema, requirements };
 export const VendorRowSchema = Type.Object(vendorRowFields, { additionalProperties: false });
@@ -173,6 +198,14 @@ export const NpcDropRowSchema = Type.Object({ ...dropRowFields, lootGroup: optio
 export type NpcDropRow = Static<typeof NpcDropRowSchema>;
 export const NpcVendorRowSchema = Type.Object({ ...vendorRowFields, variants: variantAnchors }, { additionalProperties: false });
 export type NpcVendorRow = Static<typeof NpcVendorRowSchema>;
+
+// The rolls of a kill that follow the creature's own loot lists and depend only on the creature's level: World Loot
+// for a creature of the World Loot rank or higher, and cloth for a creature type that drops cloth. The Loot guide holds
+// what they give at each level. `variants` names the page variants that make the roll when not every variant does.
+export const NpcSharedDropSchema = Type.Object({
+  roll: Type.Union([Type.Literal("worldLoot"), Type.Literal("cloth")]), variants: variantAnchors,
+}, { additionalProperties: false });
+export type NpcSharedDrop = Static<typeof NpcSharedDropSchema>;
 
 // A place is the published map space and its displayed area label; placement IDs select spots on that map.
 export const PlaceSpotsSchema = Type.Object({ label: text, mapSpaceId: text, spotCount: count, placementIds: Type.Array(text, { uniqueItems: true }) }, { additionalProperties: false });
@@ -477,10 +510,9 @@ export const LootTableMembershipSchema = Type.Object({
 }, { additionalProperties: false });
 export type LootTableMembership = Static<typeof LootTableMembershipSchema>;
 
-// Supplemental cloth drops: `chance` is the base cloth roll rate before loot bonuses. `startChance` and
-// `endChance` apportion that base rate to this cloth by the creature's level and the tiers' relative weights.
-// These derived rates are not the effective probability of obtaining the cloth on a kill. Within a level range
-// the rate changes steadily between endpoints; the last range has no maximum level.
+// The cloth that the cloth roll of a kill can give: `chance` percent of kills of a creature of one of `creatureTypes`
+// give `min` to `max` pieces of one cloth. Each of `levels` gives this cloth's chance per kill at its first and last
+// creature level; in between, the chance changes steadily. The last range has no maximum level.
 export const ClothDropSchema = Type.Object({
   creatureTypes: Type.Array(text, { minItems: 1, uniqueItems: true }), chance: percent, min: count, max: count,
   levels: Type.Array(Type.Object({ minLevel: count, maxLevel: optional(count), startChance: percent, endChance: optional(percent) }, { additionalProperties: false }), { minItems: 1 }),
@@ -512,7 +544,9 @@ export const PublicItemSchema = Type.Object({
   // matching product quantity, skill, and verified first-rank gate for the material's recipe equation.
   crafting: optional(CraftSchema), teaches: optional(CraftSchema), usedInRecipes: Type.Array(UsedInRecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
   startingGearOf: Type.Array(StartingGearOfRowSchema), startingGearOfAdventurers: refs,
-  fromItems: Type.Array(FromItemRowSchema), gainedFromItems: refs, lootTables: Type.Array(LootTableMembershipSchema), clothDrop: optional(ClothDropSchema),
+  fromItems: Type.Array(FromItemRowSchema), gainedFromItems: refs, lootTables: Type.Array(LootTableMembershipSchema),
+  // `worldLoot` is the item's chance per kill by the creature levels whose World Loot can give it.
+  worldLoot: optional(ItemWorldLootSchema), clothDrop: optional(ClothDropSchema),
   questPickups: Type.Array(QuestPickupRowSchema), dungeonFinder: optional(DungeonFinderRewardSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
   whenUsed: ItemUseSchema, appliesEffects: Type.Array(ItemAppliedEffectSchema),
@@ -637,7 +671,7 @@ export const PublicNpcSchema = Type.Object({
   ...documentBase, facts: NpcFactsSchema,
   variantFields: Type.Array(npcVariantField, { uniqueItems: true }), variants: Type.Array(NpcVariantSchema, { minItems: 1 }),
   locations: Type.Array(NpcLocationSchema), places: Type.Array(PlaceSpotsSchema), spotCount: count,
-  drops: Type.Array(NpcDropRowSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
+  drops: Type.Array(NpcDropRowSchema), sharedDrops: Type.Array(NpcSharedDropSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
   summonedBy: refs, spawnedBy: Type.Array(Type.Object({ label: text, place: RefSchema }, { additionalProperties: false })),
   recruitedByActions: Type.Array(SourceActionSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
@@ -968,9 +1002,10 @@ export const CraftingExampleSchema = Type.Object({
   gather: Type.Object({ node: EntityRefSchema, skill: RefSchema, levelChances: Type.Array(Type.Object({ level: count, chance: percent }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false }),
 }, { additionalProperties: false });
 export type CraftingExample = Static<typeof CraftingExampleSchema>;
+// An enchanting material and where to get it. `worldLoot` marks a material that World Loot can give.
 export const EnchantingItemRowSchema = Type.Object({
   item: EntityRefSchema, fits: Type.Array(text), stats: Type.Array(StatRowSchema),
-  crafting: optional(RefSchema), vendors: refs, drops: refs,
+  crafting: optional(RefSchema), vendors: refs, drops: refs, worldLoot: optional(Type.Literal(true)),
 }, { additionalProperties: false });
 // Where each activity starts: the crafting skills with their recipe count and the stations that make their recipes, and
 // the gathering skills with their node count.
@@ -1010,8 +1045,10 @@ export const CorruptionGuideSchema = Type.Object({
   }, { additionalProperties: false }),
 }, { additionalProperties: false });
 export type CorruptionGuide = Static<typeof CorruptionGuideSchema>;
+// `worldLoot` and `cloth` give what those rolls of a kill give at each creature level, which creature pages read for
+// the level that they show.
 export const LootGuideSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("loot"), ...guide,
+  ...documentBase, topic: Type.Literal("loot"), ...guide, worldLoot: optional(WorldLootSchema), cloth: optional(ClothLootSchema),
 }, { additionalProperties: false });
 export type LootGuide = Static<typeof LootGuideSchema>;
 // The gear that adventurers can take as upgrades, each item with what it is. `rewards` is the shared list of job rewards
@@ -1358,9 +1395,9 @@ schemaRegistry.register("compendium.public-gear-set-tier.v1", GearSetTierSchema)
 schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
 schemaRegistry.register("compendium.public-gem.v1", GemSchema);
-schemaRegistry.register("compendium.public-drop-row.v4", DropRowSchema);
+schemaRegistry.register("compendium.public-drop-row.v5", DropRowSchema);
 schemaRegistry.register("compendium.public-vendor-row.v3", VendorRowSchema);
-schemaRegistry.register("compendium.public-npc-drop-row.v1", NpcDropRowSchema);
+schemaRegistry.register("compendium.public-npc-drop-row.v2", NpcDropRowSchema);
 schemaRegistry.register("compendium.public-npc-vendor-row.v1", NpcVendorRowSchema);
 schemaRegistry.register("compendium.public-place-spots.v2", PlaceSpotsSchema);
 schemaRegistry.register("compendium.public-gather-row.v3", GatherRowSchema);

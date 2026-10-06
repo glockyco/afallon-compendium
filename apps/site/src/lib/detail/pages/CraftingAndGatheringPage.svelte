@@ -49,7 +49,7 @@
     { id: 'item', label: 'Enchanting Item', value: (row) => row.item.name, sort: (row) => row.item.name },
     { id: 'fits', label: 'Fits', value: (row) => row.fits.join(' and '), sort: (row) => row.fits.join(' and ') },
     { id: 'adds', label: 'Adds', value: (row) => row.stats.map((stat) => nameOf(stat.stat)).join(', ') },
-    { id: 'source', label: 'Where to Get It', value: (row) => row.crafting ? nameOf(row.crafting) : row.vendors.length ? 'vendor' : row.drops.length ? 'drop' : 'none' },
+    { id: 'source', label: 'Where to Get It', value: (row) => row.crafting ? nameOf(row.crafting) : row.vendors.length ? 'vendor' : row.drops.length ? 'drop' : row.worldLoot ? 'world loot' : 'none' },
   ];
   $: enchantPlan = planColumns(enchantColumns, document.enchantingItems);
   const signed = (amount: number, isPercent: boolean) => `${amount < 0 ? '' : '+'}${formatNumber(amount)}${isPercent ? '%' : ''}`;
@@ -112,7 +112,7 @@
                   {#if column === 'item'}<EntityLink ref={row.item} {registry} />
                   {:else if column === 'fits'}{row.fits.join(' and ')}
                   {:else if column === 'adds'}{#each row.stats as stat, index}{index ? ', ' : ''}{signed(stat.amount, stat.isPercent)}{' '}<EntityLink ref={stat.stat} {registry} />{/each}
-                  {:else if column === 'source'}{#if row.crafting}Craft with <EntityLink ref={row.crafting} {registry} />{:else if row.vendors.length}{#each row.vendors as vendor, index}{index ? ', ' : ''}<EntityLink ref={vendor} {registry} />{/each}{:else if row.drops.length}Dropped by {#each row.drops as drop, index}{index ? ', ' : ''}<EntityLink ref={drop} {registry} />{/each}{:else}No known source{/if}{/if}
+                  {:else if column === 'source'}{#if row.crafting}Craft with <EntityLink ref={row.crafting} {registry} />{:else if row.vendors.length}{#each row.vendors as vendor, index}{index ? ', ' : ''}<EntityLink ref={vendor} {registry} />{/each}{:else if row.drops.length}Dropped by {#each row.drops as drop, index}{index ? ', ' : ''}<EntityLink ref={drop} {registry} />{/each}{:else if row.worldLoot}World Loot{:else}No known source{/if}{/if}
                 </svelte:fragment>
               </RelationTable>
             </GuideSection>

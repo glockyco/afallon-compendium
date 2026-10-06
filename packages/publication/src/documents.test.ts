@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogProgressionFact, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow, ProgressionAppliedEffect } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type EntityRef, type GearSetTier, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type LevelChance, type PublicAbility, type EntityRef, type GearSetTier, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { projectGatheringNodeDocuments, spawnerGroups } from "./gathering";
 import { projectPublicDocuments } from "./documents";
+import { projectClothLoot } from "./documents/cloth";
+import { projectWorldLoot } from "./documents/world-loot-drops";
 import { conditionsById, type DocumentProjectionInput, requirementsFor } from "./documents/projection";
 import { projectItemEffects } from "./documents/items";
 import { projectQuestObjective } from "./documents/quests";
@@ -86,6 +88,22 @@ const relations: CatalogRelations = {
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
+// A loot list of single items with the given listed rates. `shape` sets its limit and minimum.
+function lootList(id: number, entries: Array<[string, number]>, shape: Partial<CatalogFacts["itemLootTables"][number]> = {}): CatalogFacts["itemLootTables"][number] {
+  return { id, name: `List ${id}`, levelBandGear: false, includeWorldLoot: false, worldLootShare: 0, bonusDropChance: 0,
+    hasMinimumDrops: false, minDroppedItems: 0, limitDroppedItems: false, maxDroppedItems: 0, worldLootStats: null, worldLootArmorType: null,
+    entries: entries.map(([entityKey, rate]) => ({ item: { entityKey, label: entityKey }, min: 1, max: 1, rate })), ...shape };
+}
+// A World Loot entry, with the creature levels that the catalog joins from its binding's window and the level band.
+function worldRow(lootTableId: number, entryIndex: number, itemKey: string, rate: number, creatureLevel: { min: number; max: number | null }): CatalogRelations["drops"][number] {
+  return { context: "world", owner: { entityKey: null, label: "Any creature" }, item: { entityKey: itemKey, label: itemKey }, lootTableId, entryIndex,
+    min: 1, max: 1, rawRate: rate, displayedChance: rate, tableRate: null, tableMinimum: null, tableLimit: null, creatureLevel, conditionIds: [], placementIds: [] };
+}
+// A World Loot binding with the shared limit of two items, for every rank, and the creature levels from `min` to `max`.
+function worldBinding(lootTableId: number, tableRate: number, min = 0, max = 0): NonNullable<DocumentProjectionInput["worldLootTables"]>[number] {
+  return { lootTableId, tableRate, worldLimit: 2, minimumRank: 0, levelBandRange: 4, minimumLevel: min, maximumLevel: max, hasRequirements: false, entries: [] };
+}
+
 function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map(), rewards?: CorruptionRewards, recovered: Partial<DocumentProjectionInput> = {}) {
   // Published stat references need definitions, just as the real catalog supplies them.
   const statFacts = projectEntities.filter((entity) => entity.kind === "stats" && !projectFacts.progression.facts.some((row) => row.entityKey === entity.entityKey))
@@ -96,8 +114,8 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
     } }) as CatalogProgressionFact);
   const withStats: CatalogFacts = { ...projectFacts, progression: { ...projectFacts.progression, facts: [...projectFacts.progression.facts, ...statFacts] } };
   const references = buildEntityReferences(projectEntities, { facts: withStats, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards, ...recovered });
-  return { refs: references.refs, documents };
+  const input: DocumentProjectionInput = { entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards, ...recovered };
+  return { refs: references.refs, documents: projectPublicDocuments(input), input };
 }
 
 test("starter inventory, direct item gain and loot-table membership keep unbound tables separate from acquisition", () => {
@@ -241,16 +259,17 @@ test("Heroic gear needs a creature drop where the tier can be live", () => {
     progression: { ...facts.progression, facts: [heroic], mechanicsRules: [pauses] },
     items: [...facts.items, ...[chestOnly, vaultOnly, worldDrop].map((row) => ({ ...facts.items[0]!, entityKey: row.entityKey }))],
     npcs: [...facts.npcs, { ...facts.npcs[0]!, entityKey: warden.entityKey }],
-    places: [...facts.places, { ...facts.places[0]!, entityKey: vault.entityKey }] };
+    places: [...facts.places, { ...facts.places[0]!, entityKey: vault.entityKey }],
+    itemLootTables: [lootList(133, [[worldDrop.entityKey, 1]])] };
   const drop = relations.drops[0]!;
   const sourceRelations: CatalogRelations = { ...relations,
     containers: [...relations.containers, { ...relations.containers[0]!, item: { entityKey: chestOnly.entityKey, label: chestOnly.name } }],
     drops: [...relations.drops,
       { ...drop, owner: { entityKey: warden.entityKey, label: warden.name! }, item: { entityKey: vaultOnly.entityKey, label: vaultOnly.name! }, placementIds: ["p9"] },
-      { ...drop, context: "world", owner: { entityKey: null, label: "Any creature" }, item: { entityKey: worldDrop.entityKey, label: worldDrop.name! }, placementIds: [] }],
+      worldRow(133, 0, worldDrop.entityKey, 1, { min: 1, max: null })],
     placements: [...relations.placements, { ...relations.placements[0]!, placementId: "p9", sceneNativeId: 46, sceneKey: "scenes:46", label: "Warden",
       roles: [{ role: "boss", npcEntityKey: warden.entityKey, scope: "authored" }] }] };
-  const { documents } = project(sourceEntities, sourceFacts, sourceRelations);
+  const { documents } = project(sourceEntities, sourceFacts, sourceRelations, undefined, undefined, undefined, undefined, undefined, undefined, { worldLootTables: [worldBinding(133, 30)] });
   const item = (key: string) => documents.get(key) as PublicItem;
   expect(item("items:1").facts.heroic).toEqual({ statBonusPercent: 50 });
   expect(item(worldDrop.entityKey).facts.heroic).toEqual({ statBonusPercent: 50 });
@@ -396,7 +415,7 @@ test("published loot odds distinguish a truncated creature gate from a qualifyin
   expect((unknown.get("items:1") as PublicItem).collectedFrom[0]?.openChance).toBeUndefined();
 });
 
-test("creature drop odds follow the item's own loot lists and the quest state", () => {
+test("creature drop odds follow each loot list and the quest state", () => {
   const other: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Bear Hide" };
   const quest: CatalogEntityRow = { ...entities[0]!, entityKey: "items:3", nativeId: 3, name: "Venom Sac" };
   const table = (id: number, entries: [string, number][], limit?: number): CatalogFacts["itemLootTables"][number] => ({
@@ -412,22 +431,24 @@ test("creature drop odds follow the item's own loot lists and the quest state", 
     itemLootTables: [table(4, [["items:1", 3]]), table(9, [[quest.entityKey, 100]]), table(12, [[quest.entityKey, 50], [other.entityKey, 40]], limit)] });
   const drops = (limit: number | null) => [drop(4, 0, "items:1", 3), drop(9, 0, quest.entityKey, 100), drop(12, 0, quest.entityKey, 50, limit), drop(12, 1, other.entityKey, 40, limit)];
   const rowsOf = (published: ReadonlyMap<string, PublicDocument>) => (published.get("npcs:2") as PublicNpc).drops
-    .map((row) => [row.lootGroup, row.counterpart.key, row.killChance, row.questOnly, row.oddsUnavailable]);
+    .map((row) => [row.lootGroup, row.counterpart.key, row.killChance === undefined ? undefined : Math.round(row.killChance * 1e9) / 1e9, row.questOnly, row.oddsUnavailable]);
 
-  // A quest item in other lists, or ahead of an item in a list without an item limit, cannot change its chance.
+  // Each list rolls on its own: the quest item has each list's own chance, and a quest item ahead of an item in a list
+  // without an item limit cannot change that item's chance.
   const open = project([...entities, other, quest], sourceFacts(), { ...relations, drops: drops(null) }).documents;
   expect(rowsOf(open)).toEqual([
     [4, "items:1", 3, undefined, undefined],
     [9, quest.entityKey, 100, true, undefined],
-    [12, quest.entityKey, 100, true, undefined],
+    [12, quest.entityKey, 50, true, undefined],
     [12, other.entityKey, 40, undefined, undefined],
   ]);
-  expect((open.get(quest.entityKey) as PublicItem).droppedBy[0]).toMatchObject({ killChance: 100, questOnly: true });
+  expect((open.get(quest.entityKey) as PublicItem).droppedBy.map((row) => [row.counterpart.key, row.killChance, row.questOnly]))
+    .toEqual([["npcs:2", 100, true], ["npcs:2", 50, true]]);
 
   // When the quest item can fill the list's only slot first, the later item's chance depends on the quest.
   const full = project([...entities, other, quest], sourceFacts(1), { ...relations, drops: drops(1) }).documents;
   expect(rowsOf(full).filter(([group]) => group === 12)).toEqual([
-    [12, quest.entityKey, 100, true, undefined],
+    [12, quest.entityKey, 50, true, undefined],
     [12, other.entityKey, undefined, undefined, "A quest item in this loot list changes this chance while a quest needs it."],
   ]);
 });
@@ -1484,6 +1505,50 @@ test("creature drop mechanics link both source and item pages only when drops ex
   expect((empty.get("items:1") as PublicItem).placedRules.some((entry) => entry.target === "dropped-by")).toBe(false);
 });
 
+test("World Loot gives chances by creature level, apart from the creatures that drop an item", () => {
+  const gloves: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Bloodtrack Gloves" };
+  const band: CatalogEntityRow = { ...entities[0]!, entityKey: "items:3", nativeId: 3, name: "Jade Band" };
+  const rule: CatalogMechanicsRule = { ...ruleRow("creature-list-roll", "creature-drops", {}), topic: "loot",
+    placements: [{ page: "npcs", target: "drops", scope: "all" }, { page: "items", target: "dropped-by", scope: "all" }] };
+  // The general list gives Blade at any level. The level-band list rolls at levels 7 to 20, and gives an item only within
+  // four levels of its level requirement, so the catalog gives the gloves levels 7 to 12 and the band levels 15 to 20.
+  const worldFacts: CatalogFacts = { ...facts, entities: [...entities, gloves, band],
+    progression: { ...facts.progression, mechanicsRules: [rule] },
+    npcs: [{ ...facts.npcs[0]!, npcType: "MOB", creatureType: "UNDEAD" }],
+    items: [...facts.items, { ...facts.items[0]!, entityKey: gloves.entityKey, levelRequirement: 8 }, { ...facts.items[0]!, entityKey: band.entityKey, levelRequirement: 19 }],
+    itemLootTables: [lootList(133, [["items:1", 50]]),
+      lootList(142, [[gloves.entityKey, 4], [band.entityKey, 4]], { levelBandGear: true, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true, maxDroppedItems: 2 })] };
+  const worldRelations = (role: "boss" | "friendly"): CatalogRelations => ({ ...relations,
+    placements: relations.placements.map((placement) => ({ ...placement, roles: [{ role, npcEntityKey: "npcs:2", scope: "authored" }] })),
+    drops: [...relations.drops, worldRow(133, 0, "items:1", 50, { min: 1, max: null }),
+      worldRow(142, 0, gloves.entityKey, 4, { min: 7, max: 12 }), worldRow(142, 1, band.entityKey, 4, { min: 15, max: 20 })] });
+  const placements = new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: ["boss" as const] }]]);
+  const levels = new Map([["p1", new Map([["npcs:2", { min: 10, max: 10, scales: false }]])]]);
+  const run = (role: "boss" | "friendly") => project([...entities, gloves, band], worldFacts, worldRelations(role), placements, new Map([["world", []]]), levels,
+    undefined, undefined, undefined, { worldLootTables: [worldBinding(133, 30), worldBinding(142, 5, 7, 20)] });
+  const { documents, input } = run("boss");
+  const world = projectWorldLoot(input)!;
+  const runs = (chances: readonly LevelChance[]) => chances.map(({ minLevel, maxLevel, chance }) => [minLevel, maxLevel, chance === undefined ? undefined : Math.round(chance * 1e9) / 1e9]);
+  // Blade comes from 30% × 50% of kills. The band list adds its 5% at the levels where one of its items qualifies, and its
+  // minimum then gives that item.
+  expect(runs(world.any)).toEqual([[1, 6, 15], [7, 12, 19.25], [13, 14, 15], [15, 20, 19.25], [21, undefined, 15]]);
+  expect(world.items.map((row) => [row.item.key, runs(row.levels)])).toEqual([
+    ["items:1", [[1, undefined, 15]]], [gloves.entityKey, [[7, 12, 5]]], [band.entityKey, [[15, 20, 5]]],
+  ]);
+  expect(world.maxItems).toBe(2);
+  expect(world).not.toHaveProperty("minimumRank");
+  // An item page keeps its creatures apart from World Loot, and a World Loot item keeps the drops rule.
+  const page = (key: string) => documents.get(key) as PublicItem;
+  expect(page("items:1").droppedBy.map((row) => row.counterpart.key)).toEqual(["npcs:2"]);
+  expect(page(gloves.entityKey)).toMatchObject({ droppedBy: [], worldLoot: { min: 1, max: 1, levels: [{ minLevel: 7, maxLevel: 12 }] } });
+  expect(page(gloves.entityKey).placedRules.map((entry) => entry.target)).toContain("dropped-by");
+  expect(readerCoverage([page(gloves.entityKey)]).gaps.some((gap) => gap.gap === "itemWithoutSource")).toBe(false);
+  // A creature that a player fights rolls World Loot. This build has no cloth tiers, so it has no cloth roll. A friendly
+  // NPC makes no roll.
+  expect((documents.get("npcs:2") as PublicNpc).sharedDrops).toEqual([{ roll: "worldLoot" }]);
+  expect((run("friendly").documents.get("npcs:2") as PublicNpc).sharedDrops).toEqual([]);
+});
+
 test("a cloth item gives its chance per kill by creature level and counts as sourced", () => {
   const other: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Other cloth" };
   const tier = (key: string, startLevel: number, rampEnd: number, lowWeight: number, highWeight: number, teaserWeight: number) =>
@@ -1491,15 +1556,22 @@ test("a cloth item gives its chance per kill by creature level and counts as sou
   // Blade weighs 3 at level 1 and moves to 1 at level 3. Other cloth weighs 1 below level 2, then moves from 1 to 4 by level 5.
   const clothFacts: CatalogFacts = { ...facts, entities: [...entities, other], items: [...facts.items, { ...facts.items[0]!, entityKey: other.entityKey }],
     clothDrops: { creatureTypes: ["HUMANOID", "UNDEAD"], dropChance: 80, minCount: 1, maxCount: 3, tiers: [tier("items:1", 1, 3, 3, 1, 3), tier(other.entityKey, 2, 5, 1, 4, 1)] } };
-  const { documents } = project([...entities, other], clothFacts, relations);
+  const { documents, input } = project([...entities, other], clothFacts, relations);
   const blade = documents.get("items:1") as PublicItem;
   // Blade's share: 3 of 4 at level 1, 2 of 3 at level 2, 1 of 3 at level 3, 1 of 4 at level 4, and 1 of 5 from level 5.
   // A range ends before the next level where a weight starts or stops a change, and the last range has no upper level.
   expect(blade.clothDrop).toEqual({ creatureTypes: ["HUMANOID", "UNDEAD"], chance: 80, min: 1, max: 3, levels: [
-    { minLevel: 1, maxLevel: 1, startChance: 60 }, { minLevel: 2, maxLevel: 2, startChance: 53.3 },
-    { minLevel: 3, maxLevel: 4, startChance: 26.7, endChance: 20 }, { minLevel: 5, startChance: 16 },
+    { minLevel: 1, maxLevel: 1, startChance: 60 }, { minLevel: 2, maxLevel: 2, startChance: 80 * 2 / 3 },
+    { minLevel: 3, maxLevel: 4, startChance: 80 / 3, endChance: 20 }, { minLevel: 5, startChance: 16 },
   ] });
   expect((documents.get(other.entityKey) as PublicItem).clothDrop?.levels.at(-1)).toEqual({ minLevel: 5, startChance: 64 });
+  // The Loot guide gives each level its own chance, and the last run holds for every higher level.
+  expect(projectClothLoot(input)?.items.map((row) => [row.item.key, row.levels])).toEqual([
+    ["items:1", [{ minLevel: 1, maxLevel: 1, chance: 60 }, { minLevel: 2, maxLevel: 2, chance: 80 * 2 / 3 }, { minLevel: 3, maxLevel: 3, chance: 80 / 3 },
+      { minLevel: 4, maxLevel: 4, chance: 20 }, { minLevel: 5, chance: 16 }]],
+    [other.entityKey, [{ minLevel: 1, maxLevel: 1, chance: 20 }, { minLevel: 2, maxLevel: 2, chance: 80 / 3 }, { minLevel: 3, maxLevel: 3, chance: 80 * 2 / 3 },
+      { minLevel: 4, maxLevel: 4, chance: 60 }, { minLevel: 5, chance: 64 }]],
+  ]);
   const bare: PublicItem = { ...blade, droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], startingGearOf: [], fromItems: [] };
   delete bare.crafting;
   expect(readerCoverage([bare]).gaps.some((gap) => gap.gap === "itemWithoutSource")).toBe(false);

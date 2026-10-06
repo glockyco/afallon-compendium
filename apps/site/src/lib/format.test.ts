@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { dropGroupText, dropRateText, dropsPerKillText, eventChanceText, itemDropText, killExperienceText, roleLabel, searchPlaceholder, sourceKindLabel, worldLootRollText } from './format';
+import { dropGroupText, dropRateText, dropsPerKillText, eventChanceText, itemDropText, killChanceRangeText, killExperienceText, roleLabel, searchPlaceholder, sourceKindLabel } from './format';
 
 test('search placeholder and category values use sentence case', () => {
   expect(searchPlaceholder(['Items', 'NPCs', 'Quests', 'Abilities'])).toBe('Search items, NPCs, quests, and more');
@@ -27,7 +27,6 @@ test('loot list roll and item entry rates remain separate for one or several ite
   expect(dropGroupText({ tableChance: 100, tableMinimum: 2, tableLimit: 2 }, 2)).toBe('Each kill can drop all 2 items.');
   expect(dropGroupText({ tableChance: 100, tableMinimum: 2, tableLimit: 2 }, 4)).toBe('Each kill can drop 2 of these 4 items. Items roll in order before a minimum fills missing drops.');
   expect(dropsPerKillText({ tableChance: 100, tableMinimum: 2, tableLimit: 2 })).toBe('Each kill can drop 2 items from this loot list.');
-  expect(worldLootRollText({ tableChance: 5, tableMinimum: 1, tableLimit: 2 })).toBe('The World Loot list rolls on 5% of eligible kills and gives 1 or 2 items.');
 });
 
 test('an authored entry rate never appears as a probability per kill', () => {
@@ -39,4 +38,12 @@ test('an authored entry rate never appears as a probability per kill', () => {
   expect(dropRateText({ chance: 3, killChance: 0 })).toBe('0%');
   expect(dropRateText({ chance: 3, killChance: 0.12190897392406667 })).toBe('About 1 in 820 kills');
   expect(eventChanceText(2.45921323925406, 'open')).toBe('2.46%');
+});
+
+test('a range of chances per kill keeps one form across the 1% boundary and at zero', () => {
+  expect(killChanceRangeText(0.2125, 0.3514)).toBe('About 1 in 285 to 1 in 471 kills');
+  expect(killChanceRangeText(0.62, 1.4)).toBe('0.62% to 1.4% per kill');
+  expect(killChanceRangeText(0, 0.5)).toBe('0% to 0.5% per kill');
+  expect(killChanceRangeText(0.2398, 0.2399)).toBe('About 1 in 417 kills');
+  expect(killChanceRangeText(3, 3)).toBe('3% per kill');
 });

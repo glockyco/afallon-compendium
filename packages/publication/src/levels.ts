@@ -1,5 +1,5 @@
 import type { CatalogRandomChoice } from "@afallon/contracts/catalog";
-import type { PublicAlternative, PublicLevel } from "@afallon/contracts/public";
+import type { LevelChance, PublicAlternative, PublicLevel } from "@afallon/contracts/public";
 import { integer, record, type JsonRecord } from "./json";
 
 // The rules below follow the native code of build 25434619: MobCombatEntity.InitNPCLevel,
@@ -96,6 +96,30 @@ export function levelText(level: PublicLevel): string {
 
 export function chancePercent(probability: number): number {
   return Math.round(probability * 1000) / 10;
+}
+
+// Chances that differ by less than this many percentage points are one chance, so float noise from the order of a
+// calculation does not split a run of creature levels.
+const SAME_CHANCE = 1e-9;
+
+/**
+ * Runs of creature levels that share one chance, from the chance at each level from level 1: a number, `undefined`
+ * where the chance is unknown, or `null` where the level does not qualify. The last run has no maximum when the last
+ * level qualifies, so the caller gives every level up to one past the last level at which anything changes.
+ */
+export function levelChanceRuns(chances: readonly (number | null | undefined)[]): LevelChance[] {
+  const runs: LevelChance[] = [];
+  let run: { minLevel: number; maxLevel: number; chance: number | undefined } | undefined;
+  const close = () => { if (run) runs.push({ minLevel: run.minLevel, maxLevel: run.maxLevel, ...(run.chance === undefined ? {} : { chance: run.chance }) }); };
+  chances.forEach((chance, index) => {
+    const level = index + 1;
+    if (chance === null) { close(); run = undefined; return; }
+    const same = run !== undefined && (chance === undefined ? run.chance === undefined : run.chance !== undefined && Math.abs(run.chance - chance) <= SAME_CHANCE);
+    if (same) run!.maxLevel = level;
+    else { close(); run = { minLevel: level, maxLevel: level, chance }; }
+  });
+  if (run) runs.push({ minLevel: run.minLevel, ...(run.chance === undefined ? {} : { chance: run.chance }) });
+  return runs;
 }
 
 /**

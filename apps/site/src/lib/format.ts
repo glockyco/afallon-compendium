@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, categoryLabel, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type Ref, type RequirementGroup } from '@afallon/contracts/public';
+import { PUBLIC_MARKER_CATEGORY_LABELS, categoryLabel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type Ref, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 // Rarity tiers from lowest to highest. Gold is the rarity of the Gold currency item alone, so it comes last.
@@ -90,21 +90,30 @@ export function npcLevelText(level: PublicLevel): string {
   return level.scales ? `${levelText(level)}, scales with the player` : levelText(level);
 }
 
-/** The creature levels that can drop world loot: "7–12", "20+", or "Any" when every level qualifies. */
-export function creatureLevelText(level: CreatureLevel): string {
-  return level.min <= 1 && level.max === undefined ? 'Any' : levelText(level);
-}
-
 type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'> & Partial<Pick<DropRow, 'killChance'>>;
 
 export const LISTED_RATE_HINT = 'The game lists this rate before loot-list limits and minimum picks. It is not your chance per kill.';
 export const KILL_CHANCE_HINT = 'Assumes no Loot Chance. Loot Chance comes from Luck and other bonuses, and in this version it makes ordinary creature drops rarer.';
+export const CLOTH_CHANCE_HINT = 'Loot Chance does not change cloth drops. A Heroic creature with an affix multiplies this chance by its loot multiplier, and drop rate world modifiers multiply it again.';
 export const OPEN_CHANCE_HINT = 'Shown for a qualifying open after your first gear drop, at the player level shown when levels affect the loot list. Object loot does not use Luck.';
 const precisePercent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
+/** A chance with up to two decimals: "11.4%", "0.24%". */
+export function percentText(percent: number): string {
+  return `${precisePercent.format(percent)}%`;
+}
+
 export function eventChanceText(percent: number, event: 'kill' | 'open'): string {
   if (percent === 0) return '0%';
-  return percent < 1 ? `About 1 in ${formatNumber(Math.round(100 / percent))} ${event === 'kill' ? 'kills' : 'opens'}` : `${precisePercent.format(percent)}%`;
+  return percent < 1 ? `About 1 in ${formatNumber(Math.round(100 / percent))} ${event === 'kill' ? 'kills' : 'opens'}` : percentText(percent);
+}
+
+/** A range of chances per kill: "About 1 in 285 to 1 in 471 kills", "1.2% to 3.4% per kill", or one chance. */
+export function killChanceRangeText(low: number, high: number): string {
+  const first = eventChanceText(high, 'kill'), last = eventChanceText(low, 'kill');
+  if (first === last) return high < 1 && high > 0 ? first : `${first} per kill`;
+  if (high < 1 && low > 0) return `${first.slice(0, -' kills'.length)} to ${last.slice('About '.length)}`;
+  return `${percentText(low)} to ${percentText(high)} per kill`;
 }
 
 export function dropRateText(row: Pick<DropRow, 'chance' | 'killChance'>): string | undefined {
@@ -135,13 +144,25 @@ export function dropsPerKillText(roll: LootRoll): string {
     : `Each kill has a ${formatNumber(roll.tableChance)}% chance to ${action}.`;
 }
 
-/** World Loot's table roll is separate from the item's own per-kill probability. */
-export function worldLootRollText(roll: LootRoll): string {
-  const count = itemCountText(roll);
-  const items = count ? ` and gives ${count}` : '';
-  return roll.tableChance === undefined || roll.tableChance === 100
-    ? `Every eligible kill rolls this World Loot list${items}.`
-    : `The World Loot list rolls on ${formatNumber(roll.tableChance)}% of eligible kills${items}.`;
+/** "At creature level 27", or "At creature level 46 and higher" when every higher level gives the same. */
+function atCreatureLevel(level: number, orHigher: boolean): string {
+  return `At creature level ${formatNumber(level)}${orHigher ? ' and higher' : ''}`;
+}
+
+/** The sentence above the World Loot of one creature level: "At creature level 27, 11.4% of kills give 1 or 2 of these 111 items." */
+export function worldLootGroupText(level: number, world: { anyChance?: number; maxItems?: number }, items: number, orHigher = false): string {
+  const at = atCreatureLevel(level, orHigher);
+  if (items === 0) return `${at}, World Loot gives no items.`;
+  const set = items === 1 ? 'this item' : `these ${formatNumber(items)} items`;
+  const most = world.maxItems;
+  const gives = items === 1 || most === undefined ? set : `${most === 1 ? '1' : `1 ${most === 2 ? 'or' : 'to'} ${formatNumber(most)}`} of ${set}`;
+  return world.anyChance === undefined ? `${at}, a kill can give ${gives}.` : `${at}, ${percentText(world.anyChance)} of kills give ${gives}.`;
+}
+
+/** The sentence above the cloth of one creature level: "At creature level 28, 75% of kills give 1 to 3 pieces of one of these cloths." */
+export function clothGroupText(level: number, cloth: { chance: number; min: number; max: number }, items: number, orHigher = false): string {
+  const pieces = cloth.min === cloth.max ? `${formatNumber(cloth.min)} ${cloth.min === 1 ? 'piece' : 'pieces'}` : `${formatNumber(cloth.min)} to ${formatNumber(cloth.max)} pieces`;
+  return `${atCreatureLevel(level, orHigher)}, ${percentText(cloth.chance)} of kills give ${pieces} ${items === 1 ? 'of this cloth' : 'of one of these cloths'}.`;
 }
 
 /** The sentence above one NPC loot list, with the number of its actual published rows. */
@@ -295,13 +316,6 @@ export function npcTypeLabel(npcType: string | undefined): string | undefined {
 /** The creature type, such as "Humanoid". NONE means that the record has no type. */
 export function creatureTypeLabel(creatureType: string | undefined): string | undefined {
   return creatureType === undefined || creatureType === 'NONE' ? undefined : categoryLabel(creatureType);
-}
-
-const FRIENDLY_ROLES = new Set(['questGiver', 'merchant', 'townsfolk', 'banker', 'auctioneer', 'flightPoint']);
-
-/** A player cannot fight an NPC whose every role is a friendly service, so its combat values are only defaults. */
-export function onlyFriendlyRoles(roles: readonly string[]): boolean {
-  return roles.length > 0 && roles.every((role) => FRIENDLY_ROLES.has(role));
 }
 
 /** The game's name of the alignment that a faction stance gives toward the player. */

@@ -198,7 +198,8 @@ export interface DecodedGameplay<T> { value: T; issues: GameplayCoverageIssue[] 
 export interface DecodedReference { nativeId: number | null; label: string }
 export interface DecodedPrice { amount: number; currencyId: number | null }
 
-const npcTypes = ["MOB", "ELITE", "RARE", "BOSS", "MERCHANT", "BANK", "QUEST_GIVER", "DIALOGUE", "COMPANION", "ADVENTURER", "QUEST_COMPANION"] as const;
+// The values of the native NPC_TYPE enum in order. An NPC's rank compares by this order.
+export const NPC_TYPES = ["MOB", "ELITE", "RARE", "BOSS", "MERCHANT", "BANK", "QUEST_GIVER", "DIALOGUE", "COMPANION", "ADVENTURER", "QUEST_COMPANION"] as const;
 export const CREATURE_TYPES = ["NONE", "BEAST", "HUMANOID", "UNDEAD", "DEMON", "DRAGONKIN", "ELEMENTAL", "GIANT", "MECHANICAL"] as const;
 const taskTypes = ["enterScene", "enterRegion", "learnAbility", "learnRecipe", "killNPC", "getItem", "reachLevel", "reachSkillLevel", "useItem", "talkToNPC", "reachWeaponTemplateLevel", "killNPCFamily"] as const;
 const rewardTypes = ["item", "currency", "treePoint", "Experience", "FactionPoint", "weaponTemplateEXP"] as const;
@@ -240,7 +241,7 @@ export function decodeItemGameplay(value: unknown, reference: ArtifactReference,
 }
 export function decodeNpcGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<NpcGameplay> {
   const decoded = decode(NpcGameplaySchema, value, reference, path), issues: GameplayCoverageIssue[] = [];
-  valueEnumIssue(decoded.npcType, npcTypes, `${path}/npcType`, issues); valueEnumIssue(decoded.creatureType, CREATURE_TYPES, `${path}/creatureType`, issues);
+  valueEnumIssue(decoded.npcType, NPC_TYPES, `${path}/npcType`, issues); valueEnumIssue(decoded.creatureType, CREATURE_TYPES, `${path}/creatureType`, issues);
   valueEnumIssue(decoded.hunterBeastRole, hunterBeastRoles, `${path}/hunterBeastRole`, issues);
   if (decoded.adventurer?.specialization.available) valueEnumIssue(decoded.adventurer.specialization.role, adventurerRoles, `${path}/adventurer/specialization/role`, issues);
   for (const field of ["npcFamily", "lootSpecializationArmorType", "lootSpecializationWeaponType", "lootSpecializationWeaponType2", "lootSpecializationWeaponType3"] as const) if (decoded[field]?.available) availableEnumName(decoded[field], `${path}/${field}`, issues);

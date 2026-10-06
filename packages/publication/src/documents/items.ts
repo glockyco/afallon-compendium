@@ -1,5 +1,5 @@
-import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogClothDrops, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogProgressionFact, type CatalogQuestPickup } from "@afallon/contracts/catalog";
-import { categoryLabel, type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type Enchanting, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
+import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogProgressionFact, type CatalogQuestPickup } from "@afallon/contracts/catalog";
+import { categoryLabel, type AvailabilityRule, type Craft, type DungeonFinderReward, type Enchanting, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank, verifiedRule } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -9,8 +9,10 @@ import { displayName, plainText } from "../text";
 import { roundWeaponDamage, weaponDamageLabel } from "../weapon-display";
 import { bandWorldLoot, type WorldLootItem, type WorldLootTable } from "../world-loot";
 import { itemKind } from "../item-type";
+import { projectClothDrop } from "./cloth";
 import { objectDropOdds } from "./loot-chances";
 import { lootFields } from "./loot";
+import { projectItemWorldLoot } from "./world-loot-drops";
 import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
 import { currencyPurchases } from "./currencies";
@@ -169,41 +171,6 @@ export function fromItemsByItem(input: DocumentProjectionInput): ReadonlyMap<str
   return result;
 }
 
-// A cloth tier's weight at a creature level, as ClothDrops.Roll computes it: the teaser weight below the start level,
-// then an even move from the low weight at the start level to the high weight at the ramp end.
-function clothWeight(tier: CatalogClothDrops["tiers"][number], level: number): number {
-  if (level < tier.startLevel) return tier.teaserWeight;
-  const progress = Math.min(1, Math.max(0, (level - tier.startLevel) / Math.max(tier.rampEnd - tier.startLevel, 1)));
-  return tier.lowWeight + (tier.highWeight - tier.lowWeight) * progress;
-}
-
-/**
- * The cloth drops that give this item, with the chance per kill over each range of creature levels between two levels
- * where a tier's weight starts or stops a change. Inside a range every weight is linear in the level, so the chance moves
- * one way from its first to its last level. No weight changes from the last such level on, so the last range is open.
- */
-function projectClothDrop(itemKey: string, input: DocumentProjectionInput): ClothDrop | undefined {
-  const cloth = input.facts.clothDrops;
-  if (!cloth?.tiers.some((tier) => tier.item.entityKey === itemKey)) return undefined;
-  const chanceAt = (level: number) => {
-    let total = 0, own = 0;
-    for (const tier of cloth.tiers) {
-      const weight = clothWeight(tier, level);
-      total += weight;
-      if (tier.item.entityKey === itemKey) own += weight;
-    }
-    return total > 0 ? Math.round(cloth.dropChance * own / total * 10) / 10 : 0;
-  };
-  const starts = [...new Set([1, ...cloth.tiers.flatMap((tier) => [Math.ceil(tier.startLevel), Math.ceil(tier.rampEnd)])])].filter((level) => level >= 1).sort((a, b) => a - b);
-  const levels = starts.map((minLevel, index): ClothDrop["levels"][number] => {
-    const next = starts[index + 1], startChance = chanceAt(minLevel);
-    if (next === undefined) return { minLevel, startChance };
-    const maxLevel = next - 1, endChance = chanceAt(maxLevel);
-    return { minLevel, maxLevel, startChance, ...(endChance === startChance ? {} : { endChance }) };
-  });
-  return { creatureTypes: cloth.creatureTypes.map((type) => plainText(type)), chance: cloth.dropChance, min: cloth.minCount, max: cloth.maxCount, levels };
-}
-
 /** The quest pickups that give this item: one row per creature and quest, and one row per group of placed pickups with equal facts. */
 function projectQuestPickups(itemKey: string, input: DocumentProjectionInput): QuestPickupRow[] {
   const rows = (input.facts.questPickups ?? []).filter((row) => row.item.entityKey === itemKey);
@@ -302,6 +269,7 @@ export function projectItemEffects(fact: CatalogItemFacts | undefined, enchantin
 export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>, fromItems: ReadonlyMap<string, readonly FromItemRow[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const clothDrop = projectClothDrop(entity.entityKey, input);
+  const worldLoot = projectItemWorldLoot(input, entity.entityKey);
   const dungeonFinder = projectDungeonFinder(entity.entityKey, input);
   const questPickups = projectQuestPickups(entity.entityKey, input);
   const directAbilities = fact?.actionAbilities ?? [];
@@ -400,8 +368,10 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const pausedScenes = new Map<string, string>();
   if (heroicGear && heroicSettings?.kind === "heroicTier") {
     const places = heroicPlaces(input);
+    // World Loot can give the item from any creature, wherever the tier is live.
+    liveDrop = worldLoot !== undefined;
     for (const row of indexes.dropsByItem.get(entity.entityKey) ?? []) {
-      const scenes = row.context === "world" || row.owner.entityKey === null ? [] : [...new Set(row.placementIds.flatMap((id) => places.sceneOf.get(id) ?? []))];
+      const scenes = row.owner.entityKey === null ? [] : [...new Set(row.placementIds.flatMap((id) => places.sceneOf.get(id) ?? []))];
       if (scenes.length === 0 || scenes.some((scene) => !places.paused.has(scene))) liveDrop = true;
       else for (const scene of scenes) pausedScenes.set(scene, places.paused.get(scene)!);
     }
@@ -493,7 +463,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
       .filter((rule) => rule.target !== "adventurers" || adventurers.length > 0)
-      .filter((rule) => rule.target !== "dropped-by" || droppedBy.length > 0)
+      .filter((rule) => rule.target !== "dropped-by" || droppedBy.length > 0 || worldLoot !== undefined)
       .concat(enchanting ? [{ target: "enchants", guide: topicRef("crafting-and-gathering"), section: "enchanting" }] : [])
       .concat(heroic ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "heroic-gear" }]
         : heroicPausedIn ? [{ target: "heroic-gear", guide: topicRef("heroic-tier"), section: "entering" }] : [])
@@ -516,7 +486,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
     startingGearOfAdventurers, gainedFromItems, lootTables,
     fromItems: [...fromItems.get(entity.entityKey) ?? []],
-    ...(clothDrop ? { clothDrop } : {}),
+    ...(worldLoot ? { worldLoot } : {}), ...(clothDrop ? { clothDrop } : {}),
     questPickups,
     ...(dungeonFinder ? { dungeonFinder } : {}),
     adventurers,

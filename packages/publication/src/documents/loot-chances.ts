@@ -1,4 +1,6 @@
-import type { CatalogDropRow, CatalogInteractionRow, CatalogItemLootTable } from "@afallon/contracts/catalog";
+import type { CatalogDropRow, CatalogEndpoint, CatalogInteractionRow, CatalogItemLootTable } from "@afallon/contracts/catalog";
+import type { LevelChance } from "@afallon/contracts/public";
+import { levelChanceRuns } from "../levels";
 import { lootItemProbability, type LootOddsTable } from "../loot-odds";
 import type { DocumentProjectionInput } from "./projection";
 
@@ -8,17 +10,28 @@ export type PublishedOdds = { chance: number; level?: number } | { unavailable: 
 // (`EconomyUtilities.QuestItemDropAllowed`). The ordered rolls and the minimum picks both skip it otherwise.
 type OddsEntry = LootOddsTable["entries"][number] & { questOnly?: true };
 type OddsTable = Omit<LootOddsTable, "entries"> & { entries: readonly OddsEntry[] };
-// Each quest item other than the target is tried droppable and not droppable, which is 2^n calculations.
+// Each quest item other than the targets is tried droppable and not droppable, which is 2^n calculations.
 const MAX_UNKNOWN_QUEST_ITEMS = 4;
 const QUEST_STATE_TOLERANCE = 1e-9;
+
+/** What World Loot gives at each creature level. Item keys stay catalog keys; the documents resolve them. */
+export interface WorldLootByLevel {
+  /** The most items that World Loot gives one kill, when it is known. */
+  maxItems: number | null;
+  /** The lowest NPC rank whose kills roll World Loot, as an index into the native NPC types, when it is known. */
+  minimumRank: number | null;
+  any: LevelChance[];
+  items: ReadonlyMap<string, { item: CatalogEndpoint; min?: number; max?: number; levels: LevelChance[]; unavailable?: string }>;
+  unavailable?: string;
+}
 
 type ItemFact = DocumentProjectionInput["facts"]["items"][number];
 interface OddsCache {
   results: Map<string, PublishedOdds>;
   items: Map<string, ItemFact>;
   tables: Map<number, CatalogItemLootTable>;
-  npcRows: Map<string, CatalogDropRow[]>;
   worldRows: Map<number, CatalogDropRow[]>;
+  worldLoot?: WorldLootByLevel | null;
 }
 const memo = new WeakMap<DocumentProjectionInput, OddsCache>();
 const unavailable = (reason: string): PublishedOdds => ({ unavailable: reason });
@@ -28,20 +41,15 @@ const minimum = (table: CatalogItemLootTable) => table.hasMinimumDrops ? table.m
 function details(input: DocumentProjectionInput): OddsCache {
   let cached = memo.get(input);
   if (cached) return cached;
-  const npcRows = new Map<string, CatalogDropRow[]>(), worldRows = new Map<number, CatalogDropRow[]>();
+  const worldRows = new Map<number, CatalogDropRow[]>();
   for (const row of input.relations.drops) {
-    if (row.context === "world") {
-      const group = worldRows.get(row.lootTableId) ?? [];
-      group.push(row);
-      worldRows.set(row.lootTableId, group);
-    } else if (row.owner.entityKey) {
-      const group = npcRows.get(row.owner.entityKey) ?? [];
-      group.push(row);
-      npcRows.set(row.owner.entityKey, group);
-    }
+    if (row.context !== "world") continue;
+    const group = worldRows.get(row.lootTableId) ?? [];
+    group.push(row);
+    worldRows.set(row.lootTableId, group);
   }
   cached = { results: new Map(), items: new Map(input.facts.items.map((item) => [item.entityKey, item])),
-    tables: new Map(input.facts.itemLootTables.map((table) => [table.id, table])), npcRows, worldRows };
+    tables: new Map(input.facts.itemLootTables.map((table) => [table.id, table])), worldRows };
   memo.set(input, cached);
   return cached;
 }
@@ -67,11 +75,11 @@ function entriesFor(input: DocumentProjectionInput, table: CatalogItemLootTable,
   return entries;
 }
 
-// The reader's quests are unknown, so every other quest item is tried in both states, and a chance is published only when
-// no combination changes it. The target's own quest task is open, because that is the only state in which it drops.
-function probability(tables: readonly OddsTable[], key: string, worldLimit?: number): PublishedOdds {
+// The reader's quests are unknown, so every quest item other than the targets is tried in both states, and a chance is
+// published only when no combination changes it. A target's own quest task is open, because only then can it drop.
+function probability(tables: readonly OddsTable[], targets: ReadonlySet<string>, worldLimit?: number): PublishedOdds {
   const unknown = tables.flatMap((table, tableIndex) => table.entries.flatMap((entry, entryIndex) =>
-    entry.questOnly && entry.eligible !== false && entry.itemKey !== key ? [{ tableIndex, entryIndex }] : []));
+    entry.questOnly && entry.eligible !== false && !targets.has(entry.itemKey) ? [{ tableIndex, entryIndex }] : []));
   if (unknown.length > MAX_UNKNOWN_QUEST_ITEMS) return unavailable("These loot lists hold too many quest items for a reliable drop chance.");
   const options = { ...(worldLimit === undefined ? {} : { worldLimit }), lootChance: 0 };
   let baseline: number | undefined;
@@ -81,7 +89,7 @@ function probability(tables: readonly OddsTable[], key: string, worldLimit?: num
         const bit = unknown.findIndex((quest) => quest.tableIndex === tableIndex && quest.entryIndex === entryIndex);
         return bit < 0 ? entry : { ...entry, eligible: (state & 1 << bit) !== 0 };
       }) }));
-      const chance = lootItemProbability(variant, key, options) * 100;
+      const chance = lootItemProbability(variant, targets, options) * 100;
       if (baseline === undefined) baseline = chance;
       else if (Math.abs(chance - baseline) > QUEST_STATE_TOLERANCE) return unavailable("A quest item in this loot list changes this chance while a quest needs it.");
     }
@@ -97,67 +105,108 @@ export function questOnlyItem(input: DocumentProjectionInput, itemKey: string | 
   return itemKey !== null && details(input).items.get(itemKey)?.questDropOnly === true;
 }
 
-/** The neutral, no-active-modifier probability conditional on a player-rewarded kill. */
+/**
+ * The chance that one kill gives the item from this one loot list of a creature, conditional on a player-rewarded kill
+ * with no Loot Chance and no active modifiers. Each list that a creature binds rolls on its own and keeps its own item
+ * count and limit (`EconomyUtilities.GenerateDroppedLoot`), so no other list changes this chance.
+ */
 export function creatureDropOdds(input: DocumentProjectionInput, row: CatalogDropRow): PublishedOdds {
   const key = row.item.entityKey;
   if (!key) return unavailable("The item's identity is unavailable.");
-  const level = row.context === "world" ? row.worldReferenceLevel ?? row.creatureLevel?.min : undefined;
-  if (row.context === "world" && level === undefined) return unavailable("The eligible creature level is unavailable.");
-  const cacheKey = `${row.context}:${row.owner.entityKey ?? "world"}:${key}:${level ?? ""}`;
+  const cacheKey = `npc:${row.lootTableId}:${row.tableRate}:${row.conditionIds.join(",")}:${key}`;
   const cache = details(input).results, known = cache.get(cacheKey);
   if (known) return known;
-  const answer = row.context === "world" ? worldOdds(input, key, level!) : npcOdds(input, row.owner.entityKey, key);
-  const result = "chance" in answer && level !== undefined ? { ...answer, level } : answer;
+  const result = listOdds(input, row, key);
   cache.set(cacheKey, result);
   return result;
 }
 
-function npcOdds(input: DocumentProjectionInput, npcKey: string | null, itemKey: string): PublishedOdds {
-  if (!npcKey) return unavailable("The creature's loot list is unavailable.");
-  const rows = details(input).npcRows.get(npcKey) ?? [];
-  // Each creature loot list keeps its own item count and limit (`EconomyUtilities.GenerateDroppedLoot`), so only the
-  // lists that contain the item decide its chance.
-  const bindings = new Map<number, CatalogDropRow>();
-  for (const row of rows) if (row.item.entityKey === itemKey && !bindings.has(row.lootTableId)) bindings.set(row.lootTableId, row);
-  const tables: OddsTable[] = [];
-  for (const binding of bindings.values()) {
-    const table = details(input).tables.get(binding.lootTableId);
-    if (!table) return unavailable("The creature's full loot list is unavailable.");
-    if (binding.tableRate === null || !Number.isFinite(binding.tableRate)) return unavailable("The creature's loot-list roll rate is unavailable.");
-    if (binding.conditionIds.length) return unavailable("The creature's loot-list requirements depend on your character.");
-    const entryRows = entriesFor(input, table);
-    if (typeof entryRows === "string") return unavailable(entryRows);
-    tables.push({ mode: "npc", gateRate: binding.tableRate, minimum: minimum(table),
-      ...(limited(table) === undefined ? {} : { limit: limited(table) }), entries: entryRows });
-  }
-  return probability(tables, itemKey);
+function listOdds(input: DocumentProjectionInput, row: CatalogDropRow, itemKey: string): PublishedOdds {
+  const table = details(input).tables.get(row.lootTableId);
+  if (!table) return unavailable("The creature's full loot list is unavailable.");
+  if (row.tableRate === null || !Number.isFinite(row.tableRate)) return unavailable("The creature's loot-list roll rate is unavailable.");
+  if (row.conditionIds.length) return unavailable("The creature's loot-list requirements depend on your character.");
+  const entries = entriesFor(input, table);
+  if (typeof entries === "string") return unavailable(entries);
+  return probability([{ mode: "npc", gateRate: row.tableRate, minimum: minimum(table),
+    ...(limited(table) === undefined ? {} : { limit: limited(table) }), entries }], new Set([itemKey]));
 }
 
-function worldOdds(input: DocumentProjectionInput, itemKey: string, level: number): PublishedOdds {
-  const worlds = input.worldLootTables;
-  if (!worlds?.length) return unavailable("The World Loot table order is unavailable.");
-  const worldLimit = worlds[0]?.worldLimit;
-  if (worldLimit === null || worldLimit === undefined) return unavailable("The shared World Loot item limit is unavailable.");
-  if (worlds.some((binding) => binding.minimumRank === null)) return unavailable("The World Loot creature rank restriction is unavailable.");
-  const rows = details(input).worldRows;
+/**
+ * The World Loot lists that a kill at `level` rolls, in order, with the entries that the level allows: the catalog's
+ * creature levels of each entry already join the list's level window with the item's level band.
+ */
+function worldTablesAt(input: DocumentProjectionInput, level: number): OddsTable[] | string {
   const tables: OddsTable[] = [];
-  for (const binding of worlds) {
+  for (const binding of input.worldLootTables ?? []) {
     if (binding.minimumLevel > level || binding.maximumLevel > 0 && level > binding.maximumLevel) continue;
-    if (binding.hasRequirements) return unavailable("A World Loot table has requirements that depend on your character.");
-    if (binding.tableRate === null || !Number.isFinite(binding.tableRate)) return unavailable("A World Loot table roll rate is unavailable.");
+    if (binding.hasRequirements) return "A World Loot table has requirements that depend on your character.";
+    if (binding.tableRate === null || !Number.isFinite(binding.tableRate)) return "A World Loot table roll rate is unavailable.";
     const table = details(input).tables.get(binding.lootTableId);
-    if (!table) return unavailable("A complete World Loot table is unavailable.");
-    const tableRows = rows.get(binding.lootTableId) ?? [];
-    const eligibleKeys = new Set(tableRows.filter((entry) => entry.creatureLevel && entry.creatureLevel.min <= level
-      && (entry.creatureLevel.max === null || level <= entry.creatureLevel.max)).map((entry) => entry.entryIndex));
+    if (!table) return "A complete World Loot table is unavailable.";
+    const allowed = new Set((details(input).worldRows.get(binding.lootTableId) ?? []).filter((row) => row.creatureLevel
+      && row.creatureLevel.min <= level && (row.creatureLevel.max === null || level <= row.creatureLevel.max)).map((row) => row.entryIndex));
     const source = entriesFor(input, table, level, binding.levelBandRange);
-    if (typeof source === "string") return unavailable(source);
+    if (typeof source === "string") return source;
     // The World Loot rolls and their minimum picks apply the same quest check as the creature's own loot lists.
-    const entries = source.map((entry, index) => ({ ...entry, eligible: entry.eligible !== false && eligibleKeys.has(index) }));
+    const entries = source.map((entry, index) => ({ ...entry, eligible: entry.eligible !== false && allowed.has(index) }));
     tables.push({ mode: "world", gateRate: binding.tableRate, minimum: minimum(table),
       ...(limited(table) === undefined ? {} : { limit: limited(table) }), entries });
   }
-  return probability(tables, itemKey, worldLimit);
+  return tables;
+}
+
+/**
+ * What World Loot gives at each creature level, or undefined when the build has no World Loot. World Loot rolls after
+ * the creature's own loot lists on every kill that rewards the player, for a creature of the World Loot rank or higher,
+ * and its lists share one item limit (`EconomyUtilities.GenerateDroppedLoot`).
+ */
+export function worldLootByLevel(input: DocumentProjectionInput): WorldLootByLevel | undefined {
+  const cache = details(input);
+  if (cache.worldLoot !== undefined) return cache.worldLoot ?? undefined;
+  const result = computeWorldLootByLevel(input);
+  cache.worldLoot = result ?? null;
+  return result;
+}
+
+function computeWorldLootByLevel(input: DocumentProjectionInput): WorldLootByLevel | undefined {
+  const worlds = input.worldLootTables ?? [];
+  const rows = worlds.flatMap((binding) => details(input).worldRows.get(binding.lootTableId) ?? []);
+  if (!worlds.length || !rows.length) return undefined;
+  const worldLimit = worlds[0]!.worldLimit, minimumRank = worlds[0]!.minimumRank;
+  // Nothing changes above the highest level that starts or ends a list's window or an entry's creature levels.
+  const bounds = [...worlds.flatMap((binding) => [binding.minimumLevel, binding.maximumLevel]),
+    ...rows.flatMap((row) => row.creatureLevel ? [row.creatureLevel.min, row.creatureLevel.max ?? 0] : [])];
+  const top = Math.max(1, ...bounds) + 1;
+  const keyed = new Map<string, CatalogDropRow[]>();
+  for (const row of rows) if (row.item.entityKey && row.creatureLevel) keyed.set(row.item.entityKey, [...keyed.get(row.item.entityKey) ?? [], row]);
+  const reasons = new Set<string>(), itemReasons = new Map<string, Set<string>>([...keyed.keys()].map((key) => [key, new Set()]));
+  const any: (number | undefined)[] = [];
+  const chances = new Map<string, (number | null | undefined)[]>([...keyed.keys()].map((key) => [key, []]));
+  for (let level = 1; level <= top; level++) {
+    const tables = worldLimit === null ? "The shared World Loot item limit is unavailable." : worldTablesAt(input, level);
+    for (const [key, itemRows] of keyed) {
+      const series = chances.get(key)!;
+      if (!itemRows.some((row) => row.creatureLevel!.min <= level && (row.creatureLevel!.max === null || level <= row.creatureLevel!.max))) { series.push(null); continue; }
+      const odds = typeof tables === "string" ? unavailable(tables) : probability(tables, new Set([key]), worldLimit!);
+      if ("chance" in odds) series.push(odds.chance);
+      else { series.push(undefined); itemReasons.get(key)!.add(odds.unavailable); }
+    }
+    const targets = typeof tables === "string" ? new Set<string>() : new Set(tables.flatMap((table) => table.entries
+      .filter((entry) => entry.eligible !== false && !entry.questOnly).map((entry) => entry.itemKey)));
+    const odds = typeof tables === "string" ? unavailable(tables) : probability(tables, targets, worldLimit!);
+    if ("chance" in odds) any.push(odds.chance);
+    else { any.push(undefined); reasons.add(odds.unavailable); }
+  }
+  const items = new Map([...keyed].map(([key, itemRows]) => {
+    const counts = itemRows.flatMap((row) => row.min !== null && row.max !== null && row.min <= row.max ? [{ min: row.min, max: row.max }] : []);
+    const why = [...itemReasons.get(key)!];
+    return [key, { item: itemRows[0]!.item,
+      ...(counts.length ? { min: Math.min(...counts.map((count) => count.min)), max: Math.max(...counts.map((count) => count.max)) } : {}),
+      levels: levelChanceRuns(chances.get(key)!), ...(why.length ? { unavailable: why[0]! } : {}),
+    }] as const;
+  }));
+  return { maxItems: worldLimit, minimumRank, any: levelChanceRuns(any), items, ...(reasons.size ? { unavailable: [...reasons][0]! } : {}) };
 }
 
 /** Probability per qualifying use of a captured nested LootTable action, at the stated player level. */
@@ -189,7 +238,7 @@ export function objectDropOdds(input: DocumentProjectionInput, row: CatalogInter
     return unavailable("The object's action roll rate is unavailable.");
   const randomBranch = row.prefabChoices && row.prefabChoices > 1 ? row.prefabChoices : 1;
   const result = probability([{ mode: "object", gateRate: actionChance * nestedChance / 100 / randomBranch,
-    minimum: minimum(table), ...(limited(table) === undefined ? {} : { limit: limited(table) }), entries }], itemKey);
+    minimum: minimum(table), ...(limited(table) === undefined ? {} : { limit: limited(table) }), entries }], new Set([itemKey]));
   const withLevel = "chance" in result && level !== undefined ? { ...result, level } : result;
   cache.set(cacheKey, withLevel);
   return withLevel;

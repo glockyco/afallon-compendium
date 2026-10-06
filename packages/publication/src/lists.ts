@@ -65,7 +65,7 @@ export function itemHasKnownWay(document: ItemSources): boolean {
     || document.buys.length || document.gatheredFrom.length || document.inContainers.length
     || document.collectedFrom.length || document.rewardedBy.length || document.givenBy.length
     || document.crafting || document.startingGearOf.length || document.fromItems.length
-    || document.clothDrop || document.questPickups.length || document.dungeonFinder
+    || document.worldLoot || document.clothDrop || document.questPickups.length || document.dungeonFinder
     || document.facts.dungeonRewards?.length || document.startingGearOfAdventurers?.length || document.gainedFromItems?.length
     || document.lootTables?.some((table) => table.source || table.world));
 }

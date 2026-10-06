@@ -93,6 +93,7 @@ export type RelationIndexes = {
   /** The recorded crafting rule, when a recipe with a skill has ranks that need it. */
   crafting: CraftingRule | null;
   npcFacts: Map<string, CatalogNpcFacts>;
+  /** The rows of creatures' own loot lists. World Loot rows feed the World Loot by creature level instead. */
   dropsByOwner: Map<string, CatalogRelations["drops"]>;
   dropsByItem: Map<string, CatalogRelations["drops"]>;
   vendorsByNpc: Map<string, CatalogRelations["vendors"]>;
@@ -133,6 +134,7 @@ export function relationIndexes(entities: readonly CatalogEntityRow[], facts: Ca
   };
   for (const [item, recipe] of result.teachings) pushIndex(result.teachersByRecipe, recipe, item);
   for (const row of relations.drops) {
+    if (row.context !== "npc") continue;
     pushIndex(result.dropsByOwner, row.owner.entityKey, row);
     pushIndex(result.dropsByItem, row.item.entityKey, row);
   }

@@ -15,7 +15,7 @@ function item(name: string): PublicItem {
 }
 function npc(name: string, roles: string[] = []): PublicNpc {
   return { ref: npcRef(name), description: null, art: {}, facts: { roles, stats: [], immunities: [] }, variantFields: [], variants: [{ key: npcRef(name).key, anchor: `n-${name}`, label: name, facts: {} }],
-    locations: [], places: [], spotCount: 0, drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [], appliedEffects: [], summonedBy: [], spawnedBy: [], recruitedByActions: [] } as PublicNpc;
+    locations: [], places: [], spotCount: 0, drops: [], sharedDrops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [], appliedEffects: [], summonedBy: [], spawnedBy: [], recruitedByActions: [] } as PublicNpc;
 }
 function ability(name: string): PublicAbility {
   return { ref: abilityRef(name), description: null, art: {}, versions: [{ keys: [abilityRef(name).key], anchor: `n-${name}`, ranks: [{ rankIndex: 0, lines: [] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], appliedEffects: [], unlockedByActions: [], scalesWith: [] }] } as PublicAbility;

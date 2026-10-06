@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { base } from '$app/paths';
-  import type { NpcStatRow, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
-  import { categoryLabel } from '@afallon/contracts/public';
+  import type { LootGuide, NpcStatRow, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import { categoryLabel, onlyFriendlyRoles } from '@afallon/contracts/public';
+  import { clientMapLoader } from '../../client-publication';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, levelText, listText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, levelText, listText, nameOf, npcLevelText, npcTypeLabel, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -14,6 +16,7 @@
   import HowItWorks from '../HowItWorks.svelte';
   import LinkGrid from '../LinkGrid.svelte';
   import { calculateKillAward, nearestCreatureLevel } from '../kill-calculator';
+  import { lootAtLevel, type LevelLoot } from '../level-loot';
   import LevelControl from '../LevelControl.svelte';
   import { npcStatAmount, npcStatDisplay, projectNpcStat } from '../npc-stats';
   import { CHARACTER_LEVEL } from '../../reader-levels';
@@ -34,10 +37,12 @@
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
+  /** What World Loot and cloth give at the creature's lowest level, which the prerendered page shows. */
+  export let levelLoot: LevelLoot | undefined = undefined;
 
   $: facts = document.facts;
   $: combat = !onlyFriendlyRoles(facts.roles);
-  $: variantTable = document.variants.length > 1 && (document.variantFields.length > 0 || document.drops.some((row) => row.variants));
+  $: variantTable = document.variants.length > 1 && (document.variantFields.length > 0 || document.drops.some((row) => row.variants) || document.sharedDrops.some((drop) => drop.variants));
   $: portrait = document.art.portrait;
   $: titleArt = portrait ?? (document.adventurer && document.adventurer.class.key !== null ? document.adventurer.class.icon : undefined);
   $: typeLine = [npcTypeLabel(facts.npcType), ...facts.roles.map((role) => categoryLabel(roleLabel(role))), ...(!facts.roles.length && document.locations.length ? [creatureTypeLabel(facts.creatureType)] : [])].filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ');
@@ -102,6 +107,30 @@
   $: levelVaries = Boolean(facts.level && facts.level.max !== undefined && facts.level.max > facts.level.min);
   $: creatureLevel = levelVaries && facts.level ? Math.min(facts.level.max ?? statLevel, Math.max(facts.level.min, statLevel)) : spawnLevel;
   $: creatureLevelId = `npc-level:${document.ref.key}`;
+  // World Loot and cloth follow the same creature level choice. The prerendered page shows the lowest level, and another
+  // level loads the Loot guide, which holds every level.
+  $: lootMax = facts.level ? Math.max(facts.level.min, facts.level.max ?? facts.experience?.levelCap ?? facts.level.min) : undefined;
+  $: lootLevel = facts.level && lootMax !== undefined ? Math.min(lootMax, Math.max(facts.level.min, statLevel)) : undefined;
+  let lootGuide: Pick<LootGuide, 'worldLoot' | 'cloth'> | undefined;
+  let lootRequested = false;
+  let lootError: string | undefined;
+  $: if (browser && document.sharedDrops.length && levelLoot && lootLevel !== undefined && lootLevel !== levelLoot.level) void loadLootGuide();
+  $: shownLoot = levelLoot && lootLevel !== undefined && lootLevel !== levelLoot.level && lootGuide ? lootAtLevel(lootGuide, lootLevel) : levelLoot;
+  // Until the guide loads, the groups keep the rows of the level that they name.
+  $: shownLootError = shownLoot && lootLevel !== undefined && shownLoot.level !== lootLevel ? lootError : undefined;
+  async function loadLootGuide(): Promise<void> {
+    if (lootRequested) return;
+    lootRequested = true;
+    try {
+      const page = await clientMapLoader()?.loadDocument('mechanics', 'loot');
+      if (page?.kind !== 'mechanics' || page.document.topic !== 'loot') throw new Error('The Loot guide is unavailable.');
+      lootGuide = page.document;
+      lootError = undefined;
+    } catch {
+      lootRequested = false;
+      lootError = 'World Loot and cloth for other creature levels could not load.';
+    }
+  }
   $: award = kill && creatureLevel !== undefined ? calculateKillAward({ minExperience: kill.min, maxExperience: kill.max, experiencePerLevel: kill.perLevel,
     higherModifier: kill.levelDifference!.higher, lowerModifier: kill.levelDifference!.lower }, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
   $: gear = document.adventurerGear;
@@ -109,7 +138,7 @@
   $: adventurer = document.adventurer;
   $: rosterGuide = document.placedRules.find((rule) => rule.target === 'adventurer');
   // Lead with the NPC's actual service or loot. Empty drops and absent placements are not primary answers.
-  $: answer = document.flights?.length ? 'flights' : document.drops.length ? 'drops' : gear ? 'gear' : undefined;
+  $: answer = document.flights?.length ? 'flights' : document.drops.length || document.sharedDrops.length ? 'drops' : gear ? 'gear' : undefined;
   $: hasSide = Boolean(adventurer || kill || combat && summaryFacts.length > 1 || facts.level?.scales || (moreFacts && !document.flights?.length) || document.description && !document.flights?.length);
   $: identityLine = [typeLine, ...(!hasSide && summaryFacts.length === 1 ? [summaryFacts[0]!.label === 'Level' && facts.level ? `Level ${npcLevelText(facts.level)}` : `${summaryFacts[0]!.label} ${summaryFacts[0]!.value}`] : [])].filter(Boolean).join(' · ');
   const statColumns: RelationColumn<NpcStatRow>[] = [
@@ -141,7 +170,13 @@
       </AnswerCard>
     {:else if answer === 'drops'}
       <AnswerCard title="Drops" id="drops">
-        <DropsSection rows={document.drops} variants={document.variants} name={document.ref.name} guide={document.placedRules.find((rule) => rule.target === 'drops')} {registry} answer />
+        <DropsSection rows={document.drops} shared={document.sharedDrops} loot={shownLoot} lootError={shownLootError} variants={document.variants} name={document.ref.name} guide={document.placedRules.find((rule) => rule.target === 'drops')} {registry}>
+          <svelte:fragment slot="level">
+            {#if facts.level && lootMax !== undefined && lootMax > facts.level.min}
+              <div class="drops-level"><LevelControl id="npc-drops-creature-level" readerId={creatureLevelId} label="Creature level" min={facts.level.min} max={lootMax} fallback={spawnLevel ?? facts.level.min} compact slider={false} bind:level={statLevel} /></div>
+            {/if}
+          </svelte:fragment>
+        </DropsSection>
       </AnswerCard>
     {:else if answer === 'gear' && gear}
       <AnswerCard title="Gear" id="gear">
@@ -293,6 +328,7 @@
   .experience { grid-template-columns: max-content auto; align-items: center; column-gap: .6rem; }
   .experience :global(.level-control) { display: contents; }
   .experience > p, .experience > a { grid-column: 1 / -1; }
+  .drops-level { display: flex; justify-content: flex-start; }
   .description { color: var(--c-text-dim); }
   .empty { color: var(--c-text-dim); }
   .mobile-combat { display: none; }

@@ -76,7 +76,6 @@ test("world loot reaches the creature levels of its binding and of the item's le
       ["items:3", 6, { min: 22, max: 30 }, "Any creature", 5, 1, 2],
       ["items:1", 6, { min: 20, max: null }, "Any creature", 5, 1, 2],
     ]);
-    expect(queryDropRows(db).records.map((row) => row.worldReferenceLevel)).toEqual([undefined, 8, undefined, 26, undefined]);
     expect(queryWorldLootTables(db).records.map(({ lootTableId, tableRate, worldLimit, minimumRank, entries }) =>
       ({ lootTableId, tableRate, worldLimit, minimumRank, entries: entries.map(({ itemKey }) => itemKey) }))).toEqual([
       { lootTableId: 5, tableRate: 30, worldLimit: 2, minimumRank: 0, entries: ["items:1"] },

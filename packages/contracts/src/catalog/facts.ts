@@ -404,7 +404,7 @@ export interface CatalogRequirement {
 // `rawRate × tableRate / 100`, also rounded to one decimal. `tableRate` is the authored chance that a kill rolls the
 // table. `tableMinimum` and `tableLimit` are the fewest and the most items that one roll gives. The limit is set only
 // when the table has more entries than the limit. World loot rows carry `creatureLevel`: the creature levels that can
-// drop the item, with an open maximum as null.
+// drop the item, which join the binding's level window with the item's level band, with an open maximum as null.
 export interface CatalogDropRow {
   context: "npc" | "world";
   owner: CatalogEndpoint;
@@ -419,8 +419,6 @@ export interface CatalogDropRow {
   tableMinimum: number | null;
   tableLimit: number | null;
   creatureLevel: { min: number; max: number | null } | null;
-  /** The item's required level used as a reference for a level-band world loot roll. */
-  worldReferenceLevel?: number;
   conditionIds: string[];
   placementIds: string[];
 }

@@ -5,6 +5,7 @@ import { serverMapLoader } from '$lib/server/publication';
 import { pageTitle } from '$lib/server/page-title';
 import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
 import { heroicItemOption, sortHeroicItemOptions, type ItemPickerOption } from '$lib/detail/item-picker-options';
+import { lootAtLevel, type LevelLoot } from '$lib/detail/level-loot';
 
 export const entries: EntryGenerator = entityPageEntries;
 
@@ -25,6 +26,14 @@ export async function _loadGuideInlineItem(
   return item.document;
 }
 
+/** What World Loot and cloth give at a creature page's lowest level, from the Loot guide, when the page shows them. */
+export async function _loadLevelLoot(page: StaticDocument, loader: Pick<ReturnType<typeof serverMapLoader>, 'loadDocument'>): Promise<LevelLoot | undefined> {
+  if (page.kind !== 'npcs' || !page.document.sharedDrops.length || !page.document.facts.level) return undefined;
+  const guide = await loader.loadDocument('mechanics', 'loot');
+  if (guide.kind !== 'mechanics' || guide.document.topic !== 'loot') throw new Error('The Loot guide does not resolve to its published page.');
+  return lootAtLevel(guide.document, page.document.facts.level.min);
+}
+
 export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
   const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
@@ -33,7 +42,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
   if (!entry?.document) error(404, 'This compendium page is unavailable.');
   const page = await loader.loadDocument(kind.kind, params.slug);
-  const [inlineItem, titleData] = await Promise.all([_loadGuideInlineItem(page, loader), pageTitle(page, registry, indexes, loader)]);
+  const [inlineItem, titleData, levelLoot] = await Promise.all([_loadGuideInlineItem(page, loader), pageTitle(page, registry, indexes, loader), _loadLevelLoot(page, loader)]);
   const heroicItems = page.kind === 'mechanics' && page.document.topic === 'heroic-tier'
     ? await (async () => {
       const rows = (await loader.loadList('items')).rows.filter((row) =>
@@ -69,5 +78,5 @@ export const load: PageServerLoad = async ({ params }) => {
       return [...byKey.values()].sort((a, b) => a.slot.localeCompare(b.slot, 'en') || a.ref.name.localeCompare(b.ref.name, 'en'));
     })()
     : undefined;
-  return { kind, page, inlineItem, heroicItems, corruptionItems, documentPath: entry.document.path, ...titleData };
+  return { kind, page, inlineItem, heroicItems, corruptionItems, levelLoot, documentPath: entry.document.path, ...titleData };
 };

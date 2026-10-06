@@ -32,9 +32,11 @@ import { corruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
 import { projectPublicDocuments } from "./documents";
+import { projectClothLoot } from "./documents/cloth";
+import { projectWorldLoot } from "./documents/world-loot-drops";
 import { mergeEquivalentEffects } from "./duplicate-effects";
 import { startingGearByItem } from "./documents/classes";
-import { conditionsById, type EffectWorldCheck, type EffectWorldSource, type PublishedPlacement, requirementsFor } from "./documents/projection";
+import { conditionsById, type DocumentProjectionInput, type EffectWorldCheck, type EffectWorldSource, type PublishedPlacement, requirementsFor } from "./documents/projection";
 import { projectGatheringNodeDocuments } from "./gathering";
 import { projectChallengeStoneUses, projectMechanicsDocuments } from "./mechanics";
 import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
@@ -204,7 +206,7 @@ function searchLevel(document: PublicDocument): PublicSearchEntry["level"] {
 function itemSourceKinds(document: PublicDocument): string[] {
   if (document.ref.kind !== "items") return [];
   const item = document as PublicItem;
-  return [item.droppedBy.length > 0 ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
+  return [item.droppedBy.length > 0 || item.worldLoot || item.clothDrop ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
     item.gatheredFrom.length > 0 ? "gather" : null, item.inContainers.length > 0 ? "container" : null,
     item.collectedFrom.length > 0 ? "interaction" : null, item.rewardedBy.length > 0 ? "quest" : null,
     item.crafting ? "recipe" : null, item.startingGearOf.length > 0 ? "startingGear" : null].filter((value): value is string => value !== null);
@@ -321,11 +323,13 @@ export async function generateIndexResources(
   const stoneUses = projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes);
   const challengeStones = new Map((stoneUses ?? []).flatMap((use) => use.spot ? use.destinations.map((destination) => [destination.key, use.spot!] as const) : []));
   const recovery = recoveredSourceEvidence(db, new Set(facts.records.adventurerInviteEffects.map((row) => row.adventurer.entityKey).filter((key): key is string => key !== null)));
-  const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
+  const projectionInput: DocumentProjectionInput = { entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants, heroicConsolesByPlace,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
-    worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks, ...recovery });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations), ...nodeDocuments]);
+    worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks, ...recovery };
+  const entityDocuments = projectPublicDocuments(projectionInput);
+  const levelLoot = { worldLoot: projectWorldLoot(projectionInput), cloth: projectClothLoot(projectionInput) };
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations, levelLoot), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
   mergeEquivalentEffects(publicDocuments, refs);
 

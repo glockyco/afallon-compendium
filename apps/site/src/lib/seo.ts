@@ -1,6 +1,7 @@
 import type { ArtRef, PublicKindEntry, QuestObjective, StaticDocument } from '@afallon/contracts/public';
 import { formatNumber, levelText, nameOf } from './format';
 import { durationWords } from './detail/effect-outcome';
+import { worldLootSubject } from './detail/item-sources';
 
 export const SITE_ORIGIN = 'https://afallon.compendiums.org';
 export const STEAM_URL = 'https://store.steampowered.com/app/2597810/Afallon/';
@@ -121,11 +122,8 @@ export function entityDescription(page: StaticDocument, effectSubtitle?: string)
       const drop = item.droppedBy[0];
       const source = item.inContainers[0]?.label ?? item.collectedFrom[0]?.label;
       const dropSource = drop && nameOf(drop.counterpart);
-      const dropLevels = drop?.creatureLevel && (drop.creatureLevel.min > 1 || drop.creatureLevel.max !== undefined)
-        ? ` at levels ${levelText(drop.creatureLevel)}` : '';
-      const dropSentence = dropSource === 'Any creature'
-        ? `It can drop from creatures${dropLevels}.`
-        : dropSource ? `${dropSource} can drop it${dropLevels}.` : undefined;
+      const dropSentence = dropSource ? `${dropSource} can drop it.`
+        : item.worldLoot ? `It can drop as World Loot from ${worldLootSubject(item.worldLoot, false)}.` : undefined;
       const locked = source?.match(/^(.+) \(Locked\)$/);
       const pickaxe = source?.match(/^(.+) \(Pickaxe\)$/);
       const obtained = source === name ? undefined

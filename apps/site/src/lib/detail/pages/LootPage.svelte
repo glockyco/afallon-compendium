@@ -1,7 +1,13 @@
 <script lang="ts">
   import type { LootGuide, PublicKindEntry } from '@afallon/contracts/public';
+  import { clothGroupText, worldLootGroupText } from '../../format';
+  import { CHARACTER_LEVEL, readerLevels } from '../../reader-levels';
+  import DropTable from '../DropTable.svelte';
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
+  import { lootAtLevel, steadyLevel } from '../level-loot';
+  import LevelControl from '../LevelControl.svelte';
+  import LootGroup from '../LootGroup.svelte';
   import RulePhrase from '../sections/RulePhrase.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -17,7 +23,19 @@
   ];
   const lootChanceRuleId = 'creature-loot-chance-inversion';
   const groupedCreatureRules = new Set([...creatureGroups.flatMap((group) => group.ids), lootChanceRuleId]);
+  // World Loot and cloth at one creature level, which starts at the reader's character level. From `steady` on, every
+  // level gives the same, so the control stops there.
+  $: steady = steadyLevel(document);
+  let chosenLevel: number | undefined;
+  $: creatureLevel = Math.min(steady, chosenLevel ?? $readerLevels[CHARACTER_LEVEL] ?? 1);
+  $: loot = lootAtLevel(document, creatureLevel);
+  $: orHigher = creatureLevel === steady;
+  const choose = (value: number | undefined) => { if (value !== undefined) chosenLevel = value; };
 </script>
+
+{#snippet levelControl(id: string)}
+  <div class="level"><LevelControl {id} label="Creature level" min={1} max={steady} level={creatureLevel} onSelect={choose} compact slider={false} /></div>
+{/snippet}
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
@@ -61,6 +79,23 @@
               <div class="rule-line"><RulePhrase rule={lootChanceRule} {registry} /></div>
             </section>
           {/if}
+          {#if loot.worldLoot}
+            <section id="world-loot" class="level-loot" aria-labelledby="world-loot-title">
+              <h3 id="world-loot-title">World Loot by Creature Level</h3>
+              {@render levelControl('loot-world-level')}
+              <LootGroup line={worldLootGroupText(creatureLevel, loot.worldLoot, loot.worldLoot.rows.length, orHigher)}>
+                {#if loot.worldLoot.rows.length}<DropTable rows={loot.worldLoot.rows} {registry} label={`World Loot at creature level ${creatureLevel}`} />{/if}
+              </LootGroup>
+            </section>
+          {/if}
+        {/if}
+        {#if section.id === 'cloth' && loot.cloth}
+          <div class="level-loot">
+            {@render levelControl('loot-cloth-level')}
+            <LootGroup line={clothGroupText(creatureLevel, loot.cloth, loot.cloth.rows.length, orHigher)}>
+              <DropTable rows={loot.cloth.rows} rate="cloth" quantity={false} {registry} label={`Cloth at creature level ${creatureLevel}`} />
+            </LootGroup>
+          </div>
         {/if}
         {#if detailRules.length}
           <details class="pick-details c-disclosure"><summary>How supply pack picks work</summary>
@@ -77,9 +112,10 @@
   .pick-details .rule-line, .rule-details .rule-line { margin: .6rem 0 0; line-height: 1.55; }
   .rule-group { margin-top: 1rem; }
   .rule-group h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
-  .loot-chance { display: grid; gap: .55rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); scroll-margin-top: 7rem; }
-  .loot-chance h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
+  .loot-chance, .level-loot { display: grid; gap: .55rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); scroll-margin-top: 7rem; }
+  .loot-chance h3, .level-loot h3 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-body); }
   .loot-chance p, .loot-chance .rule-line { margin: 0; line-height: 1.55; }
+  .level { display: flex; justify-content: flex-start; }
   .rule-line { text-wrap: balance; }
   @supports (text-wrap: pretty) { .rule-line { text-wrap: pretty; } }
 </style>
