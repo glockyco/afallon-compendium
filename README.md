@@ -154,6 +154,7 @@ Register a mechanics topic's ID, name, description, and Browse label in `MECHANI
 
 - [`openspec/specs`](openspec/specs/) states what the site and the pipeline must do. Each change under [`openspec/changes`](openspec/changes/) records why it was made, and archived changes keep that history.
 - [`.agent/skills`](.agent/skills/) holds the procedures for [game updates](.agent/skills/game-update/SKILL.md), [runtime inspection](.agent/skills/hotrepl-runtime-inspection/SKILL.md), and [native analysis](.agent/skills/native-analysis/SKILL.md).
+- [`packages/contracts/planner-reference.md`](packages/contracts/planner-reference.md) describes the planner payload, the talent rules it rests on, and the evidence gates that still apply.
 - Commit messages explain why each change exists, and code comments cite the game rule that a piece of code implements.
 
 ## License

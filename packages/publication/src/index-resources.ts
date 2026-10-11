@@ -26,6 +26,7 @@ import {
   type StaticKindList,
   type StaticCoverage,
   type StaticSearchIndex,
+  type StaticPlanner,
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
 import { corruptionRewards } from "./corruption-rewards";
@@ -51,6 +52,7 @@ import type { PlaceVariant } from "./place-variants";
 import { displayName } from "./text";
 import { categoryLabel } from "@afallon/contracts/public";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
+import { plannerConditionRows, projectPlanner } from "./planner";
 
 /** Raw catalog relationships not covered by the standard placement and item-source projections. */
 export function recoveredSourceEvidence(db: Database, roster: ReadonlySet<string>) {
@@ -178,6 +180,7 @@ export interface GeneratedIndexResources {
   documents: ReadonlyMap<string, GeneratedStaticResource<StaticDocument>>;
   lists: ReadonlyMap<string, GeneratedStaticResource<StaticKindList>[]>;
   search: GeneratedStaticResource<StaticSearchIndex>[];
+  planner: GeneratedStaticResource<StaticPlanner>;
   artwork: PublicationCandidateAsset[];
   coverage: Pick<StaticCoverage, "pages" | "gaps">;
   publicationIssues: string[];
@@ -328,6 +331,8 @@ export async function generateIndexResources(
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
     worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks, ...recovery };
   const entityDocuments = projectPublicDocuments(projectionInput);
+  const plannerValue = projectPlanner(identity, projectionInput, plannerConditionRows(db));
+  const planner = await writeStaticJson(store, plannerValue.schemaVersion, plannerValue, protection);
   const levelLoot = { worldLoot: projectWorldLoot(projectionInput), cloth: projectClothLoot(projectionInput) };
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards, consoleLocations, levelLoot), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
@@ -388,11 +393,11 @@ export async function generateIndexResources(
     search.push(await writeStaticJson(store, value.schemaVersion, value, protection));
   }
 
-  const usedArtwork = new Set([...publicDocuments.values()].flatMap((document) => artEdges(document).map((art) => art.url)));
+  const usedArtwork = new Set([...publicDocuments.values(), plannerValue].flatMap((document) => artEdges(document).map((art) => art.url)));
   const assets = [...usedArtwork].map((path) => {
     const asset = artwork.assetsByPath.get(path);
     if (!asset) throw new Error(`Document artwork has no publication asset: ${path}.`);
     return asset;
   }).sort((left, right) => left.path.localeCompare(right.path));
-  return { refs, documents, lists, search, artwork: assets, coverage: readerCoverage(publicDocuments.values(), facts.records), publicationIssues };
+  return { refs, documents, lists, search, planner, artwork: assets, coverage: readerCoverage(publicDocuments.values(), facts.records), publicationIssues };
 }

@@ -92,7 +92,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
   const releaseNotes = await registerReleaseNotes(store, "Afallon 0.16.2"), otherNotes = await registerReleaseNotes(store, "Hotfix #19");
   const dataDate = options.dataDate ?? "2026-09-20";
   const publication: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v8",
+    schemaVersion: "compendium.static-root.v9",
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
@@ -105,6 +105,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     search: [{ ...reference, schemaId: "compendium.static-search.v6" }],
     coverage: reference,
     exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
+    planner: { ...reference, schemaId: "compendium.static-planner.v1" },
   };
   const publicationObject = await store.putBytes(bytes(`${canonicalJson(publication)}\n`));
   const publicationRun = await beginArtifactRun(store, {
@@ -119,7 +120,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     diagnosticRevision: "test",
     inputs: {},
   });
-  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v8" });
+  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v9" });
   await publicationRun.succeed();
   const publicationManifest = publicationRun.manifestIdentity;
   await publicationRun.release();
