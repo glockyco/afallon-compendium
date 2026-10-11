@@ -289,3 +289,91 @@ test('without locks a legacy value remains a classless tab draft and both storag
   expect(storage.getItem(CHARACTER_STORAGE_KEY)).toBeNull();
   expect(storage.writes).toHaveLength(0);
 });
+
+test('a confirmed import replaces the roster atomically and revisions change only with character content', async () => {
+  const { store, storage } = await seeded();
+  const before = store.snapshot().collection;
+  const unchanged = before.characters[0]!;
+  const changed = before.characters[1]!;
+  const writes = storage.writes.length;
+  const result = await store.applyImport(before.revision, [
+    { id: unchanged.id, name: unchanged.name, build: unchanged.build },
+    { id: changed.id, name: 'Renamed on Import', build: build(55) },
+    { id: 'imported', name: 'Imported', build: build(45) },
+  ], 'imported');
+  expect(result).toEqual({ ok: true, persisted: true });
+  expect(storage.writes.length - writes).toBe(1);
+  const imported = saved(storage);
+  expect(imported.activeId).toBe('imported');
+  expect(imported.characters.map((entry) => entry.revision)).toEqual([unchanged.revision, imported.revision, imported.revision]);
+  expect(imported.characters[0]).toEqual(unchanged);
+  expect(imported.characters[1]!.build).toEqual(build(55));
+  expect((await store.undo()).ok).toBe(true);
+  const undone = saved(storage);
+  expect(undone.activeId).toBe(before.activeId);
+  expect(undone.characters[0]).toEqual(unchanged);
+  expect(undone.characters[1]!.name).toBe(changed.name);
+  expect(undone.characters[1]!.build).toEqual(changed.build);
+  expect(undone.characters[1]!.revision).toBe(undone.revision);
+});
+
+test('invalid imports reject the entire roster, active choice, draft or retained collection before any write', async () => {
+  const { store, storage } = await seeded();
+  const before = store.snapshot();
+  const existing = before.collection.characters[0]!;
+  const entry = { id: existing.id, name: existing.name, build: existing.build };
+  const writes = storage.writes.length;
+  for (const roster of [
+    [entry, entry],
+    [entry, { id: 'bad', name: 'Bad', build: { ...build(), level: 0 } }],
+    [{ ...entry, extra: true }],
+  ]) expect(() => store.applyImport(before.collection.revision, roster, entry.id)).toThrow();
+  expect(() => store.applyImport(before.collection.revision, [entry], 'absent')).toThrow();
+  expect(() => store.applyImport(Number.MAX_SAFE_INTEGER, [entry], entry.id)).toThrow();
+  expect(() => store.applyImport(before.collection.revision, [entry], entry.id, { draft: { level: 0, revision: 1 } })).toThrow();
+  expect(() => store.applyImport(before.collection.revision, [entry], entry.id, { preserved: [{ ...emptyCollection(), activeId: 'absent' }] })).toThrow();
+  expect(storage.writes).toHaveLength(writes);
+  expect(store.snapshot()).toEqual(before);
+});
+
+test('import checks the reviewed collection revision inside the lock and preserves accepted foreign edits', async () => {
+  const { store, storage, locks } = await seeded();
+  const before = store.snapshot().collection;
+  const other = createCharacterStore({ storage: () => storage, locks });
+  await other.initialize();
+  await other.rename(other.capture(), 'Changed Elsewhere');
+  const writes = storage.writes.length;
+  const result = await store.applyImport(before.revision, [{ id: 'imported', name: 'Imported', build: build(45) }], 'imported');
+  expect(result.ok).toBe(false);
+  expect(result.reason).toContain('after import was reviewed');
+  expect(storage.writes).toHaveLength(writes);
+  expect(saved(storage).characters[0]!.name).toBe('Changed Elsewhere');
+  expect(saved(storage).characters).toHaveLength(2);
+  expect(store.snapshot().preserved.at(-1)!.characters[0]!.id).toBe('imported');
+});
+
+test('import detaches input, retains setup and conflict drafts in tab memory, and Undo reverses their adoption', async () => {
+  const { store, storage } = await seeded();
+  const before = store.snapshot();
+  const importedBuild = { ...build(), level: 45 };
+  const importedDraft = { level: 51, revision: 999 };
+  const preserved = { ...emptyCollection(), revision: 2, draft: { level: 44, revision: 2 } };
+  storage.failingKey = CHARACTER_STORAGE_KEY;
+  const adoption = store.applyImport(before.collection.revision, [{ id: 'imported', name: 'Imported', build: importedBuild }], 'imported', { draft: importedDraft, preserved: [preserved] });
+  importedBuild.level = 46;
+  importedDraft.level = 52;
+  preserved.draft.level = 53;
+  expect(await adoption).toEqual({ ok: true, persisted: false });
+  const after = store.snapshot();
+  expect(activeCharacter(after.collection)!.build.level).toBe(45);
+  expect(after.collection.draft).toEqual({ level: 51, revision: after.collection.revision });
+  expect(after.preserved).toHaveLength(1);
+  expect(after.preserved[0]!.draft!.level).toBe(44);
+  expect(after.persistence.kind).toBe('not-saved');
+  expect((await store.undo()).ok).toBe(true);
+  const undone = store.snapshot();
+  expect(undone.collection.activeId).toBe(before.collection.activeId);
+  expect(undone.collection.characters.map(({ revision: _revision, ...entry }) => entry)).toEqual(before.collection.characters.map(({ revision: _revision, ...entry }) => entry));
+  expect(undone.collection.draft).toBeNull();
+  expect(undone.preserved).toEqual(before.preserved);
+});
