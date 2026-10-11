@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { LootGuide, PublicKindEntry } from '@afallon/contracts/public';
   import { clothGroupText, worldLootGroupText } from '../../format';
-  import { CHARACTER_LEVEL, readerLevels } from '../../reader-levels';
+  import { readerCharacterLevel } from '../../planner/character-level';
   import DropTable from '../DropTable.svelte';
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
@@ -27,7 +27,7 @@
   // level gives the same, so the control stops there.
   $: steady = steadyLevel(document);
   let chosenLevel: number | undefined;
-  $: creatureLevel = Math.min(steady, chosenLevel ?? $readerLevels[CHARACTER_LEVEL] ?? 1);
+  $: creatureLevel = Math.min(steady, chosenLevel ?? $readerCharacterLevel ?? 1);
   $: loot = lootAtLevel(document, creatureLevel);
   $: orHigher = creatureLevel === steady;
   const choose = (value: number | undefined) => { if (value !== undefined) chosenLevel = value; };

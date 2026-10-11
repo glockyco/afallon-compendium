@@ -15,7 +15,7 @@
   import SeoHead from '$lib/SeoHead.svelte';
   import { STEAM_URL, STEAM_GUIDE_URL } from '$lib/seo';
   import { shownRowCount } from '$lib/detail/relation-table';
-  import { CHARACTER_LEVEL, readerLevels } from '$lib/reader-levels';
+  import { CHARACTER_LEVEL, displayedCharacterLevel, readerCharacterLevel } from '$lib/planner/character-level';
   import type { PageData } from './$types';
   export let data: PageData;
 
@@ -42,7 +42,7 @@
   // places whose range holds it come first and carry a mark. The sort is stable, so each group keeps the range order.
   type HubPlace = (typeof data.placeTiles)[number];
   let showAllPlaces = false;
-  $: yourLevel = $readerLevels[CHARACTER_LEVEL];
+  $: yourLevel = displayedCharacterLevel($readerCharacterLevel, 1, data.characterLevelCap);
   $: fits = (place: HubPlace) => yourLevel !== undefined && place.min <= yourLevel && yourLevel <= place.max;
   // A place with creatures or quests comes before one that records neither, within the same group.
   $: orderedPlaces = [...data.placeTiles].sort((left, right) => Number(!fits(left)) - Number(!fits(right))
