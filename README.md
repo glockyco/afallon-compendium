@@ -1,164 +1,113 @@
 # Afallon Compendium
 
-An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/), built from the game's own data.
+Afallon Compendium is an interactive world map and searchable reference for players of the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/). It uses the game's own data to show where to find things and how they relate. This is an unofficial fan project, not affiliated with the game's developer or publisher.
 
 [Open the compendium](https://afallon.compendiums.org/) · [Steam Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
 
 ![Afallon Compendium showing the world map, interior maps, category filters, and search results](assets/afallon-compendium-map.png)
 
-The published site covers Afallon 0.16.3 (Steam build 25653798).
+The map combines the game's maps with searchable placements and category filters.
 
-## What it offers
+## Use the compendium
 
-- **Map** (`/map/`). The game's own maps of the overworld and its interiors, with every creature, merchant, quest giver, resource, container, and doorway that the scans place on them.
-- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. Each kind has a browse list at `/<kind>/`.
-- **Mechanics** (`/mechanics/`). Guides to character progression, the Heroic tier, crafting and gathering, corruption, loot, adventurers, and World Quests. Entity pages link the section that explains their numbers.
-- **Coverage** (`/coverage/`). What the data covers and which pages have known gaps.
+- Explore the overworld and interiors to find creatures, merchants, quest givers, resources, containers, and entrances.
+- Search reference pages for items, NPCs, quests, places, classes, skills, and abilities. Follow their links to drops, shops, requirements, and locations.
+- Read the mechanics pages for progression, crafting, gathering, corruption, loot, and World Quests.
+- Check the site's release information and Coverage page before relying on data that may be incomplete.
 
-Every fact comes from the game's data or from game code that was read and verified for the supported build. A rule that is not verified is labelled unknown instead of guessed.
+You do not need a game installation to use the published site. The source checkout is for changing the site or rebuilding its data.
 
-## How it works
+## Setup
 
-```mermaid
-flowchart LR
-  game["Afallon, running<br/>with HotRepl"] -->|scan, capture| store[("Evidence store<br/>artifacts/")]
-  native["Decompiled game code<br/>and runtime checks"] -->|register| store
-  store -->|catalog| catalog[("Catalog<br/>SQLite")]
-  catalog -->|publish| publication["Publication<br/>static JSON and images"]
-  publication -->|stage, build| site["Site<br/>SvelteKit and deck.gl"]
-  site -->|deploy| host["Cloudflare<br/>Static Assets"]
-```
-
-1. **Scan and capture.** [HotRepl](https://github.com/glockyco/HotRepl), a C# REPL inside the running Unity game, runs the probes under `packages/scan` and `packages/capture`. Scans visit each scene and read the game database, the authored world objects, and the artwork. Captures render map imagery.
-2. **Evidence.** Every run writes immutable, content-addressed objects with a run manifest to the store. Plans and later steps cite objects by their hash, so any result can be traced to its inputs. Reviewed inputs, such as the map layout, the coverage review, and the record of verified game rules, are registered the same way.
-3. **Catalog.** `catalog` validates the evidence into one SQLite database, the source of truth for everything that follows. It records what it could not resolve as coverage issues instead of dropping it.
-4. **Publication.** `publish` turns the catalog into a static graph of JSON documents, lists, map parts, and sized WebP artwork, checks the graph, and selects it as a candidate.
-5. **Site.** A publication is staged into `apps/site`, which prerenders every page and serves the map from the staged files. No database or game access is needed at run time.
-
-### Concepts worth knowing
-
-- **Identity.** A database record, an authored world object, a placement on a map, and a live game object are different things with different identities. Runtime instance ids, names, and coordinates are observations, not keys. A placement that cannot be matched to its authored source stays unresolved rather than guessed.
-- **Map spaces.** A scene of the game is not a map. Reviewed scene bindings and horizontal frames decide which map a placement belongs to. A position outside every map stays unresolved instead of moving to the nearest map.
-- **Producers.** Spawners describe what can appear, not what is alive. A spawner keeps its options and weights whether or not anything is spawned when the scan reads it.
-- **Coverage.** Reachability, extraction, and imagery are separate. A scene without results is not proof that the game has none, and the accepted build is published in preview mode until its coverage is complete.
-- **Game rules.** Rules such as kill experience, loot rolls, or gathering odds rest on decompiled game code or a recorded runtime check. They live in a registered rules record, which the guides and entity pages render, so a number on the site always names its rule.
-
-## Repository layout
-
-| Path | What it holds |
-| --- | --- |
-| `apps/site` | The SvelteKit site: pages, the deck.gl map, search, and deployment scripts. |
-| `apps/compendium-cli` | `bun run compendium`, the operator command line for every pipeline step. |
-| `packages/contracts` | Schemas of evidence, catalog facts, and public documents, and the formulas that the publication and the site share. |
-| `packages/runtime` | The owned HotRepl connection: one client at a time, cleanup receipts, and game identity checks. |
-| `packages/scan`, `packages/capture` | The in-game probes and the runs that scan scenes and capture imagery. |
-| `packages/artifacts` | The content-addressed evidence store and its run manifests. |
-| `packages/catalog` | Validation of evidence into the SQLite catalog. |
-| `packages/publication` | Projection of the catalog into the static publication. |
-| `tools/update` | Scripts that author plans and compare results during a game update. |
-| `openspec` | Requirements (`specs/`) and the reasoning behind each change (`changes/`). |
-| `.agent/skills` | Step-by-step procedures for game updates, runtime inspection, and native analysis. |
-
-Game binaries, recovered code, saves, raw evidence, and extracted images never enter Git. The store (`artifacts/`), local configuration and research notes (`local/`), and decompiled code (`research/`) are ignored.
-
-## Getting started
-
-Development needs [Bun](https://bun.sh/). The Nix flake's default shell (`nix develop`) provides Bun, Node, SQLite, uv, and Python 3.13. Its `analysis` shell provides Ghidra for native analysis.
+Use the Bun version declared in [`package.json`](package.json). The default Nix shell provides the site and pipeline tools:
 
 ```sh
-bun install
-bun run check                      # type-check the packages
-bun run check:dependencies         # check the module boundaries
-bun run test                       # package and site tests, and the Python tests
-bun run --cwd apps/site check      # type-check the site
+nix develop
+bun install --frozen-lockfile
 ```
 
-### Run the site
+Without Nix, install the tools declared in [`flake.nix`](flake.nix). Runtime extraction also needs a local Afallon installation with [HotRepl](https://github.com/glockyco/HotRepl) loaded. [`config.example.json`](config.example.json) documents the local paths and connection settings.
 
-The site needs a staged publication. The repository holds none, because a publication comes out of the data pipeline below. Stage one into this checkout, then start the development server:
+### Run and build the site
+
+The repository does not include a publication of extracted game data. You need a selected publication root and the accepted publication directory used as its comparison baseline. Obtain those from an existing local extraction or follow the pipeline procedure below.
+
+From the repository root, replace the placeholders with your local directories:
 
 ```sh
 bun run stage:production <publication-root> <accepted-publication-directory>
 bun run dev
 ```
 
-Staging verifies the candidate against the accepted publication that the second argument names (or `PUBLICATION_BASELINE_ROOT`), and refuses one that drops placements, maps, imagery, offsets, or search records that its exclusion list does not name. It writes into the `apps/site` of the checkout that runs it, so each checkout and worktree needs its own stage. After a public schema change, stage a publication built from the current commit, or the development server reports that a resource does not match its schema.
+Staging validates the publication and checks for unexplained losses against the baseline. It writes the staged files into this checkout, so stage separately in every checkout where you run the site.
 
-Production builds need `SITE_STAGE=production`: `bun run build:production`. The development server uses `apps/site/.svelte-kit`, while the site's type check writes to `.svelte-kit-check`, builds and `bun run preview` use `.svelte-kit-build`, and tests that start Vite use `.svelte-kit-test`, so checking, building, or testing never disturbs a running development server. `bun install` creates `apps/site/.svelte-kit` when it is missing, because the site's `tsconfig.json` and the tests read the files SvelteKit generates there.
-
-Marker glyphs use the checked-in `apps/site/static/map-marker-icons.png` sprite and its mapping. After changing a marker icon, color, or category, run `bun --cwd apps/site scripts/generate-map-icons.ts` with Playwright Chromium installed (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pointing to a Chromium binary), then commit both generated files.
-
-## Data pipeline
-
-Runtime steps need a local copy of Afallon with the HotRepl host loaded. [`config.example.json`](config.example.json) lists the paths and connection settings. Every command runs from the project root:
-
-| Command | What it does |
-| --- | --- |
-| `bun run compendium update --config <file> --version <release>` | Installs a game build through Steam and records a receipt. |
-| `bun run compendium recover --config <file> --cpp2il <binary>` | Recovers the game's type declarations for comparison with the accepted build. |
-| `bun run compendium scan --config <file> --plan <file>` | Visits scenes in the running game and stores their evidence. |
-| `bun run compendium capture --config <file> --plan <file>` | Captures terrain imagery. `pyramid` tiles it and `game-map` stores the game's drawn maps. |
-| `bun run compendium register --store <dir> --build <id> --file <file>` | Stores a reviewed input, such as a rules record or a coverage review. |
-| `bun run compendium catalog --store <dir> --plan <file>` | Builds the SQLite catalog from the evidence that the plan names. |
-| `bun run compendium publish --store <dir> --output <dir> --plan <file>` | Builds and selects a static publication from a catalog. |
-| `bun run compendium accept-update --store <dir> --report <file> ...` | Accepts a checked candidate as the new build, from an update report. |
-| `bun run compendium clean --store <dir> [--apply] [--retain-run <run>]...` | Reports what the store no longer needs, and removes it with `--apply`. |
-
-Add `--candidate` to scan, capture, catalog, or publish to produce a verified result without replacing the selected one. Only scan and capture need the running game.
-
-### Keeping the store small
-
-Every run adds objects to `artifacts/`, and catalog runs add a sealed database of about 3 GB each. Run `clean` once the store's commands are idle, for example after accepting a release. Read its dry-run report, then repeat it with `--apply`. Collection cannot be undone.
-
-A build is current when it is the accepted build or a newer build, or when it has a publication selection awaiting recovery. Clean keeps:
-
-- the accepted release, the release it replaced, and every object their update reports cite;
-- the selected results and the two newest catalog and publish runs of each current build;
-- every other successful run of a current build, because scans, captures, game maps, and registered inputs arrive in batches that a later catalog combines;
-- the newest failed or interrupted run of each operation;
-- runs named with `--retain-run`, and everything that a kept result was built from.
-
-Everything else is removed, including all runs of earlier builds that the two releases do not need, leases left by crashed commands, and their scratch directories. Clean deletes nothing when a kept result has a missing or damaged dependency, and it names the dependency. It refuses to start while another store command holds a lease, and commands that start during clean wait for it. It reports entries under `artifacts/` that no pipeline command creates, such as research output, but leaves them in place. Publications are materialized as copy-on-write clones of store objects, so they use no extra space on APFS and survive collection.
-
-### Game updates
-
-A new game build goes through the whole pipeline as a candidate and is compared with the accepted build before `accept-update` selects it. The [game-update skill](.agent/skills/game-update/SKILL.md) gives the steps, scripts, arguments, and failure modes. In short: install and compare declarations, scan, rebuild the maps and imagery, catalog, review every rule against the new build, publish, check the site in a browser, write the update report, and accept.
-
-## Deployment
+To build and preview the staged production site:
 
 ```sh
-bun run stage:production <publication-root> <accepted-publication-directory>
-bun run compendium preview                      # build and serve the staged site with its production headers
-bun run compendium deploy <publication-root>    # build, deploy to Cloudflare Static Assets, and smoke-test
+bun run build:production
+bun run compendium preview
 ```
 
-`deploy` stages the selected publication, builds and validates the site, deploys it with Wrangler, and smoke-tests production. Production has no database access, runtime probes, or development panels.
+The preview command rebuilds the site and serves it with its production response headers. Neither the built site nor the published site needs a database or game connection at runtime.
 
-To rehearse a rollback locally, `bun run verify:deployment <current-publication-root> <previous-publication-root>` builds and checks both publications and returns the stage to the current one. `bun run rollback:production` rolls the deployed site back with Wrangler.
+## Extract and publish game data
 
-## Conventions
+```mermaid
+flowchart LR
+  game["Afallon with HotRepl"] -->|scan and capture| evidence[(Evidence store)]
+  evidence -->|catalog| catalog[(SQLite catalog)]
+  catalog -->|publish| publication["Static JSON and images"]
+  publication -->|stage and build| site["Prerendered site"]
+  site -->|deploy| cloudflare["Cloudflare Static Assets"]
+```
 
-### Reader text
+HotRepl runs the probes in [`packages/scan`](packages/scan/) and [`packages/capture`](packages/capture/) inside the game. Scans read game records and authored world objects. Captures produce map imagery. The evidence store keeps immutable objects and manifests, and the catalog records unresolved facts as coverage issues rather than guessing them.
 
-Use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links (“Show on Map,” “Clear All”). Lowercase minor words inside a title unless first or last: a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, vs. Headings, disclosure summaries, and links phrased as sentences use sentence case (“How the kill award adds up,” “Turning it on and off,” “How creature drops work,” “See full details”). A section navigation pill repeats the heading's casing exactly. Field labels (“Fishing level,” “Living followers”), counts and result lines (“6 classes”), card facts (“22 recipes,” “Max level 300”), placeholders (“Filter classes by name”), hints, filter values, chips, units, lead-ins (“Can drop corrupted from Duskfall Depths · Aquarius”), descriptions, empty states, and errors use sentence case. Preserve game-provided names and abbreviations such as NPCs, XP, and HP. The hidden-entries reveal is a sentence-case exception among commands (“Show 91 items without a known source”). The built-page audit is `apps/site/scripts/assert-reader-casing.ts`, run by `assert:deployment`.
+The [game-update procedure](.agent/skills/game-update/SKILL.md) covers installing a build, preparing plans, scanning, capturing maps, reviewing game rules, building a candidate, comparing it with the accepted data, and accepting it. Use that procedure rather than treating extraction as a single export command. The CLI lists its commands and arguments with:
 
-The kind and identity facts directly beneath a page title are also title-like labels, unlike ordinary field labels: “Defense Stat” beneath Stamina, “Rare · Axe,” “Boss · Enemy,” “Crafting Skill,” and “Gathering Node for Mining.” A label that continues into an entity name uses the entire line for minor-word casing: “Boss of Duskfall Depths,” not “Boss Of Duskfall Depths.” Keep game-provided names in these lines as the game spells them.
+```sh
+bun run compendium --help
+```
 
-### Adding page kinds and mechanics topics
+Game binaries, saves, recovered code, raw evidence, and extracted artwork stay out of Git. The pipeline writes its evidence under the ignored `artifacts/` directory. Read the update procedure before accepting data or removing stored evidence.
 
-Register a paged kind's document schema and static schema ID in `PAGE_DOCUMENTS` in `packages/contracts/src/public/documents.ts`. Its kind values, schema maps, static document union, and references derive from that declaration. Give it list and route metadata in `packages/publication/src/kind-registry.ts`, and implement its document and list projections. The exhaustive dispatch in `DetailPage.svelte` and `TooltipPresenter.svelte` requires both a page and a hover card.
+### Deploy the site
 
-Register a mechanics topic's ID, name, description, and Browse label in `MECHANICS_TOPIC_DEFINITIONS` in `packages/contracts/src/catalog/mechanics.ts`. Add the topic's document schema in `documents.ts`, its guide sections in `packages/publication/src/guide-sections.ts`, and its page component in `DetailPage.svelte`. The topic schema, publication labels, and site navigation derive from the definition.
+Authenticate Wrangler from `apps/site` before deploying:
 
-## Further reading
+```sh
+cd apps/site
+bunx wrangler login
+cd ../..
+```
 
-- [`openspec/specs`](openspec/specs/) states what the site and the pipeline must do. Each change under [`openspec/changes`](openspec/changes/) records why it was made, and archived changes keep that history.
-- [`.agent/skills`](.agent/skills/) holds the procedures for [game updates](.agent/skills/game-update/SKILL.md), [runtime inspection](.agent/skills/hotrepl-runtime-inspection/SKILL.md), and [native analysis](.agent/skills/native-analysis/SKILL.md).
-- [`packages/contracts/planner-reference.md`](packages/contracts/planner-reference.md) describes the planner payload, the talent rules it rests on, and the evidence gates that still apply.
-- Commit messages explain why each change exists, and code comments cite the game rule that a piece of code implements.
+From the repository root, supply the baseline again because deployment stages the publication itself:
+
+```sh
+PUBLICATION_BASELINE_ROOT=<accepted-publication-directory> bun run compendium deploy <publication-root>
+```
+
+This command stages the selected publication, builds and validates the site, publishes its static files to Cloudflare, and smoke-tests production. It does not deploy a database or runtime game probes. `bun run rollback:production` uses Wrangler to roll back the deployed site.
+
+## Change the project
+
+The checks are:
+
+```sh
+bun run check
+bun run check:dependencies
+bun run test
+bun run --cwd apps/site check
+```
+
+The Python tests use uv. For browser work, stage a publication built from the current schemas and inspect the affected pages in a browser.
+
+- [`apps/site`](apps/site/) contains the SvelteKit pages, search, map, and deployment scripts.
+- [`apps/compendium-cli`](apps/compendium-cli/) is the pipeline command line. The packages under [`packages/`](packages/) implement evidence storage, runtime access, extraction, catalog construction, and publication.
+- [`openspec/specs`](openspec/specs/) holds behavior requirements, including reader presentation and data contracts.
+- [`.agent/skills`](.agent/skills/) holds procedures for [game updates](.agent/skills/game-update/SKILL.md), [runtime inspection](.agent/skills/hotrepl-runtime-inspection/SKILL.md), and [native analysis](.agent/skills/native-analysis/SKILL.md).
+- [`packages/contracts/planner-reference.md`](packages/contracts/planner-reference.md) explains the planner payload, talent-rule evidence, and remaining evidence gates. Consult it before changing planner data or evaluation.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
-Afallon Compendium is an unofficial fan project and is not affiliated with the developer or publisher of Afallon. Afallon and its related names, artwork, and assets belong to their respective owners.
+The code is licensed under the [MIT License](LICENSE). Afallon's names, artwork, and game assets belong to their respective rights holders.
