@@ -17,7 +17,7 @@ The catalog SHALL model placed interactive objects whose Chest actions name avai
 
 ### Requirement: World source availability combines own and inherited conditions
 
-The catalog SHALL publish nonempty requirements of a world source's selected spawn or interaction condition as availability rules. It SHALL also apply each condition toggle targeting that source or an ancestor of it in the same observed scene. Activation SHALL require its condition, deactivation SHALL exclude while its condition holds, and timed activation SHALL identify its active duration. Pages SHALL render the resulting requirements and duration without presenting excluded conditions as prerequisites.
+The catalog SHALL publish nonempty requirements of a world source's selected spawn or interaction condition as availability rules.
 
 #### Scenario: A chest depends on a class
 - **WHEN** an activation toggle with a class requirement targets an ancestor of a chest
@@ -27,6 +27,49 @@ The catalog SHALL publish nonempty requirements of a world source's selected spa
 - **WHEN** a deactivation toggle with a quest turn-in condition targets a spawner
 - **THEN** its creature location shows that it is unavailable while the quest is turned in
 
+#### Scenario: World source availability combines own and inherited conditions
+- **WHEN** A world source's selected interaction condition has a nonempty requirement.
+- **THEN** The catalog publishes that requirement as an availability rule.
+
+### Requirement: World sources inherit same-scene condition toggles
+
+The catalog SHALL also apply each condition toggle targeting that source or an ancestor of it in the same observed scene.
+
+#### Scenario: World sources inherit same-scene condition toggles
+- **WHEN** One condition toggle targets a world source and another targets its ancestor in the same observed scene.
+- **THEN** The catalog applies both toggles to the world source.
+
+### Requirement: Activation requires its condition
+
+Activation SHALL require its condition.
+
+#### Scenario: Activation requires its condition
+- **WHEN** An activation toggle targets a world source.
+- **THEN** Availability requires the activation condition.
+
+### Requirement: Deactivation excludes while its condition holds
+
+Deactivation SHALL exclude while its condition holds.
+
+#### Scenario: Deactivation excludes while its condition holds
+- **WHEN** A deactivation toggle's condition holds for a world source.
+- **THEN** The world source is excluded while that condition holds.
+
+### Requirement: Timed activation identifies active duration
+
+Timed activation SHALL identify its active duration.
+
+#### Scenario: Timed activation identifies active duration
+- **WHEN** A world source has a timed activation.
+- **THEN** The timed activation identifies its active duration.
+
+### Requirement: Availability pages distinguish requirements from exclusions
+
+Pages SHALL render the resulting requirements and duration without presenting excluded conditions as prerequisites.
+
+#### Scenario: Availability pages distinguish requirements from exclusions
+- **WHEN** A world source has resulting requirements, an active duration, and an excluded condition.
+- **THEN** Its page renders the requirements and duration without presenting the excluded condition as a prerequisite.
 ### Requirement: Placements carry their named area
 
 The catalog SHALL assign a mapped placement the smallest containing named region in the same map space, when one exists. A published placement's location label SHALL prefer that area to its place, and NPC name disambiguation SHALL use area names when place names cannot distinguish records.

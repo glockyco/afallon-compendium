@@ -115,7 +115,7 @@ Catalog ingestion SHALL require complete successful scan runs and SHALL distingu
 
 ### Requirement: Scan extracts entity artwork
 
-The artwork collector SHALL record database-referenced sprites for items, abilities, NPCs, scenes, regions, and other supported entity families with source entity identity, image role, native asset name, and source field. Successful extraction SHALL register a content-addressed PNG with pixel dimensions; a missing sprite or failed read SHALL remain an explicit missing or unsupported record with its reason. The collector SHALL release temporary graphics resources and restore the active render target after each read.
+The artwork collector SHALL record database-referenced sprites for items, abilities, NPCs, scenes, regions, and other supported entity families with source entity identity, image role, native asset name, and source field.
 
 #### Scenario: Item icons are extracted
 - **WHEN** an item icon sprite can be read
@@ -131,3 +131,31 @@ The artwork collector SHALL record database-referenced sprites for items, abilit
 - **WHEN** sprite extraction fails
 - **THEN** the artwork record retains an unsupported disposition and error reason
 - **AND** extraction continues with other artwork records
+
+#### Scenario: Scan extracts entity artwork
+- **WHEN** A supported entity has a database-referenced sprite.
+- **THEN** The collector records the sprite with source entity identity, image role, native asset name, and source field.
+
+### Requirement: Register extracted artwork PNGs
+
+Successful extraction SHALL register a content-addressed PNG with pixel dimensions.
+
+#### Scenario: Register extracted artwork PNGs
+- **WHEN** Artwork extraction succeeds.
+- **THEN** A content-addressed PNG is registered with its pixel dimensions.
+
+### Requirement: Explicit unavailable artwork records
+
+A missing sprite or failed read SHALL remain an explicit missing or unsupported record with its reason.
+
+#### Scenario: Explicit unavailable artwork records
+- **WHEN** A sprite is missing or its read fails.
+- **THEN** An explicit missing or unsupported record remains with its reason.
+
+### Requirement: Artwork read graphics cleanup
+
+The collector SHALL release temporary graphics resources and restore the active render target after each read.
+
+#### Scenario: Artwork read graphics cleanup
+- **WHEN** The collector completes an artwork read.
+- **THEN** The collector releases temporary graphics resources and restores the active render target.

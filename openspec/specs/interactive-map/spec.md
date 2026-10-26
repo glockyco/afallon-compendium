@@ -36,7 +36,7 @@ The map SHALL reuse equivalent successful or pending resource requests and SHALL
 
 ### Requirement: Shared-world rendering does not wait for unrelated search data
 
-The map SHALL assemble placements from all published maps without an active-map selector. Map-data readiness SHALL require essential map parts, all declared geometry, and imagery manifests for the initial visible map spaces, but SHALL NOT wait for search indexes, document details, or imagery manifests for spaces outside an explicit camera view. The map SHALL load an unloaded space's imagery manifest when that space enters the camera. Search SHALL expose its own pending or failure state, and dependent result counts SHALL NOT appear as final zero results while resources are pending.
+The map SHALL assemble placements from all published maps without an active-map selector.
 
 #### Scenario: Search loading is delayed
 - **WHEN** map parts and geometry are ready but search resources remain pending
@@ -51,6 +51,50 @@ The map SHALL assemble placements from all published maps without an active-map 
 - **WHEN** a saved view is centered on one map and other maps lie outside that view
 - **THEN** the reader can navigate the shared world without downloading the other maps' imagery manifests at startup
 - **AND** moving to another map loads its manifest and displays its imagery without refetching geometry or placements
+
+#### Scenario: Shared-world rendering does not wait for unrelated search data
+- **WHEN** Several published maps have placements.
+- **THEN** The map assembles placements from all of them without an active-map selector.
+
+### Requirement: Required map-data readiness resources
+
+Map-data readiness SHALL require essential map parts, all declared geometry, and imagery manifests for the initial visible map spaces.
+
+#### Scenario: Required map-data readiness resources
+- **WHEN** Essential map parts and all declared geometry are available, but an imagery manifest for an initial visible map space is pending.
+- **THEN** Map-data readiness remains pending until the required imagery manifest is available.
+
+### Requirement: Map readiness excludes unrelated resources
+
+Map-data readiness SHALL NOT wait for search indexes, document details, or imagery manifests for spaces outside an explicit camera view.
+
+#### Scenario: Map readiness excludes unrelated resources
+- **WHEN** Required map resources are ready, but search indexes, document details, and imagery manifests for spaces outside an explicit camera view are pending.
+- **THEN** Map-data readiness does not wait for those pending resources.
+
+### Requirement: Load imagery manifests on camera entry
+
+The map SHALL load an unloaded space's imagery manifest when that space enters the camera.
+
+#### Scenario: Load imagery manifests on camera entry
+- **WHEN** A space with an unloaded imagery manifest enters the camera.
+- **THEN** The map loads that space's imagery manifest.
+
+### Requirement: Independent search loading and failure state
+
+Search SHALL expose its own pending or failure state.
+
+#### Scenario: Independent search loading and failure state
+- **WHEN** Search resources fail while the map is ready.
+- **THEN** Search exposes its own failure state.
+
+### Requirement: Pending result counts are not final zeroes
+
+Dependent result counts SHALL NOT appear as final zero results while resources are pending.
+
+#### Scenario: Pending result counts are not final zeroes
+- **WHEN** Resources needed for result counts are pending.
+- **THEN** The dependent counts do not appear as final zero results.
 
 ### Requirement: Renderer updates preserve camera and coordinate ownership
 
@@ -176,13 +220,7 @@ The map SHALL render from generated static publication resources without game in
 
 ### Requirement: Categories use the game's own vocabulary
 
-Marker categories SHALL use the terms the game shows its players. The source of that vocabulary is the game's interaction and nameplate model: merchant, quest giver, interactive object, crafting station, and enemy entity, with enemy, neutral, and friendly alignment. Resources, containers, and travel points SHALL use the words the game uses for them in its own interface.
-
-Each category SHALL add information. A category that every character carries, or that a service category already implies, SHALL NOT exist. Bosses, enemies, and neutral creatures form one section. Merchants, quest givers, and townsfolk form one section, where townsfolk are the friendly characters with no service. Sections SHALL carry a short single-line name and no glyph, and each row and section SHALL show its marker count.
-
-Extraction vocabulary SHALL NOT appear on the player surface. The interface SHALL NOT show placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
-
-Overlapping categories SHALL NOT create duplicate physical markers. Only markers at the exact same world position SHALL form one counted marker group. Nearby markers at different positions SHALL remain independently visible. Every group member SHALL be reachable by pointer and keyboard.
+Marker categories SHALL use the terms the game shows its players. The source of that vocabulary is the game's interaction and nameplate model: merchant, quest giver, interactive object, crafting station, and enemy entity, with enemy, neutral, and friendly alignment.
 
 #### Scenario: A vendor also gives quests
 - **WHEN** a reader enables both the merchant and quest-giver categories
@@ -209,15 +247,84 @@ Overlapping categories SHALL NOT create duplicate physical markers. Only markers
 - **THEN** one marker shows a count of the coincident spots
 - **AND** each member can be selected by pointer or keyboard without grouping nearby spots
 
+#### Scenario: Categories use the game's own vocabulary
+- **WHEN** An enemy entity's marker category is named.
+- **THEN** The category uses the game's enemy entity vocabulary and alignment.
+
+### Requirement: Resource container and travel vocabulary
+
+Resources, containers, and travel points SHALL use the words the game uses for them in its own interface.
+
+#### Scenario: Resource container and travel vocabulary
+- **WHEN** A travel point category is named for display.
+- **THEN** Its name uses the words the game's interface uses for that travel point.
+
+### Requirement: Categories add distinct information
+
+Each category SHALL add information. A category that every character carries, or that a service category already implies, SHALL NOT exist.
+
+#### Scenario: Categories add distinct information
+- **WHEN** A proposed category applies to every character.
+- **THEN** That category does not exist.
+
+### Requirement: Character category sections
+
+Bosses, enemies, and neutral creatures SHALL form one section. Merchants, quest givers, and townsfolk SHALL form one section, where townsfolk are the friendly characters with no service.
+
+#### Scenario: Character category sections
+- **WHEN** The category sections are displayed.
+- **THEN** Bosses, enemies, and neutral creatures share one section, and merchants, quest givers, and friendly characters with no service share another.
+
+### Requirement: Section headings
+
+Sections SHALL carry a short single-line name and no glyph.
+
+#### Scenario: Section headings
+- **WHEN** A category section is displayed.
+- **THEN** Its heading has a short single-line name and no glyph.
+
+### Requirement: Marker counts in rows and sections
+
+Each row and section SHALL show its marker count.
+
+#### Scenario: Marker counts in rows and sections
+- **WHEN** A category row and its section are displayed.
+- **THEN** Both show their respective marker counts.
+
+### Requirement: Extraction vocabulary stays off the player surface
+
+Extraction vocabulary SHALL NOT appear on the player surface. The interface SHALL NOT show placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
+
+#### Scenario: Extraction vocabulary stays off the player surface
+- **WHEN** A player views marker information backed by extraction data.
+- **THEN** The interface shows no extraction vocabulary, including placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
+
+### Requirement: Overlapping categories share physical markers
+
+Overlapping categories SHALL NOT create duplicate physical markers.
+
+#### Scenario: Overlapping categories share physical markers
+- **WHEN** One placement belongs to two enabled categories.
+- **THEN** The overlapping categories do not create duplicate physical markers.
+
+### Requirement: Exact-position marker grouping
+
+Only markers at the exact same world position SHALL form one counted marker group. Nearby markers at different positions SHALL remain independently visible.
+
+#### Scenario: Exact-position marker grouping
+- **WHEN** Two markers have the exact same world position and a third marker is nearby at a different position.
+- **THEN** Only the coincident markers form one counted marker group, and the nearby marker remains independently visible.
+
+### Requirement: Grouped marker accessibility
+
+Every group member SHALL be reachable by pointer and keyboard.
+
+#### Scenario: Grouped marker accessibility
+- **WHEN** A reader navigates a marker group using a pointer and then a keyboard.
+- **THEN** Every member is reachable with either input method.
 ### Requirement: One registry owns marker presentation
 
-Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling maps. One registry SHALL own each marker's icon, color, label, plural label, precedence, render order, and default visibility. Consumers SHALL read that registry. Every marker category SHALL draw at the same size, which only the reader's marker size setting changes, and its selection and hover highlights SHALL use that same size.
-
-There SHALL NOT be a second registry, a compatibility mapping, or a per-consumer marker switch. Adding a category SHALL require one registry entry, and a test SHALL fail when a registered category has no rendered layer.
-
-One row SHALL resolve to exactly one marker through a single resolution function, so overlapping categories cannot draw two markers for one place. Marker meaning SHALL NOT depend on color alone: each category SHALL be distinguishable by its glyph.
-
-Render order SHALL be semantic, from terrain and areas, through paths and ranges, ordinary markers, important markers, to selection and hover highlights.
+Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling maps.
 
 #### Scenario: A category is added
 - **WHEN** a new category is registered with its icon and color
@@ -237,17 +344,76 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 - **WHEN** a boss marker and an enemy marker are visible at the same zoom and marker size setting
 - **THEN** both markers draw at the same size
 
+#### Scenario: One registry owns marker presentation
+- **WHEN** A marker is rendered.
+- **THEN** It uses a recognizable glyph from the project's icon set on a colored background consistent with the sibling maps.
+
+### Requirement: Registry presentation ownership
+
+One registry SHALL own each marker's icon, color, label, plural label, precedence, render order, and default visibility. Consumers SHALL read that registry.
+
+#### Scenario: Registry presentation ownership
+- **WHEN** A consumer needs a marker's presentation settings.
+- **THEN** It reads the icon, color, label, plural label, precedence, render order, and default visibility from the owning registry.
+
+### Requirement: Uniform marker and highlight size
+
+Every marker category SHALL draw at the same size, which only the reader's marker size setting changes, and its selection and hover highlights SHALL use that same size.
+
+#### Scenario: Uniform marker and highlight size
+- **WHEN** A reader changes the marker size setting with multiple categories visible.
+- **THEN** All categories and their selection and hover highlights use the same changed size.
+
+### Requirement: No alternative presentation mappings
+
+There SHALL NOT be a second registry, a compatibility mapping, or a per-consumer marker switch.
+
+#### Scenario: No alternative presentation mappings
+- **WHEN** A consumer renders a registered marker category.
+- **THEN** It uses no second registry, compatibility mapping, or per-consumer marker switch.
+
+### Requirement: Single-entry category registration
+
+Adding a category SHALL require one registry entry.
+
+#### Scenario: Single-entry category registration
+- **WHEN** A new category is added.
+- **THEN** The category requires one registry entry.
+
+### Requirement: Registered category layer validation
+
+A test SHALL fail when a registered category has no rendered layer.
+
+#### Scenario: Registered category layer validation
+- **WHEN** A registered category lacks a rendered layer.
+- **THEN** The test fails.
+
+### Requirement: Single marker resolution
+
+One row SHALL resolve to exactly one marker through a single resolution function, so overlapping categories cannot draw two markers for one place.
+
+#### Scenario: Single marker resolution
+- **WHEN** A row has overlapping categories.
+- **THEN** A single resolution function resolves the row to exactly one marker for that place.
+
+### Requirement: Glyphs distinguish marker categories
+
+Marker meaning SHALL NOT depend on color alone: each category SHALL be distinguishable by its glyph.
+
+#### Scenario: Glyphs distinguish marker categories
+- **WHEN** Marker categories are viewed without color.
+- **THEN** Each category remains distinguishable by its glyph.
+
+### Requirement: Semantic render order
+
+Render order SHALL be semantic, from terrain and areas, through paths and ranges, ordinary markers, important markers, to selection and hover highlights.
+
+#### Scenario: Semantic render order
+- **WHEN** Terrain, areas, paths, ranges, ordinary markers, important markers, and highlights overlap.
+- **THEN** They render in that semantic order, ending with selection and hover highlights.
 ### Requirement: Published maps share one world
 
-The map SHALL place published game-map spaces in one navigable world. Scenes that share a verified game map texture SHALL share a rendered map. Caves and dungeons without native world offsets SHALL use reviewed placements rather than guessed source-scene coordinates.
-
-Placement SHALL be translation only at a shared world scale. The map SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review. Production SHALL NOT include authoring controls. A placement override SHALL move a map and its markers together.
-
-An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the map translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
-
-A placement SHALL publish when it resolves to a reviewed placed map, including where the game art is transparent. Map bounds SHALL include published placements. An unresolved arrival position SHALL NOT be guessed from a destination scene name.
-
-Each placed map SHALL show its player-facing name above its bounds. The label SHALL move with the map and remain legible without covering its terrain at the map's working zoom.
+The map SHALL place published game-map spaces in one navigable world.
 
 #### Scenario: Two scenes share one game map texture
 - **WHEN** both are published
@@ -274,15 +440,116 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 - **AND** the map's bounds grow to include it
 - **AND** it does not guess a position from unrelated scene coordinates
 
+#### Scenario: Published maps share one world
+- **WHEN** Multiple game-map spaces are published.
+- **THEN** They are placed in one navigable world.
+
+### Requirement: Shared verified texture maps
+
+Scenes that share a verified game map texture SHALL share a rendered map.
+
+#### Scenario: Shared verified texture maps
+- **WHEN** Two scenes share a verified game map texture.
+- **THEN** They share a rendered map.
+
+### Requirement: Reviewed interior placements
+
+Caves and dungeons without native world offsets SHALL use reviewed placements rather than guessed source-scene coordinates.
+
+#### Scenario: Reviewed interior placements
+- **WHEN** A dungeon has no native world offset.
+- **THEN** Its placement uses a reviewed placement rather than guessed source-scene coordinates.
+
+### Requirement: Translation-only placement
+
+Placement SHALL be translation only at a shared world scale. The map SHALL NOT rescale or rotate a map to improve the layout.
+
+#### Scenario: Translation-only placement
+- **WHEN** A map is positioned to fit the world layout.
+- **THEN** Only translation is applied, with no rescaling or rotation and with the shared world scale preserved.
+
+### Requirement: Reviewed offset ownership and authoring
+
+A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review.
+
+#### Scenario: Reviewed offset ownership and authoring
+- **WHEN** A reviewed map offset is used to place a map.
+- **THEN** The offset is owned by the reviewed placement file.
+
+### Requirement: Production excludes authoring controls
+
+Production SHALL NOT include authoring controls.
+
+#### Scenario: Production excludes authoring controls
+- **WHEN** The production map is opened.
+- **THEN** No authoring controls are included.
+
+### Requirement: Placement overrides move maps and markers together
+
+A placement override SHALL move a map and its markers together.
+
+#### Scenario: Placement overrides move maps and markers together
+- **WHEN** A placement override changes a map's offset.
+- **THEN** The map and its markers move together.
+
+### Requirement: Offsets are not tile-snapped
+
+An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice. A placed map's pyramid is indexed in that map's own coordinates and the map translates it when drawing.
+
+#### Scenario: Offsets are not tile-snapped
+- **WHEN** A reviewed offset falls between tile-lattice positions.
+- **THEN** Publication retains that offset without snapping, and drawing translates the pyramid indexed in the placed map's own coordinates.
+
+### Requirement: Reviewed interior ring layout
+
+The reviewed layout SHALL place interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
+
+#### Scenario: Reviewed interior ring layout
+- **WHEN** The reviewed interior layout is applied.
+- **THEN** Interiors form a ring, with corner centres at one distance from the overworld centre on each axis and side maps evenly spaced between corners, keeping the same gap to the overworld.
+
+### Requirement: Resolved placements publish through transparent art
+
+A placement SHALL publish when it resolves to a reviewed placed map, including where the game art is transparent.
+
+#### Scenario: Resolved placements publish through transparent art
+- **WHEN** A placement resolves to a reviewed placed map at a transparent part of the game art.
+- **THEN** The placement publishes.
+
+### Requirement: Map bounds include published placements
+
+Map bounds SHALL include published placements.
+
+#### Scenario: Map bounds include published placements
+- **WHEN** A published placement lies outside the map's current bounds.
+- **THEN** The map bounds include that placement.
+
+### Requirement: No guessed arrival positions
+
+An unresolved arrival position SHALL NOT be guessed from a destination scene name.
+
+#### Scenario: No guessed arrival positions
+- **WHEN** An arrival position is unresolved but a destination scene name is available.
+- **THEN** No arrival position is guessed from that name.
+
+### Requirement: Placed map names
+
+Each placed map SHALL show its player-facing name above its bounds.
+
+#### Scenario: Placed map names
+- **WHEN** A placed map is displayed.
+- **THEN** Its player-facing name appears above its bounds.
+
+### Requirement: Map label movement and legibility
+
+The label SHALL move with the map and remain legible without covering its terrain at the map's working zoom.
+
+#### Scenario: Map label movement and legibility
+- **WHEN** A map is moved and viewed at its working zoom.
+- **THEN** Its label moves with it and remains legible without covering its terrain.
 ### Requirement: Travel connections are drawn on the world map
 
-Where a travel point has a resolved destination, the map SHALL draw a line from its marker to that destination and a mark at the destination. The connection toggle SHALL show all resolved lines and destination marks. A selected or hovered travel point MAY still show its own connection when that toggle is off. The travel marker follows its category visibility, not the connection toggle.
-
-Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden. Selection and hover SHALL strengthen the applicable line while preserving that disabled distinction.
-
-The map SHALL draw a connection only from a typed published relationship with explicit source and destination positions. It SHALL NOT infer trap, patrol, portal, blocker, or other lines from labels or detail text.
-
-The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
+Where a travel point has a resolved destination, the map SHALL draw a line from its marker to that destination and a mark at the destination.
 
 #### Scenario: A reader inspects an entrance
 - **WHEN** the entrance has a resolved destination
@@ -298,6 +565,82 @@ The authoring mode SHALL render connections while a reviewer positions maps, bec
 - **WHEN** connections are visible in the authoring mode
 - **THEN** the lines between that dungeon and its entrances stay visible while it moves
 - **AND** the reviewer can use them to judge the placement
+
+#### Scenario: Travel connections are drawn on the world map
+- **WHEN** A travel point has a resolved destination.
+- **THEN** The map draws a line from the travel marker to that destination and a destination mark.
+
+### Requirement: Connection toggle visibility
+
+The connection toggle SHALL show all resolved lines and destination marks. A selected or hovered travel point MAY still show its own connection when that toggle is off.
+
+#### Scenario: Connection toggle visibility
+- **WHEN** The connection toggle is turned on.
+- **THEN** All resolved lines and destination marks are shown.
+
+### Requirement: Travel marker category visibility
+
+The travel marker SHALL follow its category visibility, not the connection toggle.
+
+#### Scenario: Travel marker category visibility
+- **WHEN** A travel category is visible and the connection toggle is turned off.
+- **THEN** The travel marker remains visible according to its category visibility.
+
+### Requirement: Cross-map travel connections
+
+Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map.
+
+#### Scenario: Cross-map travel connections
+- **WHEN** A dungeon entrance has a resolved arrival point within the dungeon zone's map.
+- **THEN** Its connection spans maps to that arrival point.
+
+### Requirement: Unresolved travel destinations
+
+A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position.
+
+#### Scenario: Unresolved travel destinations
+- **WHEN** A travel point's destination is unresolved.
+- **THEN** Its marker remains without a line and no connection is drawn to a guessed position.
+
+### Requirement: Inactive destination distinction
+
+A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden.
+
+#### Scenario: Inactive destination distinction
+- **WHEN** A travel destination is disabled.
+- **THEN** It remains visible and visibly distinguished rather than hidden.
+
+### Requirement: Connection selection and hover emphasis
+
+Selection and hover SHALL strengthen the applicable line while preserving that disabled distinction.
+
+#### Scenario: Connection selection and hover emphasis
+- **WHEN** A reader hovers over a travel point with a disabled destination.
+- **THEN** The applicable line is strengthened while the disabled distinction is preserved.
+
+### Requirement: Typed relationship connection evidence
+
+The map SHALL draw a connection only from a typed published relationship with explicit source and destination positions.
+
+#### Scenario: Typed relationship connection evidence
+- **WHEN** A potential connection lacks a typed published relationship with explicit source and destination positions.
+- **THEN** The map does not draw that connection.
+
+### Requirement: No text-inferred connections
+
+The map SHALL NOT infer trap, patrol, portal, blocker, or other lines from labels or detail text.
+
+#### Scenario: No text-inferred connections
+- **WHEN** Detail text mentions a portal without a typed published connection.
+- **THEN** The map does not infer a portal line from that text.
+
+### Requirement: Authoring connections reveal placement errors
+
+The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
+
+#### Scenario: Authoring connections reveal placement errors
+- **WHEN** A reviewer positions maps in authoring mode and a connection's ends are far apart or crossed.
+- **THEN** Connections remain rendered, exposing the potentially wrong placement.
 
 ### Requirement: Mobile controls and trusted embedding
 
@@ -334,12 +677,40 @@ The root map SHALL publish square favicon and touch-icon assets. It SHALL publis
 
 ### Requirement: Heroic Console markers come from scanned placements
 
-The map SHALL publish one Heroic Console marker for each distinct typed Heroic Console source placement admitted by the catalog. Its scene, map space, area, position, and source evidence SHALL come from the scan and existing placement pipeline rather than a manually authored location. The Heroic Console category SHALL be visible by default like other service markers, with its own glyph and the label “Heroic Console”. Selecting a console SHALL show a card that explains what it does in plain language and links to the Heroic Tier Getting started section.
+The map SHALL publish one Heroic Console marker for each distinct typed Heroic Console source placement admitted by the catalog.
 
 #### Scenario: Three consoles in Coalway outdoors
 - **WHEN** the accepted scene scan contains consoles in Coalway Woods, Coalway Swamp, and Chillwind Heights
 - **THEN** the map shows three distinct Heroic Console markers at their scanned positions
 - **AND** selecting any one shows its Heroic Tier explanation and section link
+
+#### Scenario: Heroic Console markers come from scanned placements
+- **WHEN** The catalog admits two distinct typed Heroic Console source placements.
+- **THEN** The map publishes one Heroic Console marker for each placement.
+
+### Requirement: Heroic Console scanned placement evidence
+
+Each Heroic Console marker's scene, map space, area, position, and source evidence SHALL come from the scan and existing placement pipeline rather than a manually authored location.
+
+#### Scenario: Heroic Console scanned placement evidence
+- **WHEN** A Heroic Console marker is published.
+- **THEN** Its scene, map space, area, position, and source evidence come from the scan and existing placement pipeline, not a manually authored location.
+
+### Requirement: Heroic Console category presentation
+
+The Heroic Console category SHALL be visible by default like other service markers, with its own glyph and the label "Heroic Console".
+
+#### Scenario: Heroic Console category presentation
+- **WHEN** The map is opened with default category visibility.
+- **THEN** The Heroic Console category is visible like other service markers, with its own glyph and the label "Heroic Console".
+
+### Requirement: Heroic Console explanation card
+
+Selecting a console SHALL show a card that explains what it does in plain language and links to the Heroic Tier Getting started section.
+
+#### Scenario: Heroic Console explanation card
+- **WHEN** A reader selects a Heroic Console marker.
+- **THEN** A card explains what the console does in plain language and links to the Heroic Tier Getting started section.
 
 ### Requirement: Console locations link back to their map markers
 
@@ -352,7 +723,7 @@ The Heroic Tier opening and Getting started section SHALL link each published co
 
 ### Requirement: Inbound map links frame their destinations
 
-A map link naming a published placement without an explicit camera view SHALL frame that placement at a useful scale, no closer than the map image's own available detail. A map link naming a published entity without an explicit camera view SHALL frame all of that entity's published spots and list those spots, including when the entity's category is not selected. When linked spots span maps with different image detail, framing SHALL respect the least detailed map. An explicit camera view SHALL remain authoritative. Changing selections after arrival SHALL NOT reposition the live camera.
+A map link naming a published placement without an explicit camera view SHALL frame that placement at a useful scale, no closer than the map image's own available detail.
 
 #### Scenario: A reader follows a placement link
 - **WHEN** a reader opens a map link to one published spot with no camera coordinates
@@ -367,6 +738,50 @@ A map link naming a published placement without an explicit camera view SHALL fr
 #### Scenario: A reader opens a saved camera view
 - **WHEN** a map link contains a placement or entity and an explicit camera view
 - **THEN** the explicit camera position and zoom remain unchanged
+
+#### Scenario: Inbound map links frame their destinations
+- **WHEN** A reader opens a link to a published placement without an explicit camera view.
+- **THEN** The camera frames that placement at a useful scale without zooming beyond the map image's available detail.
+
+### Requirement: Entity links frame published spots
+
+A map link naming a published entity without an explicit camera view SHALL frame all of that entity's published spots.
+
+#### Scenario: Entity links frame published spots
+- **WHEN** A reader opens an entity link without an explicit camera view for an entity with several published spots.
+- **THEN** The camera frames all of that entity's published spots.
+
+### Requirement: Entity links list published spots regardless of category
+
+A map link naming a published entity without an explicit camera view SHALL list all of that entity's published spots, including when the entity's category is not selected.
+
+#### Scenario: Entity links list published spots regardless of category
+- **WHEN** A reader opens an entity link without an explicit camera view while the entity's category is not selected.
+- **THEN** The result list includes all of that entity's published spots.
+
+### Requirement: Cross-map framing respects image detail
+
+When linked spots span maps with different image detail, framing SHALL respect the least detailed map.
+
+#### Scenario: Cross-map framing respects image detail
+- **WHEN** Linked spots span two maps with different image detail.
+- **THEN** The framing respects the least detailed map.
+
+### Requirement: Explicit camera views remain authoritative
+
+An explicit camera view SHALL remain authoritative.
+
+#### Scenario: Explicit camera views remain authoritative
+- **WHEN** A reader opens a placement link containing an explicit camera view.
+- **THEN** The explicit camera view remains unchanged.
+
+### Requirement: Selection changes preserve the live camera
+
+Changing selections after arrival SHALL NOT reposition the live camera.
+
+#### Scenario: Selection changes preserve the live camera
+- **WHEN** A reader changes the selected spot after arriving through a map link.
+- **THEN** The live camera does not reposition.
 
 ### Requirement: Map selection and hover remain legible
 

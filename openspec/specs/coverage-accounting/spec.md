@@ -36,7 +36,7 @@ Each obligation SHALL retain its originating inventory and evidence pointers and
 
 ### Requirement: Release evaluates positive closure and integrity together
 
-A complete release SHALL require matching build and catalog identities, a nonempty catalog, valid references and database integrity, registered spatial bounds, reviewed discovery closure, no unresolved catalog issues or unreviewed exclusions, and acceptable dispositions for every required obligation. Preview SHALL remain available when those identity and integrity requirements pass even if coverage closure remains incomplete. The coverage policy SHALL be a content-identified catalog input, not a publication override.
+A complete release SHALL require matching build and catalog identities, a nonempty catalog, valid references and database integrity, registered spatial bounds, reviewed discovery closure, no unresolved catalog issues or unreviewed exclusions, and acceptable dispositions for every required obligation.
 
 #### Scenario: All required obligations are satisfied
 - **WHEN** review evidence closes the discovered universe, required obligations have accepted dispositions, and identity, reference, database, and spatial checks pass
@@ -51,6 +51,25 @@ A complete release SHALL require matching build and catalog identities, a nonemp
 - **WHEN** a requested preview has invalid reference integrity or a mismatched catalog build
 - **THEN** the gate rejects the preview rather than treating corruption as incomplete coverage
 
+#### Scenario: Release evaluates positive closure and integrity together
+- **WHEN** A complete-release candidate has an unresolved catalog issue but passes all other release checks.
+- **THEN** The complete-release gate rejects the candidate.
+
+### Requirement: Preview remains available with incomplete coverage closure
+
+Preview SHALL remain available when the complete release's identity and integrity requirements pass even if coverage closure remains incomplete.
+
+#### Scenario: Preview remains available with incomplete coverage closure
+- **WHEN** A preview candidate passes the identity and integrity requirements but has incomplete coverage closure.
+- **THEN** Preview remains available.
+
+### Requirement: Coverage policy is a content-identified catalog input
+
+The coverage policy SHALL be a content-identified catalog input, not a publication override.
+
+#### Scenario: Coverage policy is a content-identified catalog input
+- **WHEN** A catalog is prepared with a coverage policy.
+- **THEN** The coverage policy is included as a content-identified catalog input rather than a publication override.
 ### Requirement: Issue reports preserve observations without inflating obligations
 
 Operator coverage reports SHALL distinguish unresolved semantic issues, their attributable occurrences, unsatisfied required and optional obligations, and reviewed exclusions. Gate totals SHALL derive from the sealed catalog state; repeated observations of one issue SHALL NOT create additional coverage obligations. These accounting totals SHALL remain outside the reader-facing coverage resource.

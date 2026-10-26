@@ -24,7 +24,7 @@ The published NPC facts and variant facts SHALL expose each available stat's lin
 
 ### Requirement: Effective stats require a supported level rule
 
-An effective creature stat SHALL be calculated only for a verified flat combat stat at a known, specific creature encounter level when the starting value and per-level increment are known, the addition is not percentage-based, and no minimum, maximum, or starting-percentage override applies. The value SHALL equal starting value + authored added amount + (encounter level × per-level increment). It SHALL NOT be presented as a known total for other stat identities or unsupported or ambiguous operands. An unsupported effective value SHALL NOT suppress the known authored addition.
+An effective creature stat SHALL be calculated only for a verified flat combat stat at a known, specific creature encounter level when the starting value and per-level increment are known, the addition is not percentage-based, and no minimum, maximum, or starting-percentage override applies.
 
 #### Scenario: Fangchill at two encounter levels
 - **WHEN** Fangchill's Health has starting value 100, added amount 187.2, and per-level increment 84.24 and it appears at level 20 and level 30
@@ -54,6 +54,33 @@ An effective creature stat SHALL be calculated only for a verified flat combat s
 - **WHEN** a creature has a supported effective Strength value but no verified specific attack and damage rule
 - **THEN** the display identifies the value as Strength and does not claim it as a guaranteed hit or universal Attack Damage
 
+#### Scenario: Effective stats require a supported level rule
+- **WHEN** A creature stat has a minimum override.
+- **THEN** No effective creature stat is calculated from the flat combat level rule.
+
+### Requirement: Calculate the Effective Stat Total
+
+The effective creature stat value SHALL equal starting value + authored added amount + (encounter level × per-level increment).
+
+#### Scenario: Calculate the Effective Stat Total
+- **WHEN** A verified flat combat stat has starting value 100, authored added amount 50, per-level increment 10, encounter level 5, and no percentage-based addition or minimum, maximum, or starting-percentage override.
+- **THEN** The effective stat value is 200.
+
+### Requirement: Do Not Claim Unsupported Totals
+
+An effective creature stat SHALL NOT be presented as a known total for other stat identities or unsupported or ambiguous operands.
+
+#### Scenario: Do Not Claim Unsupported Totals
+- **WHEN** An operand for an effective creature stat is ambiguous.
+- **THEN** The effective creature stat is not presented as a known total.
+
+### Requirement: Retain Known Authored Additions
+
+An unsupported effective value SHALL NOT suppress the known authored addition.
+
+#### Scenario: Retain Known Authored Additions
+- **WHEN** A creature stat has a known authored addition but an unsupported effective value.
+- **THEN** The known authored addition remains available.
 ### Requirement: Heroic health comparisons use effective baseline
 
 Where a supported effective maximum Health is available for a selected eligible creature encounter, the Heroic comparison SHALL show both its normal Health and its empowered Health at the chosen encounter level, applying the verified empowered-health multiplier to the effective normal value. It SHALL distinguish Health that cannot be calculated from an actual zero and SHALL NOT present a numeric empowered Health without a numeric normal baseline.

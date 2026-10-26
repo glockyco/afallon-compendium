@@ -32,7 +32,7 @@ The site SHALL prerender a detail page at `/<kind>/<slug>/` for each published d
 
 ### Requirement: Unknown facts are not fabricated
 
-Entity pages SHALL render established publication facts and SHALL distinguish unknown values from known values. A missing value SHALL read Unknown, or words such as "an unknown time" inside a sentence, with its reason available on hover, focus, and tap. It SHALL NOT read as a bare mark beside or in place of a value. An absent drop chance SHALL be marked in its chance cell rather than guessed, and a creature without a published location SHALL retain its drop information and identify the location gap in its location section.
+Entity pages SHALL render established publication facts and SHALL distinguish unknown values from known values.
 
 #### Scenario: A drop chance is unknown
 - **WHEN** a published drop has a quantity but no established chance
@@ -46,6 +46,42 @@ Entity pages SHALL render established publication facts and SHALL distinguish un
 #### Scenario: An unknown gold amount
 - **WHEN** a creature drops Gold without a valid quantity
 - **THEN** its quantity cell reads Unknown with the reason on hover, and no dash follows it
+
+#### Scenario: Unknown facts are not fabricated
+- **WHEN** An entity has an established quantity and an unknown time.
+- **THEN** Its page renders the established quantity and distinguishes the unknown time from known values.
+
+### Requirement: Missing value labels and explanations
+
+A missing value SHALL read Unknown, or words such as "an unknown time" inside a sentence, with its reason available on hover, focus, and tap.
+
+#### Scenario: Missing value labels and explanations
+- **WHEN** An entity's publication time is missing.
+- **THEN** The time reads Unknown or "an unknown time" in a sentence, and its reason is available on hover, focus, and tap.
+
+### Requirement: Missing values are not bare marks
+
+A missing value SHALL NOT read as a bare mark beside or in place of a value.
+
+#### Scenario: Missing values are not bare marks
+- **WHEN** An entity has a missing duration.
+- **THEN** The missing duration is not represented by a bare mark beside or in place of a value.
+
+### Requirement: Absent drop chance placement
+
+An absent drop chance SHALL be marked in its chance cell rather than guessed.
+
+#### Scenario: Absent drop chance placement
+- **WHEN** A published drop has no established chance.
+- **THEN** The chance cell marks the absence rather than displaying a guessed chance.
+
+### Requirement: Unpublished creature locations retain drops
+
+A creature without a published location SHALL retain its drop information and identify the location gap in its location section.
+
+#### Scenario: Unpublished creature locations retain drops
+- **WHEN** A creature has published drops but no published location.
+- **THEN** Its drop information remains available and its location section identifies the location gap.
 
 ### Requirement: Space belongs to entities that occupy it
 
@@ -110,7 +146,7 @@ The site SHALL publish `/<kind>/` for every registered list kind, including kind
 
 ### Requirement: Site and map search share published entities
 
-Site search SHALL search the names and published aliases of searchable page kinds from the publication's search corpus, and SHALL link results to their entity pages. Results for places and entities with published map spots SHALL offer a map link. The map SHALL use the same published entity corpus alongside its placement search data rather than indexing separate guide records. Site search results SHALL close when focus leaves the search, when the reader presses Escape, and after any navigation, which SHALL also clear the field. Clicking the field, typing, or an arrow key SHALL reopen the current results. Arrow keys SHALL move a visible highlight through the results and Enter SHALL open the highlighted page.
+Site search SHALL search the names and published aliases of searchable page kinds from the publication's search corpus, and SHALL link results to their entity pages.
 
 #### Scenario: A reader searches for a dungeon boss
 - **WHEN** the reader enters part of a published boss name
@@ -124,9 +160,52 @@ Site search SHALL search the names and published aliases of searchable page kind
 - **WHEN** the reader clicks elsewhere on the page or presses Escape while results are open
 - **THEN** the results close, and clicking the field reopens them for the same query
 
+#### Scenario: Site and map search share published entities
+- **WHEN** A reader searches using a published alias of a searchable item.
+- **THEN** Site search finds the item from the publication's search corpus and links the result to its entity page.
+
+### Requirement: Search results offer map destinations
+
+Results for places and entities with published map spots SHALL offer a map link.
+
+#### Scenario: Search results offer map destinations
+- **WHEN** Search returns an entity with published map spots.
+- **THEN** The result offers a map link.
+
+### Requirement: Map search corpus alignment
+
+The map SHALL use the same published entity corpus alongside its placement search data rather than indexing separate guide records.
+
+#### Scenario: Map search corpus alignment
+- **WHEN** The map searches for a published entity with placement data.
+- **THEN** The map uses the shared published entity corpus alongside placement search data, not separate guide records.
+
+### Requirement: Search results dismiss on departure
+
+Site search results SHALL close when focus leaves the search, when the reader presses Escape, and after any navigation. Any navigation SHALL also clear the field.
+
+#### Scenario: Search results dismiss on departure
+- **WHEN** A reader navigates to the map while site search results are open.
+- **THEN** The results close and the search field clears.
+
+### Requirement: Search interaction reopens results
+
+Clicking the field, typing, or an arrow key SHALL reopen the current results.
+
+#### Scenario: Search interaction reopens results
+- **WHEN** Results are closed and a reader types in the search field.
+- **THEN** The current results reopen.
+
+### Requirement: Keyboard search selection
+
+Arrow keys SHALL move a visible highlight through the results and Enter SHALL open the highlighted page.
+
+#### Scenario: Keyboard search selection
+- **WHEN** A reader uses an arrow key to highlight an item result and presses Enter.
+- **THEN** A visible highlight moves to that result and the item's page opens.
 ### Requirement: Entity pages expose release and document data
 
-Entity pages SHALL show the selected publication's game release version in the footer and link to their published JSON document. They SHALL provide Open Graph title, summary, and image metadata from the document, using the entity's own artwork, portrait, or icon when both image dimensions are at least 200 pixels, and a default image otherwise. The image address SHALL be absolute and its declared dimensions and alt text SHALL describe the image served. Open Graph and Twitter titles SHALL match the browser title.
+Entity pages SHALL show the selected publication's game release version in the footer and link to their published JSON document.
 
 #### Scenario: A reader shares an illustrated item page
 - **WHEN** a social client reads its Open Graph metadata
@@ -139,6 +218,34 @@ Entity pages SHALL show the selected publication's game release version in the f
 #### Scenario: A creature has a usable portrait
 - **WHEN** a social client requests the creature's initial HTML
 - **THEN** the Open Graph image resolves to its portrait with the portrait's width, height, and name as alt text
+
+#### Scenario: Entity pages expose release and document data
+- **WHEN** A reader opens an entity page in a selected publication.
+- **THEN** The footer shows that publication's game release version and the page links to its published JSON document.
+
+### Requirement: Document-based sharing metadata
+
+Entity pages SHALL provide Open Graph title, summary, and image metadata from the document, using the entity's own artwork, portrait, or icon when both image dimensions are at least 200 pixels, and a default image otherwise.
+
+#### Scenario: Document-based sharing metadata
+- **WHEN** An entity document supplies an icon measuring 200 by 199 pixels.
+- **THEN** Open Graph title and summary come from the document, and the image metadata uses a default image.
+
+### Requirement: Sharing image address and description
+
+The Open Graph image address SHALL be absolute and its declared dimensions and alt text SHALL describe the image served.
+
+#### Scenario: Sharing image address and description
+- **WHEN** An entity page serves a default image in its Open Graph metadata.
+- **THEN** The image address is absolute and its declared dimensions and alt text describe that default image.
+
+### Requirement: Entity sharing titles match browser titles
+
+Open Graph and Twitter titles SHALL match the browser title.
+
+#### Scenario: Entity sharing titles match browser titles
+- **WHEN** A client reads an entity page's browser, Open Graph, and Twitter titles.
+- **THEN** The Open Graph and Twitter titles match the browser title.
 
 ### Requirement: Stat links read as part of their amount
 
@@ -154,7 +261,7 @@ A link to a stat SHALL show no icon or kind glyph and SHALL take the colour of t
 
 ### Requirement: Search engines find every published page
 
-The deployment SHALL include `/sitemap.xml`, which lists the address of the hub, every published list page, every indexable published entity page, and the map, and `/robots.txt`, which allows every page and names the sitemap. The sitemap SHALL be generated from the same publication as the pages, so it names no page that the deployment lacks. Teleport effects SHALL keep their published pages and internal links, but SHALL expose a `noindex` robots meta tag and SHALL NOT appear in the sitemap. This decision SHALL use the published effect type rather than its name or slug. Every indexable page SHALL have a nonempty absolute canonical, a unique browser title with matching Open Graph and Twitter titles, and a unique, factual description in its initial HTML. Home SHALL use `Afallon Wiki and Interactive Map | Afallon Compendium`, lists `<Plural> | Afallon Wiki`, map `Afallon Interactive Map | Afallon Wiki`, About `About Afallon Compendium | Afallon Wiki`, and other named pages `<Name> | Afallon Wiki`. When an entity name appears on several published pages of different kinds, each affected title SHALL use `<Name> (<Kind>) | Afallon Wiki` with a reader-facing kind. Distinct pages of one kind with the same name SHALL show a truthful, visible distinguishing fact in both the title and the page. Descriptions SHALL identify the page's kind and useful facts actually shown there, in player language and complete sentences rather than repeating generic wiki text. The deployment SHALL reject duplicate titles or descriptions and missing descriptions or canonicals on indexable pages, and SHALL reject teleport effect pages without `noindex` or with sitemap entries. Effects whose gameplay facts are equal SHALL share a single published page with combined sources, retargeted references, and a permanent redirect from a superseded address. The WebSite structured data SHALL keep `Afallon Compendium` as its name and list `Afallon Wiki` as an alternate name, while Open Graph site name SHALL remain `Afallon Compendium`. Home and About SHALL explain that the reference works like a wiki but its pages are generated from game files, not edited by hand.
+The deployment SHALL include `/sitemap.xml`, which lists the address of the hub, every published list page, every indexable published entity page, and the map.
 
 #### Scenario: Page linked only from a hidden row
 - **WHEN** an entity page is linked only from rows that a list or relation preview has not built
@@ -185,3 +292,151 @@ The deployment SHALL include `/sitemap.xml`, which lists the address of the hub,
 #### Scenario: Search client reads site identity
 - **WHEN** a client reads the home page's WebSite JSON-LD
 - **THEN** the name is `Afallon Compendium` and alternateName includes `Afallon Wiki`
+
+#### Scenario: Search engines find every published page
+- **WHEN** A deployment includes a hub, published lists, indexable published entities, and a map.
+- **THEN** `/sitemap.xml` lists the addresses of the hub, every published list, every indexable published entity, and the map.
+
+### Requirement: Robots file allows crawling
+
+The deployment SHALL include `/robots.txt`, which allows every page and names the sitemap.
+
+#### Scenario: Robots file allows crawling
+- **WHEN** A crawler requests `/robots.txt` from the deployment.
+- **THEN** The file allows every page and names the sitemap.
+
+### Requirement: Sitemap publication consistency
+
+The sitemap SHALL be generated from the same publication as the pages, so it names no page that the deployment lacks.
+
+#### Scenario: Sitemap publication consistency
+- **WHEN** A deployment generates its pages and sitemap.
+- **THEN** Both use the same publication, and every page named by the sitemap exists in the deployment.
+
+### Requirement: Teleport effect indexing exclusion
+
+Teleport effects SHALL keep their published pages and internal links, but SHALL expose a `noindex` robots meta tag and SHALL NOT appear in the sitemap. This decision SHALL use the published effect type rather than its name or slug.
+
+#### Scenario: Teleport effect indexing exclusion
+- **WHEN** An effect has a non-Teleport published type but has "teleport" in its slug.
+- **THEN** The slug does not cause the effect to receive the Teleport indexing exclusion.
+
+### Requirement: Indexable page canonical addresses
+
+Every indexable page SHALL have a nonempty absolute canonical in its initial HTML.
+
+#### Scenario: Indexable page canonical addresses
+- **WHEN** A client requests the initial HTML of an indexable item page.
+- **THEN** The HTML includes a nonempty absolute canonical.
+
+### Requirement: Indexable page title uniqueness and alignment
+
+Every indexable page SHALL have a unique browser title with matching Open Graph and Twitter titles in its initial HTML.
+
+#### Scenario: Indexable page title uniqueness and alignment
+- **WHEN** A client reads the initial HTML of two indexable pages.
+- **THEN** Each has a unique browser title and matching Open Graph and Twitter titles.
+
+### Requirement: Indexable page factual descriptions
+
+Every indexable page SHALL have a unique, factual description in its initial HTML.
+
+#### Scenario: Indexable page factual descriptions
+- **WHEN** A client reads the initial HTML of two indexable creature pages.
+- **THEN** Each page contains a unique, factual description.
+
+### Requirement: Home and list title formats
+
+Home SHALL use `Afallon Wiki and Interactive Map | Afallon Compendium` as its browser title. Lists SHALL use `<Plural> | Afallon Wiki` as their browser title.
+
+#### Scenario: Home and list title formats
+- **WHEN** A client reads the browser titles of home and the Items list.
+- **THEN** Home uses `Afallon Wiki and Interactive Map | Afallon Compendium` and the list uses `Items | Afallon Wiki`.
+
+### Requirement: Map and About title formats
+
+The map SHALL use `Afallon Interactive Map | Afallon Wiki` as its browser title. About SHALL use `About Afallon Compendium | Afallon Wiki` as its browser title.
+
+#### Scenario: Map and About title formats
+- **WHEN** A client reads the browser titles of the map and About.
+- **THEN** The titles are `Afallon Interactive Map | Afallon Wiki` and `About Afallon Compendium | Afallon Wiki`, respectively.
+
+### Requirement: Named page title format
+
+Other named pages SHALL use `<Name> | Afallon Wiki` as their browser title.
+
+#### Scenario: Named page title format
+- **WHEN** A named page called Loot has no name collision.
+- **THEN** Its browser title is `Loot | Afallon Wiki`.
+
+### Requirement: Cross-kind entity title disambiguation
+
+When an entity name appears on several published pages of different kinds, each affected title SHALL use `<Name> (<Kind>) | Afallon Wiki` with a reader-facing kind.
+
+#### Scenario: Cross-kind entity title disambiguation
+- **WHEN** An item and a creature both have the published name Ember.
+- **THEN** Both titles include Ember followed by their respective reader-facing kind in parentheses and `| Afallon Wiki`.
+
+### Requirement: Same-kind page distinguishing facts
+
+Distinct pages of one kind with the same name SHALL show a truthful, visible distinguishing fact in both the title and the page.
+
+#### Scenario: Same-kind page distinguishing facts
+- **WHEN** Two distinct item pages share a name.
+- **THEN** Each shows a truthful, visible distinguishing fact in both its title and its page.
+
+### Requirement: Descriptions use useful player-facing facts
+
+Descriptions SHALL identify the page's kind and useful facts actually shown there, in player language and complete sentences rather than repeating generic wiki text.
+
+#### Scenario: Descriptions use useful player-facing facts
+- **WHEN** A published creature page shows its level and location.
+- **THEN** Its description identifies the creature kind and useful displayed facts in player language and complete sentences, not generic wiki text.
+
+### Requirement: Deployment rejects invalid indexable metadata
+
+The deployment SHALL reject duplicate titles or descriptions and missing descriptions or canonicals on indexable pages.
+
+#### Scenario: Deployment rejects invalid indexable metadata
+- **WHEN** Two indexable pages have duplicate descriptions.
+- **THEN** The deployment rejects them.
+
+### Requirement: Deployment checks teleport exclusions
+
+The deployment SHALL reject teleport effect pages without `noindex` or with sitemap entries.
+
+#### Scenario: Deployment checks teleport exclusions
+- **WHEN** A teleport effect page has `noindex` but appears in the sitemap.
+- **THEN** The deployment rejects the page's sitemap inclusion.
+
+### Requirement: Equivalent effects share a published destination
+
+Effects whose gameplay facts are equal SHALL share a single published page with combined sources, retargeted references, and a permanent redirect from a superseded address.
+
+#### Scenario: Equivalent effects share a published destination
+- **WHEN** Two effects have equal gameplay facts and separate sources and addresses.
+- **THEN** They share one published page with combined sources, references target it, and the superseded address permanently redirects to it.
+
+### Requirement: Structured data site names
+
+The WebSite structured data SHALL keep `Afallon Compendium` as its name and list `Afallon Wiki` as an alternate name.
+
+#### Scenario: Structured data site names
+- **WHEN** A client reads WebSite structured data from the deployment.
+- **THEN** Its name is `Afallon Compendium` and its alternate names include `Afallon Wiki`.
+
+### Requirement: Open Graph site identity
+
+Open Graph site name SHALL remain `Afallon Compendium`.
+
+#### Scenario: Open Graph site identity
+- **WHEN** A client reads the map page's Open Graph site name.
+- **THEN** The site name is `Afallon Compendium`.
+
+### Requirement: Home and About explain generated reference
+
+Home and About SHALL explain that the reference works like a wiki but its pages are generated from game files, not edited by hand.
+
+#### Scenario: Home and About explain generated reference
+- **WHEN** A reader opens Home and About.
+- **THEN** Both explain the wiki-like reference and that its pages are generated from game files rather than edited by hand.
