@@ -7,7 +7,7 @@ Lead each stat and effect page with what the stat or effect does, then group its
 
 ### Requirement: Stat pages explain and quantify sources
 
-The site SHALL lead with a stat's player-facing function and show its published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges. Empty source families SHALL have no tabs. Item sources SHALL distinguish fixed bonuses and possible rolls. Gear sets SHALL show their piece tier, and a talent SHALL be one row with its class, its bonus range across its ranks, and how many ranks give the bonus. Class growth SHALL remain a separate table. The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning.
+The site SHALL lead with a stat's player-facing function.
 
 #### Scenario: A stat has multiple bonus forms
 - **WHEN** a reader visits a stat that appears on fixed items and as a possible item roll
@@ -16,6 +16,66 @@ The site SHALL lead with a stat's player-facing function and show its published 
 #### Scenario: A talent with ten ranks
 - **WHEN** a talent raises Damage Dealt by 1% at its first rank and 10% at its tenth
 - **THEN** the Talents tab shows one row for it with +1%–+10% and 10 ranks
+
+#### Scenario: Stat pages explain and quantify sources
+- **WHEN** A reader opens a stat page.
+- **THEN** The page leads with the stat's player-facing function.
+
+### Requirement: Published stat source families have sortable tabs
+
+The site SHALL show a stat's published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges.
+
+#### Scenario: Published stat source families have sortable tabs
+- **WHEN** A stat has published item and gem source families.
+- **THEN** The page shows separate item and gem tabs, each with a sortable relation table and bonus amounts or roll ranges.
+
+### Requirement: Empty stat source families have no tabs
+
+Empty source families SHALL have no tabs.
+
+#### Scenario: Empty stat source families have no tabs
+- **WHEN** A stat has no published enchantment sources.
+- **THEN** The stat page has no enchantment source tab.
+
+### Requirement: Item sources distinguish fixed bonuses and possible rolls
+
+Item sources SHALL distinguish fixed bonuses and possible rolls.
+
+#### Scenario: Item sources distinguish fixed bonuses and possible rolls
+- **WHEN** A stat's item sources include a fixed bonus and a possible roll.
+- **THEN** The item sources distinguish the fixed bonus from the possible roll.
+
+### Requirement: Gear set sources show piece tiers
+
+Gear sets SHALL show their piece tier.
+
+#### Scenario: Gear set sources show piece tiers
+- **WHEN** A stat source is a gear set bonus at a piece tier.
+- **THEN** The gear set source shows its piece tier.
+
+### Requirement: Talent sources consolidate rank bonuses
+
+A talent SHALL be one row with its class, its bonus range across its ranks, and how many ranks give the bonus.
+
+#### Scenario: Talent sources consolidate rank bonuses
+- **WHEN** A talent gives a stat bonus at several ranks.
+- **THEN** The talent appears as one row showing its class, its bonus range across its ranks, and how many ranks give the bonus.
+
+### Requirement: Class growth remains a separate table
+
+Class growth SHALL remain a separate table.
+
+#### Scenario: Class growth remains a separate table
+- **WHEN** A stat has published class growth and talent sources.
+- **THEN** Class growth appears in a separate table.
+
+### Requirement: Stat item-list links match both unit variants
+
+The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning.
+
+#### Scenario: Stat item-list links match both unit variants
+- **WHEN** A stat has flat and percentage item variants and a reader follows its item-list link.
+- **THEN** The link matches both variants, while ordinary item-list variant filters retain their separate meaning.
 
 ### Requirement: Item power is an equipment rating, not a resource pool
 
@@ -39,7 +99,7 @@ The site SHALL state an effect's outcome ahead of lifecycle metadata, compare ra
 
 ### Requirement: Stat browsing distinguishes prevalence and triggers
 
-The stats list SHALL sort by number of distinct sources, most common first, according to its published kind entry, and distinguish on-hit trigger stats from other stats. The effects list SHALL sort by the number of sources that apply each effect, most applied first, according to its published kind entry, with ties in name order. List names SHALL show their entity identity icons. The Effects browse description SHALL include non-state impacts and summons rather than implying every effect is a buff or debuff.
+The stats list SHALL sort by number of distinct sources, most common first, according to its published kind entry, and distinguish on-hit trigger stats from other stats.
 
 #### Scenario: Browse stats
 - **WHEN** the reader opens the stats list
@@ -48,6 +108,34 @@ The stats list SHALL sort by number of distinct sources, most common first, acco
 #### Scenario: Browse effects
 - **WHEN** the reader opens the effects list
 - **THEN** the effects applied by the most sources appear first with their Applied By counts
+
+#### Scenario: Stat browsing distinguishes prevalence and triggers
+- **WHEN** The reader opens the stats list containing stats with different distinct-source counts and on-hit trigger stats.
+- **THEN** The stats are ordered by distinct-source count, most common first, according to the published kind entry, and on-hit trigger stats are distinguished from other stats.
+
+### Requirement: Effect browsing orders by application prevalence
+
+The effects list SHALL sort by the number of sources that apply each effect, most applied first, according to its published kind entry, with ties in name order.
+
+#### Scenario: Effect browsing orders by application prevalence
+- **WHEN** The reader opens the effects list containing effects with different source counts and two effects with equal source counts.
+- **THEN** Effects are ordered by applying-source count, most applied first, according to the published kind entry, with the tied effects in name order.
+
+### Requirement: Browse names show entity identity
+
+List names SHALL show their entity identity icons.
+
+#### Scenario: Browse names show entity identity
+- **WHEN** The reader views names in the stats and effects lists.
+- **THEN** The names show their entity identity icons.
+
+### Requirement: Effects description includes non-state impacts and summons
+
+The Effects browse description SHALL include non-state impacts and summons rather than implying every effect is a buff or debuff.
+
+#### Scenario: Effects description includes non-state impacts and summons
+- **WHEN** The reader reads the Effects browse description.
+- **THEN** The description includes non-state impacts and summons and does not imply every effect is a buff or debuff.
 
 ### Requirement: Contradictory damage text is not endorsed
 

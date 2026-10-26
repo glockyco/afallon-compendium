@@ -7,9 +7,7 @@ Keep the compendium's page titles and explanatory text consistent across gallery
 
 ### Requirement: Titles and sentence text use their own casing
 
-The site and publication SHALL use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links. Inside a title, a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, and vs SHALL remain lowercase unless first or last. Headings, disclosure summaries, and links phrased as sentences SHALL instead use sentence case; a section navigation pill SHALL repeat its heading's casing. Field labels, counts and result lines, card facts, placeholders, hints, chips, published filter values authored by the compendium, units, lead-ins continuing into content, descriptions, empty states, and errors SHALL use sentence case. Game-provided names and abbreviations such as NPCs, XP, and HP SHALL retain their spelling. The counted hidden-entries reveal command SHALL remain sentence case.
-
-The kind line and identity facts immediately beneath a page title SHALL use Title Case for site-authored label words while retaining the game's spelling of linked or authored entity names.
+The site and publication SHALL use Title Case for title-like noun labels: page and document titles, noun-like headings, card and section titles, noun-like disclosure summaries, tooltip titles, navigation items, tabs, table column headers, and short command buttons or links.
 
 #### Scenario: Classes gallery view
 - **WHEN** a reader opens the Classes gallery
@@ -51,3 +49,63 @@ The kind line and identity facts immediately beneath a page title SHALL use Titl
 #### Scenario: Minor word joins an identity fact to its source
 - **WHEN** a boss page names the place it belongs to in the title block
 - **THEN** the fact reads “Boss of Duskfall Depths”, retaining lowercase “of” inside the full line and the place's game-provided spelling
+
+#### Scenario: Titles and sentence text use their own casing
+- **WHEN** A page displays a noun-like card title, "heroic gear".
+- **THEN** The card title reads "Heroic Gear".
+
+### Requirement: Minor words inside titles remain lowercase
+
+Inside a title, a, an, the, and, but, or, nor, for, of, on, in, at, to, by, per, from, with, as, and vs SHALL remain lowercase unless first or last.
+
+#### Scenario: Minor words inside titles remain lowercase
+- **WHEN** A title contains "of" between "Guide" and "Heroes".
+- **THEN** The title reads "Guide of Heroes", with lowercase "of".
+
+### Requirement: Sentence-like headings summaries and links use sentence case
+
+Headings, disclosure summaries, and links phrased as sentences SHALL instead use sentence case.
+
+#### Scenario: Sentence-like headings summaries and links use sentence case
+- **WHEN** A disclosure summary is phrased "How rewards are calculated".
+- **THEN** The summary reads "How rewards are calculated", not "How Rewards Are Calculated".
+
+### Requirement: Section navigation pills match heading casing
+
+A section navigation pill SHALL repeat its heading's casing.
+
+#### Scenario: Section navigation pills match heading casing
+- **WHEN** A section heading reads "Finding gear" and has a navigation pill.
+- **THEN** The navigation pill reads "Finding gear".
+
+### Requirement: Field and supporting text use sentence case
+
+Field labels, counts and result lines, card facts, placeholders, hints, chips, published filter values authored by the compendium, units, lead-ins continuing into content, descriptions, empty states, and errors SHALL use sentence case.
+
+#### Scenario: Field and supporting text use sentence case
+- **WHEN** A field has the label "Maximum health".
+- **THEN** The field label reads "Maximum health", not "Maximum Health".
+
+### Requirement: Game names and abbreviations retain their spelling
+
+Game-provided names and abbreviations such as NPCs, XP, and HP SHALL retain their spelling.
+
+#### Scenario: Game names and abbreviations retain their spelling
+- **WHEN** A sentence-case description includes the abbreviation HP.
+- **THEN** The description retains "HP", not "Hp".
+
+### Requirement: Counted hidden-entry commands use sentence case
+
+The counted hidden-entries reveal command SHALL remain sentence case.
+
+#### Scenario: Counted hidden-entry commands use sentence case
+- **WHEN** An item list hides 12 entries without a known source.
+- **THEN** The reveal command reads "Show 12 items without a known source".
+
+### Requirement: Title-block kind and identity labels use Title Case
+
+The kind line and identity facts immediately beneath a page title SHALL use Title Case for site-authored label words while retaining the game's spelling of linked or authored entity names.
+
+#### Scenario: Title-block kind and identity labels use Title Case
+- **WHEN** A kind line immediately beneath a page title contains the site-authored words "defense stat".
+- **THEN** The kind line reads "Defense Stat".

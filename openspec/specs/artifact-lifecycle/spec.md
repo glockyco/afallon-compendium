@@ -73,11 +73,7 @@ After run admission, a preparation or execution failure SHALL retain the registe
 
 ### Requirement: Retention follows the complete evidence dependency closure
 
-Clean SHALL retain every object and run manifest that is reachable from a retention root or a retained run. Reachability SHALL follow reuse sources, inputs, input manifests, outputs, and output references. Clean SHALL trace an interrupted run from its latest revision.
-
-Clean SHALL verify the closure of every retention root and of every successful run that it retains. Any missing, damaged, or unreadable dependency in those closures SHALL stop clean before it changes the store, and clean SHALL report the dependency's reference path. This does not apply to the replaced release.
-
-A failed or interrupted run can record dependencies that never verified. For each such run that it retains, clean SHALL keep the dependencies that exist and SHALL report the missing or invalid ones without stopping. Clean SHALL identify the root or rule that retains each kept run.
+Clean SHALL retain every object and run manifest that is reachable from a retention root or a retained run. Reachability SHALL follow reuse sources, inputs, input manifests, outputs, and output references.
 
 #### Scenario: A retained catalog outlives its source run retention window
 - **WHEN** a retained catalog manifest references a scan manifest whose run no retention rule keeps on its own, as when the replaced release's catalog belongs to a build that is no longer current
@@ -99,6 +95,41 @@ A failed or interrupted run can record dependencies that never verified. For eac
 - **THEN** clean retains the run and its existing objects
 - **AND** it reports the missing input and continues collecting
 
+#### Scenario: Retention follows the complete evidence dependency closure
+- **WHEN** A retained run reaches objects through reuse sources, inputs, input manifests, outputs, and output references.
+- **THEN** Clean retains every reachable object and run manifest through those references.
+
+### Requirement: Interrupted run tracing uses the latest revision
+
+Clean SHALL trace an interrupted run from its latest revision.
+
+#### Scenario: Interrupted run tracing uses the latest revision
+- **WHEN** An interrupted run has multiple revisions.
+- **THEN** Clean traces the interrupted run from its latest revision.
+
+### Requirement: Protected evidence closures are verified before changes
+
+Clean SHALL verify the closure of every retention root and of every successful run that it retains. Any missing, damaged, or unreadable dependency in those closures SHALL stop clean before it changes the store, and clean SHALL report the dependency's reference path. This does not apply to the replaced release.
+
+#### Scenario: Protected evidence closures are verified before changes
+- **WHEN** A retained successful run other than the replaced release has a damaged dependency in its closure.
+- **THEN** Clean stops before changing the store and reports the dependency's reference path.
+
+### Requirement: Unverified failed run dependencies do not stop clean
+
+A failed or interrupted run can record dependencies that never verified. For each such run that it retains, clean SHALL keep the dependencies that exist and SHALL report the missing or invalid ones without stopping.
+
+#### Scenario: Unverified failed run dependencies do not stop clean
+- **WHEN** A retained interrupted run records existing dependencies and a missing dependency that never verified.
+- **THEN** Clean keeps the existing dependencies, reports the missing dependency, and does not stop.
+
+### Requirement: Kept runs identify their retention basis
+
+Clean SHALL identify the root or rule that retains each kept run.
+
+#### Scenario: Kept runs identify their retention basis
+- **WHEN** Clean keeps a run because a retention rule retains it.
+- **THEN** Clean identifies the rule that retains the kept run.
 ### Requirement: Integrity verification has bounded memory use
 
 Object registration and hash verification SHALL stream bytes using memory bounded independently of object size. Run reuse SHALL verify referenced inputs, outputs, and dependency manifests before accepting them. A relocated artifact store SHALL resolve content identities and relative run references without original working directories.
@@ -115,7 +146,7 @@ Object registration and hash verification SHALL stream bytes using memory bounde
 
 ### Requirement: Clean collects what retention does not protect
 
-Clean SHALL report every run directory, object, abandoned lease, stale scratch entry, and terminal revision journal that it would remove. It SHALL also report the root or rule that retains each kept run and the logical bytes of each category. Without `--apply` it SHALL change nothing. With `--apply` it SHALL remove the set that it reports in that invocation. It SHALL remove a run directory before the objects that only that run references. It SHALL keep a run directory while a rule retains the run or while the run's manifest object is reachable.
+Clean SHALL report every run directory, object, abandoned lease, stale scratch entry, and terminal revision journal that it would remove.
 
 #### Scenario: A dry run leaves the store unchanged
 - **WHEN** an operator runs clean without `--apply`
@@ -137,15 +168,52 @@ Clean SHALL report every run directory, object, abandoned lease, stale scratch e
 - **THEN** no remaining reference or run names a removed object
 - **AND** the next clean removes the objects that were left unreachable
 
+#### Scenario: Clean collects what retention does not protect
+- **WHEN** Clean would remove a run directory, an object, an abandoned lease, a stale scratch entry, and a terminal revision journal.
+- **THEN** Clean reports every one of those items.
+
+### Requirement: Clean reports retention reasons and category sizes
+
+Clean SHALL also report the root or rule that retains each kept run and the logical bytes of each category.
+
+#### Scenario: Clean reports retention reasons and category sizes
+- **WHEN** Clean keeps runs and reports collection categories.
+- **THEN** Clean reports each kept run's retaining root or rule and the logical bytes of each category.
+
+### Requirement: Clean without apply leaves the store unchanged
+
+Without `--apply` clean SHALL change nothing.
+
+#### Scenario: Clean without apply leaves the store unchanged
+- **WHEN** An operator runs clean without `--apply`.
+- **THEN** Clean changes nothing.
+
+### Requirement: Applied clean removes its reported set
+
+With `--apply` clean SHALL remove the set that it reports in that invocation.
+
+#### Scenario: Applied clean removes its reported set
+- **WHEN** An operator runs clean with `--apply`.
+- **THEN** Clean removes the set reported in that invocation.
+
+### Requirement: Run directories are removed before exclusive objects
+
+Clean SHALL remove a run directory before the objects that only that run references.
+
+#### Scenario: Run directories are removed before exclusive objects
+- **WHEN** Clean removes a run directory and objects referenced only by that run.
+- **THEN** Clean removes the run directory before those objects.
+
+### Requirement: Retained or reachable runs keep their directories
+
+Clean SHALL keep a run directory while a rule retains the run or while the run's manifest object is reachable.
+
+#### Scenario: Retained or reachable runs keep their directories
+- **WHEN** No rule retains a run, but the run's manifest object is reachable.
+- **THEN** Clean keeps the run directory.
 ### Requirement: Retention roots protect selected and accepted results
 
-Clean SHALL treat these as retention roots:
-- the latest-success references of every current build;
-- the accepted release, including its catalog, publication, update report, every object that the report cites, and its rollback selection and descriptor;
-- the previous reference of every pending publication selection;
-- every run that the operator names to retain.
-
-Clean SHALL also keep the release that the accepted release replaced while that release's objects remain. When the replaced release is incomplete, clean SHALL report it and SHALL NOT fail.
+Clean SHALL treat the latest-success references of every current build as retention roots.
 
 #### Scenario: An accepted candidate was never selected
 - **WHEN** the accepted release names a candidate catalog and publication that no latest-success reference names
@@ -164,18 +232,55 @@ Clean SHALL also keep the release that the accepted release replaced while that 
 - **WHEN** an operator names a run to retain
 - **THEN** clean retains that run and its closure, whatever its build and whatever the retention rules decide
 
+#### Scenario: Retention roots protect selected and accepted results
+- **WHEN** A current build has a latest-success reference.
+- **THEN** Clean treats that reference as a retention root.
+
+### Requirement: Accepted release evidence forms retention roots
+
+Clean SHALL treat the accepted release as a retention root, including its catalog, publication, update report, every object that the report cites, and its rollback selection and descriptor.
+
+#### Scenario: Accepted release evidence forms retention roots
+- **WHEN** An accepted release includes a catalog, publication, update report citing objects, and a rollback selection and descriptor.
+- **THEN** Clean treats the accepted release and all of those included items as retention roots.
+
+### Requirement: Pending selections protect previous references
+
+Clean SHALL treat the previous reference of every pending publication selection as a retention root.
+
+#### Scenario: Pending selections protect previous references
+- **WHEN** A pending publication selection records a previous reference.
+- **THEN** Clean treats the previous reference as a retention root.
+
+### Requirement: Operator named runs form retention roots
+
+Clean SHALL treat every run that the operator names to retain as a retention root.
+
+#### Scenario: Operator named runs form retention roots
+- **WHEN** An operator names a run to retain.
+- **THEN** Clean treats that run as a retention root.
+
+### Requirement: Replaced releases remain while objects remain
+
+Clean SHALL also keep the release that the accepted release replaced while that release's objects remain.
+
+#### Scenario: Replaced releases remain while objects remain
+- **WHEN** Objects remain for the release that the accepted release replaced.
+- **THEN** Clean keeps the replaced release.
+
+### Requirement: Incomplete replaced releases are reported without failure
+
+When the replaced release is incomplete, clean SHALL report it and SHALL NOT fail.
+
+#### Scenario: Incomplete replaced releases are reported without failure
+- **WHEN** The replaced release is incomplete.
+- **THEN** Clean reports the incomplete replaced release without failing.
 ### Requirement: Retention rules keep each current build's newest products and its observations
 
 A build SHALL be current when any of these holds:
-- it is the accepted build;
-- its build number is larger than the accepted build's;
+- it is the accepted build.
+- its build number is larger than the accepted build's.
 - it has a publication selection that awaits recovery.
-
-While no release is accepted, every build SHALL be current. A build identifier that is not a number SHALL count as current.
-
-Within each current build, clean SHALL retain the two newest successful runs of catalog and of publish. Each of those runs produces one complete result that supersedes the previous one. Clean SHALL retain every successful run of every other operation, including any operation added later. Those operations produce batches of distinct observations and inputs that later runs combine. Clean SHALL also retain the newest failed or interrupted run of each operation.
-
-A run of a build that is not current SHALL be collectible unless a retention root reaches it. Applying clean SHALL remove the latest-success references of every build that is not current.
 
 #### Scenario: Only the two newest catalog candidates remain
 - **WHEN** a current build has three unselected successful catalog runs that no root reaches
@@ -200,9 +305,68 @@ A run of a build that is not current SHALL be collectible unless a retention roo
 - **WHEN** runs exist for a build whose number is larger than the accepted build's
 - **THEN** clean applies the current-build rules to that build
 
+#### Scenario: Retention rules keep each current build's newest products and its observations
+- **WHEN** A build older than the accepted build has a publication selection awaiting recovery.
+- **THEN** The build counts as current.
+
+### Requirement: Builds are current before release acceptance
+
+While no release is accepted, every build SHALL be current.
+
+#### Scenario: Builds are current before release acceptance
+- **WHEN** No release is accepted and several builds exist.
+- **THEN** Every build counts as current.
+
+### Requirement: Nonnumeric build identifiers remain current
+
+A build identifier that is not a number SHALL count as current.
+
+#### Scenario: Nonnumeric build identifiers remain current
+- **WHEN** A build has the identifier "preview".
+- **THEN** The build counts as current.
+
+### Requirement: Retain the newest complete catalog and publish results
+
+Within each current build, clean SHALL retain the two newest successful runs of catalog and of publish. Each of those runs produces one complete result that supersedes the previous one.
+
+#### Scenario: Retain the newest complete catalog and publish results
+- **WHEN** A current build has two successful catalog runs and two successful publish runs.
+- **THEN** Clean retains both catalog runs and both publish runs.
+
+### Requirement: Retain successful observation and input batches
+
+Within each current build, clean SHALL retain every successful run of every operation other than catalog and publish, including any operation added later. Those operations produce batches of distinct observations and inputs that later runs combine.
+
+#### Scenario: Retain successful observation and input batches
+- **WHEN** A current build has successful runs of a newly added operation other than catalog or publish.
+- **THEN** Clean retains every successful run of that operation.
+
+### Requirement: Retain the newest failed or interrupted operation run
+
+Within each current build, clean SHALL also retain the newest failed or interrupted run of each operation.
+
+#### Scenario: Retain the newest failed or interrupted operation run
+- **WHEN** A current build's newest failed or interrupted publish run is interrupted.
+- **THEN** Clean retains that interrupted publish run.
+
+### Requirement: Noncurrent runs are collectible unless rooted
+
+A run of a build that is not current SHALL be collectible unless a retention root reaches it.
+
+#### Scenario: Noncurrent runs are collectible unless rooted
+- **WHEN** A run belongs to a noncurrent build and no retention root reaches the run.
+- **THEN** The run is collectible.
+
+### Requirement: Remove noncurrent latest-success references
+
+Applying clean SHALL remove the latest-success references of every build that is not current.
+
+#### Scenario: Remove noncurrent latest-success references
+- **WHEN** Two noncurrent builds each have latest-success references and clean is applied.
+- **THEN** Clean removes the latest-success references of both builds.
 ### Requirement: Store maintenance excludes active operations
 
-A command SHALL hold the store's shared lock while it holds a lease or writes an object. Its process SHALL release the lock when it ends, including when it crashes. Clean SHALL hold the lock exclusively for its whole invocation, including a dry run. While another command holds the lock, clean SHALL fail without changes. A command that needs the lock while clean holds it SHALL wait up to 30 minutes for clean to finish. If clean is still running after that time, the command SHALL fail with a maintenance error before it admits a run or writes an object. A lease that exists while clean holds the lock SHALL count as abandoned. Clean SHALL report and remove an abandoned lease, which protects nothing.
+A command SHALL hold the store's shared lock while it holds a lease or writes an object.
 
 #### Scenario: Clean runs while a scan is active
 - **WHEN** an operator runs clean while a scan holds a lease
@@ -222,6 +386,66 @@ A command SHALL hold the store's shared lock while it holds a lease or writes an
 - **WHEN** a lease file remains from a process that ended without releasing it
 - **THEN** clean reports and removes the lease
 - **AND** the lease no longer protects its objects
+
+#### Scenario: Store maintenance excludes active operations
+- **WHEN** A command writes an object without holding a lease.
+- **THEN** The command holds the store's shared lock while writing the object.
+
+### Requirement: Release command locks on process termination
+
+A command's process SHALL release the store's shared lock when the process ends, including when the process crashes.
+
+#### Scenario: Release command locks on process termination
+- **WHEN** A command's process crashes while holding the store's shared lock.
+- **THEN** The process releases the lock.
+
+### Requirement: Clean holds an exclusive lock throughout invocation
+
+Clean SHALL hold the store's lock exclusively for its whole invocation, including a dry run.
+
+#### Scenario: Clean holds an exclusive lock throughout invocation
+- **WHEN** Clean is invoked as a dry run.
+- **THEN** Clean holds the store's lock exclusively for the whole dry-run invocation.
+
+### Requirement: Clean fails without changes when another command holds the lock
+
+While another command holds the store's lock, clean SHALL fail without changes.
+
+#### Scenario: Clean fails without changes when another command holds the lock
+- **WHEN** A command holds the store's shared lock while writing an object and clean is invoked.
+- **THEN** Clean fails without making changes.
+
+### Requirement: Commands wait for maintenance to finish
+
+A command that needs the store's lock while clean holds the lock SHALL wait up to 30 minutes for clean to finish.
+
+#### Scenario: Commands wait for maintenance to finish
+- **WHEN** A command needs the store's lock while clean holds it and clean finishes after 10 minutes.
+- **THEN** The command waits for clean to finish.
+
+### Requirement: Maintenance timeout prevents run admission and object writes
+
+If clean is still running after a command has waited 30 minutes for the store's lock, the command SHALL fail with a maintenance error before it admits a run or writes an object.
+
+#### Scenario: Maintenance timeout prevents run admission and object writes
+- **WHEN** Clean remains running after a command has waited 30 minutes for the store's lock.
+- **THEN** The command fails with a maintenance error without admitting a run or writing an object.
+
+### Requirement: Leases present during clean are abandoned
+
+A lease that exists while clean holds the store's lock SHALL count as abandoned.
+
+#### Scenario: Leases present during clean are abandoned
+- **WHEN** A lease exists while clean holds the store's lock.
+- **THEN** The lease counts as abandoned.
+
+### Requirement: Report and remove unprotective abandoned leases
+
+Clean SHALL report and remove an abandoned lease, which protects nothing.
+
+#### Scenario: Report and remove unprotective abandoned leases
+- **WHEN** Clean encounters an abandoned lease referencing an object.
+- **THEN** Clean reports and removes the lease, and the lease provides no protection to the object.
 
 ### Requirement: Operations protect what they keep until a durable reference names it
 

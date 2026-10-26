@@ -25,7 +25,7 @@ The quest list SHALL offer a quest-type facet that selects world quests from the
 
 ### Requirement: World Quest mechanics explain the verified cycle and rewards
 
-The World Quests guide SHALL distinguish simultaneous active quests from one quest selected for a zone, describe entry and leaving, automatic completion, first roll, expiry and completion cooldowns with jitter, and the zone's delay before choosing another quest. It SHALL explain the verified Heroic Cache multiplier on world quest currency only while the Heroic tier is live, without applying that multiplier to quest experience or assuming an uncaptured numeric multiplier. A rule SHALL cite bounded native evidence and SHALL not claim an unverified numeric limit.
+The World Quests guide SHALL distinguish simultaneous active quests from one quest selected for a zone.
 
 #### Scenario: World quest expires while a player is in its zone
 - **WHEN** the active timer ends while the player is in the zone
@@ -34,3 +34,31 @@ The World Quests guide SHALL distinguish simultaneous active quests from one que
 #### Scenario: Heroic tier changes a currency reward
 - **WHEN** a world quest awards currency while the Heroic tier is live
 - **THEN** the guide distinguishes the Heroic Cache currency multiplier from the quest experience reward
+
+#### Scenario: World Quest mechanics explain the verified cycle and rewards
+- **WHEN** The guide describes active World Quests and zone quest selection.
+- **THEN** The guide distinguishes simultaneous active quests from one quest selected for a zone.
+
+### Requirement: World Quest lifecycle explanation
+
+The World Quests guide SHALL describe entry and leaving, automatic completion, first roll, expiry and completion cooldowns with jitter, and the zone's delay before choosing another quest.
+
+#### Scenario: World Quest lifecycle explanation
+- **WHEN** The guide explains the World Quest lifecycle.
+- **THEN** The explanation covers entry and leaving, automatic completion, first roll, expiry and completion cooldowns with jitter, and the zone's delay before choosing another quest.
+
+### Requirement: Heroic Cache reward scope
+
+The World Quests guide SHALL explain the verified Heroic Cache multiplier on world quest currency only while the Heroic tier is live, without applying that multiplier to quest experience or assuming an uncaptured numeric multiplier.
+
+#### Scenario: Heroic Cache reward scope
+- **WHEN** The guide describes Heroic Cache rewards without a captured numeric multiplier.
+- **THEN** The guide explains the verified currency multiplier only while the Heroic tier is live, does not apply it to quest experience, and does not assume a numeric multiplier.
+
+### Requirement: World Quest rule evidence boundaries
+
+A rule SHALL cite bounded native evidence and SHALL not claim an unverified numeric limit.
+
+#### Scenario: World Quest rule evidence boundaries
+- **WHEN** The guide states a World Quest rule whose numeric limit is unverified.
+- **THEN** The rule cites bounded native evidence and does not claim an unverified numeric limit.

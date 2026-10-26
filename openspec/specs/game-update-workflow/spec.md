@@ -8,7 +8,7 @@ Define how the compendium admits a new Afallon build without mixing build-scoped
 
 ### Requirement: An update has recomputable installation identity
 
-The update workflow SHALL record the Steam build identifier, Steam installation state, and hashes of every game input used by extraction before and after Steam acts. A release version SHALL remain descriptive metadata and SHALL NOT replace recomputable identity. The workflow SHALL reject an absent, unreadable, or wrong-application Steam manifest. It MAY start from a valid pending installation state, but it SHALL NOT produce a success receipt until Steam completes successfully and the manifest reports fully installed.
+The update workflow SHALL record the Steam build identifier, Steam installation state, and hashes of every game input used by extraction before and after Steam acts.
 
 #### Scenario: Steam installs a new build
 - **WHEN** an operator updates an Afallon copy that is fully installed or has a pending update
@@ -19,6 +19,34 @@ The update workflow SHALL record the Steam build identifier, Steam installation 
 - **WHEN** Steam reports completion but the application manifest does not settle to fully installed
 - **THEN** the workflow fails without claiming a current build
 - **AND** no scan, catalog, or publication reference changes
+
+#### Scenario: An update has recomputable installation identity
+- **WHEN** Steam acts during an update.
+- **THEN** The workflow records the Steam build identifier, installation state, and hashes of every extraction input both before and after Steam acts.
+
+### Requirement: Release versions remain descriptive metadata
+
+A release version SHALL remain descriptive metadata and SHALL NOT replace recomputable identity.
+
+#### Scenario: Release versions remain descriptive metadata
+- **WHEN** An update records a release version.
+- **THEN** The release version remains descriptive metadata rather than replacing recomputable identity.
+
+### Requirement: Invalid Steam manifests are rejected
+
+The workflow SHALL reject an absent, unreadable, or wrong-application Steam manifest.
+
+#### Scenario: Invalid Steam manifests are rejected
+- **WHEN** The supplied Steam manifest belongs to the wrong application.
+- **THEN** The workflow rejects the manifest.
+
+### Requirement: Success receipts require completed installation
+
+The workflow MAY start from a valid pending installation state, but it SHALL NOT produce a success receipt until Steam completes successfully and the manifest reports fully installed.
+
+#### Scenario: Success receipts require completed installation
+- **WHEN** The workflow starts from a valid pending installation state and Steam completes successfully but the manifest does not report fully installed.
+- **THEN** The workflow produces no success receipt.
 
 ### Requirement: Steam completion is observed, not inferred
 
@@ -78,7 +106,7 @@ The 0.16.2 workflow SHALL derive scene and streaming identity from the installed
 
 ### Requirement: Patch-specific data risks receive explicit checks
 
-Each update report SHALL reference the registered release notes of the new build and SHALL declare the risk areas that those notes name, each once. Each declared area SHALL be classified as supported unchanged, supported after a contract change, absent from authored data, or unsupported, with evidence from the new build. A report SHALL NOT carry a disposition for an area that its release notes do not name. Player-state systems SHALL remain unpublished unless a durable authored-data contract is established.
+Each update report SHALL reference the registered release notes of the new build.
 
 #### Scenario: New authored items and quests use existing contracts
 - **WHEN** the current collectors and decoders accept the new build's items, quests, rewards, and relations
@@ -94,6 +122,42 @@ Each update report SHALL reference the registered release notes of the new build
 - **WHEN** the release notes of the new build name teleport loading and quest hand-ins
 - **THEN** the update report declares those areas with dispositions and new-build evidence
 - **AND** it does not require dispositions for areas that only an earlier release named
+
+#### Scenario: Patch-specific data risks receive explicit checks
+- **WHEN** An update report is produced for a new build.
+- **THEN** The report references that build's registered release notes.
+
+### Requirement: Update reports declare release-note risks once
+
+Each update report SHALL declare the risk areas that the registered release notes of the new build name, each once.
+
+#### Scenario: Update reports declare release-note risks once
+- **WHEN** The new build's registered release notes name teleport loading and quest hand-ins as risk areas.
+- **THEN** The update report declares each of those risk areas once.
+
+### Requirement: Risk dispositions require new-build evidence
+
+Each declared area SHALL be classified as supported unchanged, supported after a contract change, absent from authored data, or unsupported, with evidence from the new build.
+
+#### Scenario: Risk dispositions require new-build evidence
+- **WHEN** An update report declares a risk area.
+- **THEN** The area receives one of the four specified classifications with evidence from the new build.
+
+### Requirement: Risk dispositions stay within release-note scope
+
+A report SHALL NOT carry a disposition for an area that its release notes do not name.
+
+#### Scenario: Risk dispositions stay within release-note scope
+- **WHEN** An area appeared in earlier release notes but is not named in the report's release notes.
+- **THEN** The report carries no disposition for that area.
+
+### Requirement: Player-state publication requires an authored-data contract
+
+Player-state systems SHALL remain unpublished unless a durable authored-data contract is established.
+
+#### Scenario: Player-state publication requires an authored-data contract
+- **WHEN** A player-state system has no established durable authored-data contract.
+- **THEN** The system remains unpublished.
 
 ### Requirement: Selection requires an auditable update report
 
@@ -111,7 +175,7 @@ Before new-build selection, the workflow SHALL produce an update report that bin
 
 ### Requirement: Publication parity preserves published entities
 
-The parity gate SHALL compare entity keys from search entries, page documents, NPC variants, ability version member keys, embedded item gear sets, recipe keys embedded in item Crafting sections, and recipe keys of skill recipe rows. It SHALL NOT require a baseline URL to remain. It SHALL require a list only for a kind that still has a list. It SHALL read a baseline by its field shape without requiring today's schemas. It SHALL accept a missing baseline key only when the reviewed exclusion list of the candidate names that key.
+The parity gate SHALL compare entity keys from search entries, page documents, NPC variants, ability version member keys, embedded item gear sets, recipe keys embedded in item Crafting sections, and recipe keys of skill recipe rows.
 
 #### Scenario: Four records become one character page
 - **WHEN** four baseline NPC pages become one candidate page with all four record keys in its variants
@@ -132,6 +196,42 @@ The parity gate SHALL compare entity keys from search entries, page documents, N
 #### Scenario: A listed record leaves the publication
 - **WHEN** a baseline record key is missing from the candidate and the exclusion list of the candidate names that key
 - **THEN** the parity gate accepts the removal
+
+#### Scenario: Publication parity preserves published entities
+- **WHEN** A baseline recipe key is embedded in a candidate item's Crafting section.
+- **THEN** The parity gate includes that embedded recipe key in its entity-key comparison.
+
+### Requirement: Parity does not require baseline URLs
+
+The parity gate SHALL NOT require a baseline URL to remain.
+
+#### Scenario: Parity does not require baseline URLs
+- **WHEN** A baseline entity remains covered in the candidate but its baseline URL does not remain.
+- **THEN** The parity gate does not require the baseline URL.
+
+### Requirement: Parity requires lists only for retained list kinds
+
+The parity gate SHALL require a list only for a kind that still has a list.
+
+#### Scenario: Parity requires lists only for retained list kinds
+- **WHEN** A candidate no longer has a list for a kind.
+- **THEN** The parity gate does not require a list for that kind.
+
+### Requirement: Baseline reading uses field shape
+
+The parity gate SHALL read a baseline by its field shape without requiring today's schemas.
+
+#### Scenario: Baseline reading uses field shape
+- **WHEN** A baseline has a readable field shape but does not conform to today's schemas.
+- **THEN** The parity gate reads the baseline by its field shape without requiring today's schemas.
+
+### Requirement: Missing baseline keys require reviewed exclusions
+
+The parity gate SHALL accept a missing baseline key only when the reviewed exclusion list of the candidate names that key.
+
+#### Scenario: Missing baseline keys require reviewed exclusions
+- **WHEN** A baseline key is missing and the candidate's reviewed exclusion list does not name it.
+- **THEN** The parity gate does not accept the missing key.
 
 ### Requirement: Quitting confirms runtime cleanup
 

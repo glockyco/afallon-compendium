@@ -8,7 +8,7 @@ Define the coverage page that tells readers what the site publishes for the curr
 
 ### Requirement: Coverage explains published content and gaps
 
-The reader-facing coverage page SHALL show the number of published pages per kind, maps, and map locations. It SHALL list affected page links for each nonempty gap: `itemWithoutSource`, `npcWithoutLocation`, `npcWithoutLevel`, `placeWithoutMap`, `unresolvedReference`, `recipeWithoutTeacher`, and `recipeWithoutProduct`. An item that only adventurers carry SHALL not count as an item without a source; coverage SHALL list it under adventurer-only items. A recipe gap SHALL link to the Crafting section of the product, or to the recipe row on its skill page when the recipe has no published product. The page SHALL list these gaps as NPCs without a map location and NPCs without a level, and an NPC without a location SHALL not also count as an NPC without a level. Adventurer-only items SHALL be listed as items only adventurers can get. The map SHALL not load coverage to render markers.
+The reader-facing coverage page SHALL show the number of published pages per kind, maps, and map locations.
 
 #### Scenario: An item has no published source
 - **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, recipe, starting-gear, item, world object chest, dungeon reward, Dungeon Finder reward, quest pickup, World Loot, cloth drop, or adventurer source
@@ -57,6 +57,65 @@ The reader-facing coverage page SHALL show the number of published pages per kin
 - **WHEN** an NPC page belongs to an adventurer, who roams and joins a party by invitation
 - **THEN** the page is not listed under NPCs without a map location
 
+#### Scenario: Coverage explains published content and gaps
+- **WHEN** A reader opens the coverage page.
+- **THEN** The page shows published page counts per kind and counts of maps and map locations.
+
+### Requirement: Coverage links affected pages for nonempty gaps
+
+The reader-facing coverage page SHALL list affected page links for each nonempty gap: `itemWithoutSource`, `npcWithoutLocation`, `npcWithoutLevel`, `placeWithoutMap`, `unresolvedReference`, `recipeWithoutTeacher`, and `recipeWithoutProduct`.
+
+#### Scenario: Coverage links affected pages for nonempty gaps
+- **WHEN** The `placeWithoutMap` gap is nonempty.
+- **THEN** The coverage page lists links to the affected pages for that gap.
+
+### Requirement: Adventurer-only items are not missing sources
+
+An item that only adventurers carry SHALL not count as an item without a source. Coverage SHALL list it under adventurer-only items.
+
+#### Scenario: Adventurer-only items are not missing sources
+- **WHEN** Only adventurers carry an item.
+- **THEN** Coverage lists it under adventurer-only items and does not count it as an item without a source.
+
+### Requirement: Recipe gap links target product crafting or skill rows
+
+A recipe gap SHALL link to the Crafting section of the product, or to the recipe row on its skill page when the recipe has no published product.
+
+#### Scenario: Recipe gap links target product crafting or skill rows
+- **WHEN** A recipe gap concerns a recipe with no published product.
+- **THEN** The gap links to the recipe row on its skill page.
+
+### Requirement: Coverage labels NPC gaps clearly
+
+The coverage page SHALL list the NPC location and level gaps as NPCs without a map location and NPCs without a level.
+
+#### Scenario: Coverage labels NPC gaps clearly
+- **WHEN** The coverage page lists nonempty NPC location and level gaps.
+- **THEN** The gaps are labeled NPCs without a map location and NPCs without a level.
+
+### Requirement: NPC location gaps exclude duplicate level counts
+
+An NPC without a location SHALL not also count as an NPC without a level.
+
+#### Scenario: NPC location gaps exclude duplicate level counts
+- **WHEN** An NPC has neither a location nor a level.
+- **THEN** It does not also count as an NPC without a level.
+
+### Requirement: Adventurer-only items use reader-facing wording
+
+Adventurer-only items SHALL be listed as items only adventurers can get.
+
+#### Scenario: Adventurer-only items use reader-facing wording
+- **WHEN** Coverage lists adventurer-only items.
+- **THEN** They are listed as items only adventurers can get.
+
+### Requirement: Map marker rendering does not load coverage
+
+The map SHALL not load coverage to render markers.
+
+#### Scenario: Map marker rendering does not load coverage
+- **WHEN** The map renders markers.
+- **THEN** It does not load coverage to render them.
 ### Requirement: The publication graph verifies coverage
 
 The coverage resource SHALL use the registered static coverage schema. The graph SHALL check that its map and placement counts match the root. It SHALL check that page counts match published documents and each gap reference points to a published page. Operator gate counts and publication issues SHALL remain in publish command output rather than reader coverage.

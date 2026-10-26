@@ -18,7 +18,8 @@ The site SHALL support a progression overview that orders entries by known level
 - **AND** the reader's chosen level appears as a labeled marker above the first group's tick labels, not as a separate result label
 
 ### Requirement: Places By Level
-The Places overview SHALL default to the level progression view, show place types and available boss counts, and link each place with a published map space to its map. A visible Your Level control SHALL read and update the remembered character level and mark ranges containing that level without filtering or removing other entries. The control SHALL reach the character level cap even beyond the highest recorded range. When no range contains the chosen level, the page SHALL say so and name the highest level that places reach. The page SHALL explain the matching-range highlight.
+
+The Places overview SHALL default to the level progression view.
 
 #### Scenario: Reader chooses a level
 - **WHEN** a reader sets Your Level to a positive level
@@ -45,6 +46,65 @@ The Places overview SHALL default to the level progression view, show place type
 - **THEN** its row uses that artwork as its only identity image
 - **AND** a place without artwork shows one kind glyph instead of an empty image
 
+#### Scenario: Places By Level
+- **WHEN** A reader opens the Places overview without choosing a view.
+- **THEN** The level progression view is shown.
+
+### Requirement: Place types and boss counts
+
+The Places overview SHALL show place types and available boss counts.
+
+#### Scenario: Place types and boss counts
+- **WHEN** The Places overview displays a place with an available boss count.
+- **THEN** The overview shows the place's type and boss count.
+
+### Requirement: Published place map links
+
+The Places overview SHALL link each place with a published map space to its map.
+
+#### Scenario: Published place map links
+- **WHEN** The Places overview displays a place with a published map space.
+- **THEN** The place links to its map.
+
+### Requirement: Remembered character level control
+
+A visible Your Level control SHALL read and update the remembered character level.
+
+#### Scenario: Remembered character level control
+- **WHEN** A reader opens Places with a remembered character level of 12 and changes Your Level to 15.
+- **THEN** The visible Your Level control reads 12 initially and updates the remembered character level to 15.
+
+### Requirement: Matching ranges without filtering
+
+The Your Level control SHALL mark ranges containing the remembered character level without filtering or removing other entries.
+
+#### Scenario: Matching ranges without filtering
+- **WHEN** A reader chooses level 20 and some displayed ranges contain that level while others do not.
+- **THEN** The ranges containing level 20 are marked and other entries remain unfiltered and present.
+
+### Requirement: Character level cap reachability
+
+The Your Level control SHALL reach the character level cap even beyond the highest recorded range.
+
+#### Scenario: Character level cap reachability
+- **WHEN** The character level cap exceeds the highest recorded place range and a reader sets Your Level to the cap.
+- **THEN** The control reaches the character level cap.
+
+### Requirement: Uncovered level explanation
+
+When no range contains the chosen level, the page SHALL say so and name the highest level that places reach.
+
+#### Scenario: Uncovered level explanation
+- **WHEN** A reader chooses level 50 and no place range contains it, with places reaching level 40.
+- **THEN** The page says no range contains level 50 and that places reach level 40.
+
+### Requirement: Matching range highlight explanation
+
+The page SHALL explain the matching-range highlight.
+
+#### Scenario: Matching range highlight explanation
+- **WHEN** A reader views Places with a matching range highlighted.
+- **THEN** The page explains the matching-range highlight.
 ### Requirement: Complete Table Alternative
 The Places overview SHALL retain its searchable, facet-filterable, sortable full table as a URL-addressable alternate view, with a visible way to switch between views.
 
