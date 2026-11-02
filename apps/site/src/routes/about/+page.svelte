@@ -17,21 +17,21 @@
   <article class="about">
     <header>
       <h1>About Afallon Compendium</h1>
-      <p class="lead">Afallon Compendium is a fan-made map and game reference for Afallon. It works like a wiki, but every page is generated from the game's files rather than edited by hand.</p>
+      <p class="lead">Afallon Compendium is a fan-made wiki and interactive map for Afallon, generated from the game's files.</p>
     </header>
     <div class="columns">
       <div class="sections">
         <section aria-labelledby="game"><h2 id="game">About Afallon</h2>
-          <p>Afallon is a single-player RPG with the feel of an MMO. Choose a class and race, explore an open world, and take on dungeons with NPC adventurers. Stargazing interactive develops and publishes the game. It entered Steam Early Access for Windows on November 27, 2025.</p>
+          <p>Afallon is a single-player RPG with the feel of an MMO. You choose a class and race, explore an open world, and run dungeons with NPC adventurers. Stargazing interactive develops and publishes the game. It has been in Steam Early Access for Windows since November&nbsp;27,&nbsp;2025.</p>
           <p><a class="c-link" href={STEAM_URL} rel="external">Play Afallon on Steam</a></p>
         </section>
         <section aria-labelledby="reference"><h2 id="reference">How the Compendium is made</h2>
-          <p>Every page is generated from the game's own files. Where a number depends on how the game calculates it, such as drop chances or experience, the calculation was checked against the game's code and, where needed, in the running game.</p>
-          <p>This version covers Afallon {data.release.version}, the patch from {formatCalendarDate(data.release.patchNotes.date)}. The game data was read on {formatCalendarDate(data.release.dataDate)}. A few entries and locations are still incomplete. <a class="c-link" href={`${base}/coverage/`}>Coverage</a> lists the known gaps, and the <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch Notes</a> describe what changed in the game.</p>
+          <p>The Compendium is updated after each patch. This version covers Afallon {data.release.version}, the patch from {formatCalendarDate(data.release.patchNotes.date)}, and its data was read on {formatCalendarDate(data.release.dataDate)}. Drop chances, experience and other calculated values are checked against the game's code.</p>
+          <p>Some entries and locations are still incomplete. <a class="c-link" href={`${base}/coverage/`}>Coverage</a> lists them.</p>
           <p><a class="c-link" href={GITHUB_URL} rel="external">Code on GitHub</a></p>
         </section>
         <section aria-labelledby="disclaimer"><h2 id="disclaimer">Unofficial Fan Project</h2>
-          <p>Afallon Compendium is an unofficial fan project and is not affiliated with the developer or publisher of Afallon. Afallon and its related names, artwork, and assets belong to their respective owners.</p>
+          <p>Afallon Compendium is an unofficial fan project and is not affiliated with Stargazing interactive. Afallon and its names, artwork, and assets belong to their owners.</p>
         </section>
         <section class="more-compendiums" aria-labelledby="compendiums"><h2 id="compendiums">More Compendiums</h2>
           <ul class="compendiums">

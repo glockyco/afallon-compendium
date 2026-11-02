@@ -435,8 +435,8 @@ Open Graph site name SHALL remain `Afallon Compendium`.
 
 ### Requirement: Home and About explain generated reference
 
-Home and About SHALL explain that the reference works like a wiki but its pages are generated from game files, not edited by hand.
+Home and About SHALL say that the compendium is a fan-made wiki whose pages are generated from the game's files.
 
 #### Scenario: Home and About explain generated reference
 - **WHEN** A reader opens Home and About.
-- **THEN** Both explain the wiki-like reference and that its pages are generated from game files rather than edited by hand.
+- **THEN** Both call the compendium a wiki and say that its pages are generated from the game's files.
