@@ -9,10 +9,12 @@
   import { onMount } from 'svelte';
   import type { PublicKindEntry, PublicRelease } from '@afallon/contracts/public';
   import CompendiumSearch from './CompendiumSearch.svelte';
+  import CompendiumSwitcher from './CompendiumSwitcher.svelte';
+  import { iconUrl, OTHER_COMPENDIUMS } from './compendiums';
   import { formatCalendarDate } from './format';
   import KofiGlyph from './KofiGlyph.svelte';
   import { kindGlyphSvg } from './kind-icon';
-  import { KOFI_URL, siteNavigation } from './site-navigation';
+  import { GITHUB_URL, KOFI_URL, siteNavigation } from './site-navigation';
   import { jsonLdScript, SITE_ORIGIN, STEAM_GUIDE_URL, UNOFFICIAL_NOTICE } from './seo';
   import './compendium.css';
 
@@ -24,6 +26,8 @@
   export let search = true;
 
   $: navigationModel = siteNavigation(registry, base);
+  // The footer repeats the bar's links, which a phone hides, with the pages about the Compendium itself.
+  $: footerLinks = [...navigationModel.primary, { label: 'Coverage', href: `${base}/coverage/` }, { label: 'About', href: `${base}/about/` }];
   // A reactive function, so the markup that calls it follows client-side navigation.
   $: current = (href: string) => $page.url.pathname.startsWith(href);
 
@@ -109,6 +113,7 @@
       </nav>
       {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
       <span class="divider" aria-hidden="true"></span>
+      <CompendiumSwitcher />
       <a class="kofi" href={KOFI_URL} rel="external" aria-label="Support on Ko-fi" title="Support on Ko-fi"><KofiGlyph /><span>Support</span></a>
     </div>
   </header>
@@ -126,22 +131,30 @@
         </nav>
       {/if}
       <div class="page-content"><slot /></div>
-      <footer>
-        {#if release}
-          <span>Afallon {release.version}</span>
-          <span>Patched {formatCalendarDate(release.patchNotes.date)}</span>
-          <span>Data from {formatCalendarDate(release.dataDate)}</span>
-          <a class="c-link" href={release.patchNotes.url} rel="external">Patch Notes</a>
-        {/if}
-        <slot name="footer-extra" />
-        <a class="c-link" href={`${base}/coverage/`}>Coverage</a>
-        <a class="c-link" href={`${base}/about/`}>About</a>
-        <a class="c-link" href={STEAM_GUIDE_URL} rel="external">Steam Guide</a>
-        <a class="c-link" href={KOFI_URL} rel="external">Support on Ko-fi</a>
-        <span class="footer-notice">{UNOFFICIAL_NOTICE}</span>
-      </footer>
     </div>
   </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <h2>Afallon Compendium</h2>
+      <section aria-labelledby="footer-site"><h3 id="footer-site">This site</h3><ul>{#each footerLinks as link (link.href)}<li><a href={link.href}>{link.label}</a></li>{/each}</ul></section>
+      <section aria-labelledby="footer-project"><h3 id="footer-project">Project</h3><ul><li><a href={GITHUB_URL} rel="external">Code on GitHub</a></li><li><a href={KOFI_URL} rel="external">Support on Ko-fi</a></li></ul></section>
+      <section aria-labelledby="footer-game"><h3 id="footer-game">Game &amp; community</h3><ul><li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li></ul></section>
+      <section class="others-band" aria-labelledby="footer-others"><h3 id="footer-others">Other compendiums</h3><ul class="others">{#each OTHER_COMPENDIUMS as compendium (compendium.icon)}<li><a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" loading="lazy" /><span>{compendium.name}</span></a></li>{/each}</ul></section>
+      <div class="notes">
+        <p class="release">
+          {#if release}
+            <span>Afallon {release.version}</span>
+            <span>Patched {formatCalendarDate(release.patchNotes.date)}</span>
+            <span>Data from {formatCalendarDate(release.dataDate)}</span>
+            <a href={release.patchNotes.url} rel="external">Patch Notes</a>
+          {/if}
+          <slot name="footer-extra" />
+        </p>
+        <p>{UNOFFICIAL_NOTICE}</p>
+      </div>
+    </div>
+  </footer>
 </div>
 
 <style>
@@ -178,10 +191,8 @@
   details[open] > summary { color: var(--c-text-strong); border-bottom-color: var(--c-accent); }
   summary:focus-visible, .site-nav a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   /* One panel names every destination in labeled columns, so a reader scans all of them at once. It is placed against
-     the bar, not the button, and its columns wrap to the space there, so it never runs past the screen edge. */
-  /* One panel names every destination in labeled columns, so a reader scans all of them at once. It is placed against
-     the bar, not the button, and keeps each column wide enough for a label and its line. A long label wraps inside its
-     own highlight. */
+     the bar, not the button, so it never runs past the screen edge, and keeps each column wide enough for a label and
+     its line. A long label wraps inside its own highlight. */
   .panel { position: absolute; z-index: 1; top: calc(100% + .35rem); left: 1.5rem; width: min(66rem, calc(100% - 3rem)); max-height: calc(100vh - 5rem); overflow-y: auto; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 14px 32px var(--c-shadow); }
   /* The panel ends with one quiet line that links Ko-fi, aligned with the entry glyphs. */
   .panel-foot { margin: 0; padding: .7rem 1.65rem .8rem; border-top: 1px solid var(--c-line-soft); background: var(--c-surface-2); font-size: var(--c-text-small); }
@@ -224,8 +235,26 @@
   .crumbs a { text-decoration: none; }
   .crumbs a:hover { text-decoration: underline; }
 
-  footer { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--c-line); color: var(--c-text-mute); font-size: var(--c-text-small); overflow-wrap: anywhere; }
-  .footer-notice { flex-basis: 100%; margin-top: .35rem; }
+  /* The footer spans the window, with its content on the page column. Each group of links is a band with its label
+     beside it, and the other compendiums are equal cards with their logos. */
+  .site-footer { border-top: 1px solid var(--c-line); color: var(--c-text-mute); font-size: var(--c-text-small); }
+  .footer-inner { width: min(72rem, 100%); margin: 0 auto; padding: 1.75rem 1.5rem 2.25rem; }
+  .site-footer h2 { margin: 0 0 .5rem; color: var(--c-text-strong); font: 600 1.25rem/1.3 var(--c-serif); }
+  .site-footer section { display: grid; grid-template-columns: 11rem minmax(0, 1fr); align-items: baseline; gap: .5rem 1.25rem; padding: .85rem 0; border-bottom: 1px solid var(--c-line); }
+  .site-footer h3 { margin: 0; color: var(--c-text-strong); font: 600 .9375rem/1.4 var(--c-serif); }
+  .site-footer ul { display: flex; flex-wrap: wrap; gap: .1rem 1.4rem; margin: 0; padding: 0; list-style: none; }
+  .site-footer ul a { display: inline-flex; align-items: center; min-height: 1.75rem; color: var(--c-accent); text-decoration: none; }
+  .site-footer ul a:hover { color: var(--c-accent-strong); text-decoration: underline; }
+  /* The label sits at the middle of the cards rather than on the baseline of their names. */
+  .site-footer .others-band { align-items: center; }
+  .site-footer .others { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .site-footer .others a { gap: .6rem; width: 100%; min-height: 2.75rem; padding: 0 .75rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); color: var(--c-text); font-weight: 600; white-space: nowrap; }
+  .site-footer .others a:hover { border-color: var(--c-accent-line); color: var(--c-accent); text-decoration: none; }
+  .site-footer .others img { width: 1.75rem; height: 1.75rem; flex: none; object-fit: contain; }
+  .notes { display: grid; gap: .35rem; padding-top: 1rem; }
+  .notes p { margin: 0; text-wrap: pretty; }
+  .release { display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+  .release :global(a) { color: var(--c-accent); }
 
   /* Below the width of the full bar, Support keeps only the Ko-fi cup, so the search field keeps its room. */
   @media (max-width: 1180px) {
@@ -234,6 +263,7 @@
 
   @media (max-width: 1023px) {
     .bar-inner { flex-wrap: wrap; gap: 0 1rem; padding: 0 1rem .7rem; }
+    .site-footer section { grid-template-columns: minmax(0, 1fr); }
     .brand, .site-nav { min-height: 3.75rem; }
     /* The wrapped search row keeps clear space below the Browse underline. */
     .bar-search { flex-basis: 100%; min-width: 0; max-width: none; margin-top: .6rem; margin-left: 0; order: 3; }
@@ -241,8 +271,9 @@
     .bar-search + .divider { margin-left: auto; }
   }
 
-  /* Below the width of six links, the bar holds the brand and Browse; the panel lists every destination. */
-  @media (max-width: 45rem) {
+  /* Below the width of six links and the bar's controls, the bar holds the brand and Browse. The panel lists every
+     destination. */
+  @media (max-width: 50rem) {
     .primary { display: none; }
   }
 
@@ -259,8 +290,18 @@
     .group.expanded h2 button::after { margin-top: .2rem; transform: rotate(225deg); }
     .group ul { display: none; padding-bottom: .5rem; }
     .group.expanded ul { display: grid; }
-      .kofi { padding: .4rem; }
+    .kofi { padding: .4rem; }
     .kofi span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* A phone keeps the brand, Browse, the switcher and Ko-fi on one row, so the controls drop their divider and sit
+       closer together. */
+    .bar-inner { column-gap: .5rem; }
+    .divider { display: none; }
+    .bar-inner > :global(.switcher) { margin-left: auto; }
     .c-page { padding: 1.1rem 1rem 2.5rem; }
+    .footer-inner { padding: 1.5rem 1rem 2rem; }
+    .site-footer .others { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 480px) {
+    summary { padding: 0 .45rem; }
   }
 </style>

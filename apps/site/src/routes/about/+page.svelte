@@ -2,19 +2,13 @@
   import { base } from '$app/paths';
   import PageShell from '$lib/PageShell.svelte';
   import SeoHead from '$lib/SeoHead.svelte';
+  import { iconUrl, OTHER_COMPENDIUMS } from '$lib/compendiums';
   import { formatCalendarDate } from '$lib/format';
-  import { KOFI_URL } from '$lib/site-navigation';
+  import { GITHUB_URL, KOFI_URL } from '$lib/site-navigation';
   import { STEAM_URL, STEAM_GUIDE_URL } from '$lib/seo';
   import type { PageData } from './$types';
   export let data: PageData;
   const crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'About' }];
-  const GITHUB_URL = 'https://github.com/glockyco/afallon-compendium';
-  // The other compendiums, with the logos that compendiums.org shows for them.
-  const compendiums = [
-    { name: 'Ancient Kingdoms', url: 'https://ancient-kingdoms.compendiums.org/', icon: 'ancient-kingdoms' },
-    { name: 'Erenshor', url: 'https://erenshor.compendiums.org/', icon: 'erenshor' },
-    { name: 'The Bloodline', url: 'https://the-bloodline.compendiums.org/', icon: 'the-bloodline' }
-  ];
 </script>
 
 <SeoHead title="About Afallon Compendium | Afallon Wiki" description="Learn how the Afallon Compendium wiki and interactive map are made, what they cover, and when the data was last updated." />
@@ -41,8 +35,8 @@
         </section>
         <section class="more-compendiums" aria-labelledby="compendiums"><h2 id="compendiums">More Compendiums</h2>
           <ul class="compendiums">
-            {#each compendiums as compendium (compendium.url)}
-              <li><a href={compendium.url} rel="external"><img src="https://compendiums.org/icons/{compendium.icon}.webp" alt="" width="128" height="128" loading="lazy" />{compendium.name}</a></li>
+            {#each OTHER_COMPENDIUMS as compendium (compendium.url)}
+              <li><a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" loading="lazy" />{compendium.name}</a></li>
             {/each}
           </ul>
         </section>

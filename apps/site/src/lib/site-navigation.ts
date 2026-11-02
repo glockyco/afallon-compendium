@@ -9,6 +9,8 @@ export interface Navigation { primary: NavigationLink[]; sections: NavigationGro
 
 /** The page that supports the Compendium on Ko-fi. */
 export const KOFI_URL = 'https://ko-fi.com/wowmuch';
+/** The Compendium's code. */
+export const GITHUB_URL = 'https://github.com/glockyco/afallon-compendium';
 
 // The most visited destinations, shown directly in the bar. Mechanics opens the list of guides.
 const PRIMARY: readonly string[] = ['map', 'items', 'quests', 'classes', 'mechanics'];
