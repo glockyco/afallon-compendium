@@ -106,7 +106,6 @@ The Python tests use uv. For browser work, stage a publication built from the cu
 - [`apps/compendium-cli`](apps/compendium-cli/) is the pipeline command line. The packages under [`packages/`](packages/) implement evidence storage, runtime access, extraction, catalog construction, and publication.
 - [`openspec/specs`](openspec/specs/) holds behavior requirements, including reader presentation and data contracts.
 - [`.agent/skills`](.agent/skills/) holds procedures for [game updates](.agent/skills/game-update/SKILL.md), [runtime inspection](.agent/skills/hotrepl-runtime-inspection/SKILL.md), and [native analysis](.agent/skills/native-analysis/SKILL.md).
-- [`packages/contracts/planner-reference.md`](packages/contracts/planner-reference.md) explains the planner payload, talent-rule evidence, and remaining evidence gates. Consult it before changing planner data or evaluation.
 
 ## License
 

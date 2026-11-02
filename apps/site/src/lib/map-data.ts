@@ -11,7 +11,6 @@ import {
   StaticMapShardSchema,
   StaticRootManifestSchema,
   StaticSearchIndexSchema,
-  StaticPlannerSchema,
   assertStaticResourceIdentity,
   isPublicPageKind,
   expandEssentialPlacement,
@@ -30,7 +29,6 @@ import {
   type StaticKindList,
   type StaticResourceReference,
   type StaticRootManifest,
-  type StaticPlanner,
 } from "@afallon/contracts/public";
 
 export type MapFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -96,13 +94,6 @@ export class MapDataLoader {
   async loadRegistry(): Promise<PublicKindEntry[]> {
     const root = await this.loadRoot();
     return root.kinds;
-  }
-
-  /** Route-scoped talent facts: no search, class documents, or map parts are needed. */
-  async loadPlanner(expected?: Pick<StaticRootManifest, "buildId" | "catalogId">): Promise<StaticPlanner> {
-    const root = await this.loadRoot();
-    if (expected) assertStaticResourceIdentity(expected, root);
-    return this.#loadReference(root.planner, StaticPlannerSchema, root);
   }
 
   async loadList(kind: PublicListKind): Promise<StaticKindList> {

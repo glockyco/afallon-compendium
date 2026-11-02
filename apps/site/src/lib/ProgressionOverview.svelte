@@ -4,8 +4,7 @@
   import LevelControl from './detail/LevelControl.svelte';
   import { formatNumber } from './format';
   import { placeListName } from './place-list-name';
-  import { readerLevels, setReaderLevel } from './reader-levels';
-  import { CHARACTER_LEVEL, readerCharacterLevel, setCharacterLevel } from './planner/character-level';
+  import { CHARACTER_LEVEL, readerLevels, setReaderLevel } from './reader-levels';
   import { levelTicks, progressionAxis, progressionGroups, rangePosition, type ProgressionEntry } from './progression-overview';
 
   export let entries: ProgressionEntry[];
@@ -19,8 +18,7 @@
   /** The highest level a reader can choose, beyond the highest recorded range. Without it the axis end bounds the control. */
   export let levelCap: number | undefined = undefined;
 
-  $: storedLevel = levelId === CHARACTER_LEVEL ? $readerCharacterLevel : $readerLevels[levelId];
-  $: selectedLevel = storedLevel === undefined ? undefined : Math.min(levelCap ?? Infinity, storedLevel);
+  $: selectedLevel = $readerLevels[levelId];
   $: axisEnd = progressionAxis(entries, selectedLevel);
   $: groups = progressionGroups(entries);
   $: ticks = levelTicks(axisEnd);
@@ -39,8 +37,7 @@
     const track = event.currentTarget as HTMLElement;
     const rect = track.getBoundingClientRect();
     const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const next = Math.max(1, Math.min(axisEnd, levelCap ?? Infinity, Math.ceil(fraction * axisEnd)));
-    if (levelId === CHARACTER_LEVEL) void setCharacterLevel(next); else setReaderLevel(levelId, next);
+    setReaderLevel(levelId, Math.max(1, Math.min(axisEnd, Math.ceil(fraction * axisEnd))));
   }
 
   function startDrag(event: PointerEvent): void {
@@ -66,8 +63,7 @@
       : event.key === 'Home' ? 1 : event.key === 'End' ? axisEnd : undefined;
     if (next !== undefined) {
       event.preventDefault();
-      const bounded = Math.max(1, Math.min(axisEnd, levelCap ?? Infinity, next));
-      if (levelId === CHARACTER_LEVEL) void setCharacterLevel(bounded); else setReaderLevel(levelId, bounded);
+      setReaderLevel(levelId, Math.max(1, Math.min(axisEnd, next)));
     }
   }
 </script>
