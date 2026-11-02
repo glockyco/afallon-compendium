@@ -8,6 +8,13 @@
   import type { PageData } from './$types';
   export let data: PageData;
   const crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'About' }];
+  const GITHUB_URL = 'https://github.com/glockyco/afallon-compendium';
+  // The other compendiums, with the logos that compendiums.org shows for them.
+  const compendiums = [
+    { name: 'Ancient Kingdoms', url: 'https://ancient-kingdoms.compendiums.org/', icon: 'ancient-kingdoms' },
+    { name: 'Erenshor', url: 'https://erenshor.compendiums.org/', icon: 'erenshor' },
+    { name: 'The Bloodline', url: 'https://the-bloodline.compendiums.org/', icon: 'the-bloodline' }
+  ];
 </script>
 
 <SeoHead title="About Afallon Compendium | Afallon Wiki" description="Learn how the Afallon Compendium wiki and interactive map are made, what they cover, and when the data was last updated." />
@@ -27,9 +34,17 @@
         <section aria-labelledby="reference"><h2 id="reference">How this reference is made</h2>
           <p>Every page is generated from the game's own files. Where a number depends on how the game calculates it, such as drop chances or experience, the calculation was checked against the game's code and, where needed, in the running game.</p>
           <p>This version covers Afallon {data.release.version}, the patch from {formatCalendarDate(data.release.patchNotes.date)}. The game data was read on {formatCalendarDate(data.release.dataDate)}. A few entries and locations are still incomplete. <a class="c-link" href={`${base}/coverage/`}>Coverage</a> lists the known gaps, and the <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch Notes</a> describe what changed in the game.</p>
+          <p><a class="c-link" href={GITHUB_URL} rel="external">Code on GitHub</a></p>
         </section>
         <section aria-labelledby="disclaimer"><h2 id="disclaimer">Unofficial Fan Project</h2>
           <p>Afallon Compendium is an unofficial fan project and is not affiliated with the developer or publisher of Afallon. Afallon and its related names, artwork, and assets belong to their respective owners.</p>
+        </section>
+        <section aria-labelledby="compendiums"><h2 id="compendiums">More Compendiums</h2>
+          <ul class="compendiums">
+            {#each compendiums as compendium (compendium.url)}
+              <li><a href={compendium.url} rel="external"><img src="https://compendiums.org/icons/{compendium.icon}.webp" alt="" width="128" height="128" loading="lazy" />{compendium.name}</a></li>
+            {/each}
+          </ul>
         </section>
       </div>
       <aside aria-labelledby="links"><h2 id="links">More Links</h2>
@@ -61,4 +76,15 @@
   ul { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
   li a { color: var(--c-accent); text-underline-offset: .2em; }
   @media (max-width: 700px) { .columns { grid-template-columns: minmax(0, 1fr); } header { padding-top: .5rem; } }
+  /* Each other compendium as an equal tile, three in a row with the logo above the name, and full-width rows on phones,
+     styled like the home page's tiles. */
+  .compendiums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .compendiums li { display: grid; }
+  .compendiums a { display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text-strong); font-weight: 600; line-height: 1.3; text-align: center; text-decoration: none; transition: border-color .15s ease; }
+  .compendiums a:hover { border-color: var(--c-frame-hover); }
+  .compendiums img { flex: none; width: 2.75rem; height: 2.75rem; }
+  @media (max-width: 640px) {
+    .compendiums { grid-template-columns: minmax(0, 1fr); }
+    .compendiums a { flex-direction: row; gap: .75rem; text-align: start; }
+  }
 </style>
