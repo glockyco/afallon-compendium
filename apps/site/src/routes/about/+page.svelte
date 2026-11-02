@@ -39,7 +39,7 @@
         <section aria-labelledby="disclaimer"><h2 id="disclaimer">Unofficial Fan Project</h2>
           <p>Afallon Compendium is an unofficial fan project and is not affiliated with the developer or publisher of Afallon. Afallon and its related names, artwork, and assets belong to their respective owners.</p>
         </section>
-        <section aria-labelledby="compendiums"><h2 id="compendiums">More Compendiums</h2>
+        <section class="more-compendiums" aria-labelledby="compendiums"><h2 id="compendiums">More Compendiums</h2>
           <ul class="compendiums">
             {#each compendiums as compendium (compendium.url)}
               <li><a href={compendium.url} rel="external"><img src="https://compendiums.org/icons/{compendium.icon}.webp" alt="" width="128" height="128" loading="lazy" />{compendium.name}</a></li>
@@ -76,14 +76,16 @@
   ul { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
   li a { color: var(--c-accent); text-underline-offset: .2em; }
   @media (max-width: 700px) { .columns { grid-template-columns: minmax(0, 1fr); } header { padding-top: .5rem; } }
-  /* Each other compendium as an equal tile, three in a row with the logo above the name, and full-width rows on phones,
-     styled like the home page's tiles. */
+  /* Each other compendium as an equal tile, three in a row with the logo above the name, styled like the home page's
+     tiles. Where the column is too narrow for every name on one line, such as beside More Links at tablet widths or on
+     phones, the tiles become full-width rows. */
+  .more-compendiums { container-type: inline-size; }
   .compendiums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
   .compendiums li { display: grid; }
   .compendiums a { display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text-strong); font-weight: 600; line-height: 1.3; text-align: center; text-decoration: none; transition: border-color .15s ease; }
   .compendiums a:hover { border-color: var(--c-frame-hover); }
   .compendiums img { flex: none; width: 2.75rem; height: 2.75rem; }
-  @media (max-width: 640px) {
+  @container (width < 34rem) {
     .compendiums { grid-template-columns: minmax(0, 1fr); }
     .compendiums a { flex-direction: row; gap: .75rem; text-align: start; }
   }
