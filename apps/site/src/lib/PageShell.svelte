@@ -266,7 +266,8 @@
     .kofi span { display: none; }
   }
 
-  @media (max-width: 1039px) {
+  /* Below 1070px the field beside the links would cut off its placeholder, so search gets its own row. */
+  @media (max-width: 1069px) {
     .bar-inner { flex-wrap: wrap; gap: 0 1rem; padding: 0 1rem .7rem; }
     .site-footer section { grid-template-columns: minmax(0, 1fr); }
     .brand, .site-nav { min-height: 3.75rem; }

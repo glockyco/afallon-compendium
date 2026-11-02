@@ -60,7 +60,7 @@
   .foot a { color: var(--c-text-dim); text-decoration: none; }
   .foot a:hover { color: var(--c-accent); }
 
-  @media (max-width: 1039px) {
+  @media (max-width: 1069px) {
     .panel { right: 1rem; width: min(19rem, calc(100% - 2rem)); }
   }
   @media (max-width: 640px) {
