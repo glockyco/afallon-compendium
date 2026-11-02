@@ -30,13 +30,13 @@
 <div class="switcher" bind:this={root}>
   <button bind:this={toggle} type="button" class="toggle" aria-label="Switch compendium" title="Switch compendium" aria-expanded={open} aria-controls="compendium-switcher" on:click={() => (open = !open)}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg></button>
   <div id="compendium-switcher" class="panel" hidden={!open}>
-    <p class="title">Game compendiums</p>
+    <p class="title">Game Compendiums</p>
     <ul>
       {#each COMPENDIUMS as compendium (compendium.icon)}
         <li>{#if compendium.icon === THIS_COMPENDIUM}<a href={`${base}/`} aria-current="true"><img src={iconUrl(compendium)} alt="" width="128" height="128" /><span>{compendium.name}</span><svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg></a>{:else}<a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" /><span>{compendium.name}</span></a>{/if}</li>
       {/each}
     </ul>
-    <p class="foot"><a href={`${base}/about/`}>About this compendium</a></p>
+    <p class="foot"><a href={`${base}/about/`}>About this Compendium</a></p>
   </div>
 </div>
 
@@ -60,7 +60,7 @@
   .foot a { color: var(--c-text-dim); text-decoration: none; }
   .foot a:hover { color: var(--c-accent); }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1039px) {
     .panel { right: 1rem; width: min(19rem, calc(100% - 2rem)); }
   }
   @media (max-width: 640px) {

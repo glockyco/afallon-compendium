@@ -112,9 +112,11 @@
         </details>
       </nav>
       {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
-      <span class="divider" aria-hidden="true"></span>
-      <CompendiumSwitcher />
-      <a class="kofi" href={KOFI_URL} rel="external" aria-label="Support on Ko-fi" title="Support on Ko-fi"><KofiGlyph /><span>Support</span></a>
+      <div class="tools">
+        <span class="divider" aria-hidden="true"></span>
+        <CompendiumSwitcher />
+        <a class="kofi" href={KOFI_URL} rel="external" aria-label="Support on Ko-fi" title="Support on Ko-fi"><KofiGlyph /><span>Support</span></a>
+      </div>
     </div>
   </header>
 
@@ -137,10 +139,10 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <h2>Afallon Compendium</h2>
-      <section aria-labelledby="footer-site"><h3 id="footer-site">This site</h3><ul>{#each footerLinks as link (link.href)}<li><a href={link.href}>{link.label}</a></li>{/each}</ul></section>
+      <section aria-labelledby="footer-site"><h3 id="footer-site">This Site</h3><ul>{#each footerLinks as link (link.href)}<li><a href={link.href}>{link.label}</a></li>{/each}</ul></section>
       <section aria-labelledby="footer-project"><h3 id="footer-project">Project</h3><ul><li><a href={GITHUB_URL} rel="external">Code on GitHub</a></li><li><a href={KOFI_URL} rel="external">Support on Ko-fi</a></li></ul></section>
-      <section aria-labelledby="footer-game"><h3 id="footer-game">Game &amp; community</h3><ul><li><a href={STEAM_URL} rel="external">Afallon on Steam</a></li><li><a href={DISCORD_URL} rel="external">Afallon Discord</a></li><li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li></ul></section>
-      <section class="others-band" aria-labelledby="footer-others"><h3 id="footer-others">Other compendiums</h3><ul class="others">{#each OTHER_COMPENDIUMS as compendium (compendium.icon)}<li><a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" loading="lazy" /><span>{compendium.name}</span></a></li>{/each}</ul></section>
+      <section aria-labelledby="footer-game"><h3 id="footer-game">Game &amp; Community</h3><ul><li><a href={STEAM_URL} rel="external">Afallon on Steam</a></li><li><a href={DISCORD_URL} rel="external">Afallon Discord</a></li><li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li></ul></section>
+      <section class="others-band" aria-labelledby="footer-others"><h3 id="footer-others">Other Compendiums</h3><ul class="others">{#each OTHER_COMPENDIUMS as compendium (compendium.icon)}<li><a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" loading="lazy" /><span>{compendium.name}</span></a></li>{/each}</ul></section>
       <div class="notes">
         <p class="release">
           {#if release}
@@ -223,8 +225,11 @@
   .kofi :global(svg) { width: 1.15rem; height: 1.15rem; flex: none; }
   .kofi { align-self: center; min-height: 2.25rem; padding: .4rem .5rem; border-radius: var(--c-radius-sm); font-size: var(--c-text-small); white-space: nowrap; }
   .kofi:hover :global(svg) { color: var(--c-accent); }
-  .divider { align-self: center; width: 1px; height: 1.5rem; margin-left: auto; background: var(--c-line); }
-  .bar-search + .divider { margin-left: 0; }
+  /* The line, the switcher and Ko-fi end the bar as one group, as on Ancient Kingdoms. The line keeps the same space to
+     the search field as to the switcher's glyph, which sits inside its button. */
+  .tools { display: flex; align-items: center; gap: .25rem; margin-left: auto; }
+  .bar-search + .tools { margin-left: -.4rem; }
+  .divider { width: 1px; height: 1.5rem; margin-right: .3rem; background: var(--c-line); }
   /* The field keeps room for a query. Where the bar cannot give it that room, the field moves to a row of its own. */
   .bar-search { align-self: center; flex: 1 1 14rem; min-width: 14rem; max-width: 20rem; margin-left: auto; }
 
@@ -261,14 +266,14 @@
     .kofi span { display: none; }
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1039px) {
     .bar-inner { flex-wrap: wrap; gap: 0 1rem; padding: 0 1rem .7rem; }
     .site-footer section { grid-template-columns: minmax(0, 1fr); }
     .brand, .site-nav { min-height: 3.75rem; }
     /* The wrapped search row keeps clear space below the Browse underline. */
     .bar-search { flex-basis: 100%; min-width: 0; max-width: none; margin-top: .6rem; margin-left: 0; order: 3; }
     .bar-search :global(.compendium-search) { max-width: none; }
-    .bar-search + .divider { margin-left: auto; }
+    .bar-search + .tools { margin-left: auto; }
   }
 
   /* Below the width of six links and the bar's controls, the bar holds the brand and Browse. The panel lists every
@@ -296,7 +301,6 @@
        closer together. */
     .bar-inner { column-gap: .5rem; }
     .divider { display: none; }
-    .bar-inner > :global(.switcher) { margin-left: auto; }
     .c-page { padding: 1.1rem 1rem 2.5rem; }
     .footer-inner { padding: 1.5rem 1rem 2rem; }
     .site-footer .others { grid-template-columns: minmax(0, 1fr); }
