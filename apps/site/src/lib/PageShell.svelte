@@ -15,7 +15,7 @@
   import KofiGlyph from './KofiGlyph.svelte';
   import { kindGlyphSvg } from './kind-icon';
   import { GITHUB_URL, KOFI_URL, siteNavigation } from './site-navigation';
-  import { jsonLdScript, SITE_ORIGIN, STEAM_GUIDE_URL, UNOFFICIAL_NOTICE } from './seo';
+  import { DISCORD_URL, jsonLdScript, SITE_ORIGIN, STEAM_GUIDE_URL, STEAM_URL, UNOFFICIAL_NOTICE } from './seo';
   import './compendium.css';
 
   export let registry: PublicKindEntry[] = [];
@@ -139,7 +139,7 @@
       <h2>Afallon Compendium</h2>
       <section aria-labelledby="footer-site"><h3 id="footer-site">This site</h3><ul>{#each footerLinks as link (link.href)}<li><a href={link.href}>{link.label}</a></li>{/each}</ul></section>
       <section aria-labelledby="footer-project"><h3 id="footer-project">Project</h3><ul><li><a href={GITHUB_URL} rel="external">Code on GitHub</a></li><li><a href={KOFI_URL} rel="external">Support on Ko-fi</a></li></ul></section>
-      <section aria-labelledby="footer-game"><h3 id="footer-game">Game &amp; community</h3><ul><li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li></ul></section>
+      <section aria-labelledby="footer-game"><h3 id="footer-game">Game &amp; community</h3><ul><li><a href={STEAM_URL} rel="external">Afallon on Steam</a></li><li><a href={DISCORD_URL} rel="external">Afallon Discord</a></li><li><a href={STEAM_GUIDE_URL} rel="external">Steam Guide</a></li></ul></section>
       <section class="others-band" aria-labelledby="footer-others"><h3 id="footer-others">Other compendiums</h3><ul class="others">{#each OTHER_COMPENDIUMS as compendium (compendium.icon)}<li><a href={compendium.url} rel="external"><img src={iconUrl(compendium)} alt="" width="128" height="128" loading="lazy" /><span>{compendium.name}</span></a></li>{/each}</ul></section>
       <div class="notes">
         <p class="release">

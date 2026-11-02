@@ -5,6 +5,8 @@ import { worldLootSubject } from './detail/item-sources';
 
 export const SITE_ORIGIN = 'https://afallon.compendiums.org';
 export const STEAM_URL = 'https://store.steampowered.com/app/2597810/Afallon/';
+/** Afallon's official Discord, as its Steam page links it. */
+export const DISCORD_URL = 'https://discord.com/invite/AK2cRhg9cJ';
 export const STEAM_GUIDE_URL = 'https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227';
 export const UNOFFICIAL_NOTICE = 'Unofficial fan project, not affiliated with the developer or publisher of Afallon.';
 
