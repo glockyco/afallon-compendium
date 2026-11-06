@@ -86,12 +86,25 @@ test('the last deletion has no active character and later New Character never re
   expect(fixture.store.snapshot().collection.migratedCharacterLevel).toBe(true);
 });
 
-test('migration writes state and marker before cleanup, preserves every skill, and does not repeat on reload', async () => {
+test('legacy level stays read-only through mount/reload; first explicit edit persists marker before cleanup', async () => {
   const { store, storage, locks } = environment();
-  storage.values.set(LEGACY_LEVEL_STORAGE_KEY, JSON.stringify({ character: 42, 'skill:a': 9, 'skill:b': 17 }));
+  const legacy = JSON.stringify({ character: 42, 'skill:a': 9, 'skill:b': 17 });
+  storage.values.set(LEGACY_LEVEL_STORAGE_KEY, legacy);
   await store.initialize();
+  expect(storage.writes).toEqual([]);
+  expect(storage.getItem(CHARACTER_STORAGE_KEY)).toBeNull();
+  expect(storage.getItem(LEGACY_LEVEL_STORAGE_KEY)).toBe(legacy);
+  expect(characterLevel(store.snapshot().collection)).toBe(42);
+  expect(store.snapshot().collection.migratedCharacterLevel).toBe(false);
+  expect(store.snapshot().persistence.message).not.toBe('Saved in this browser');
+  const beforeEdit = createCharacterStore({ storage: () => storage, locks });
+  await beforeEdit.initialize();
+  expect(storage.writes).toEqual([]);
+  expect(characterLevel(beforeEdit.snapshot().collection)).toBe(42);
+  await store.setLevel(store.captureLevel(), 43);
   expect(storage.writes).toEqual([CHARACTER_STORAGE_KEY, LEGACY_LEVEL_STORAGE_KEY]);
-  expect(saved(storage).draft).toEqual({ level: 42, revision: 1 });
+  expect(saved(storage).draft).toEqual({ level: 43, revision: 2 });
+  expect(saved(storage).migratedCharacterLevel).toBe(true);
   expect(saved(storage).characters).toEqual([]);
   expect(JSON.parse(storage.getItem(LEGACY_LEVEL_STORAGE_KEY)!)).toEqual({ 'skill:a': 9, 'skill:b': 17 });
   const reload = createCharacterStore({ storage: () => storage, locks });
@@ -100,19 +113,23 @@ test('migration writes state and marker before cleanup, preserves every skill, a
   expect(storage.writes).toHaveLength(2);
 });
 
-test('failed migration write retains legacy data and an interrupted cleanup is idempotent', async () => {
+test('failed first explicit write retains legacy data; interrupted cleanup retries only on an explicit change', async () => {
   const first = environment();
   const old = JSON.stringify({ character: 42, 'skill:a': 9, 'skill:b': 17 });
   first.storage.values.set(LEGACY_LEVEL_STORAGE_KEY, old);
   first.storage.failingKey = CHARACTER_STORAGE_KEY;
   await first.store.initialize();
+  expect(first.storage.writes).toEqual([]);
+  await first.store.setLevel(first.store.captureLevel(), 43);
   expect(first.storage.getItem(LEGACY_LEVEL_STORAGE_KEY)).toBe(old);
   expect(first.storage.getItem(CHARACTER_STORAGE_KEY)).toBeNull();
   expect(first.store.snapshot().persistence.kind).toBe('not-saved');
-  expect(characterLevel(first.store.snapshot().collection)).toBe(42);
+  expect(characterLevel(first.store.snapshot().collection)).toBe(43);
   first.storage.failingKey = LEGACY_LEVEL_STORAGE_KEY;
   const retry = createCharacterStore({ storage: () => first.storage, locks: first.locks });
   await retry.initialize();
+  expect(first.storage.getItem(CHARACTER_STORAGE_KEY)).toBeNull();
+  await retry.setLevel(retry.captureLevel(), 44);
   expect(saved(first.storage).migratedCharacterLevel).toBe(true);
   expect(first.storage.getItem(LEGACY_LEVEL_STORAGE_KEY)).toBe(old);
   const revision = saved(first.storage).revision;
@@ -120,6 +137,10 @@ test('failed migration write retains legacy data and an interrupted cleanup is i
   const reload = createCharacterStore({ storage: () => first.storage, locks: first.locks });
   await reload.initialize();
   expect(saved(first.storage).revision).toBe(revision);
+  expect(first.storage.getItem(LEGACY_LEVEL_STORAGE_KEY)).toBe(old);
+  expect(characterLevel(reload.snapshot().collection)).toBe(44);
+  await reload.setLevel(reload.captureLevel(), 45);
+  expect(saved(first.storage).revision).toBe(revision + 1);
   expect(JSON.parse(first.storage.getItem(LEGACY_LEVEL_STORAGE_KEY)!)).toEqual({ 'skill:a': 9, 'skill:b': 17 });
 });
 

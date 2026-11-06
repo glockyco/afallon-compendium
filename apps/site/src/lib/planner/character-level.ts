@@ -9,7 +9,8 @@ export const readerCharacterLevel = derived(characters, (state) => state.ready ?
 
 /**
  * Character comparisons have one source: the active complete build, otherwise a classless setup draft.
- * The collection migrates the legacy `character` level exactly once and persists its marker before cleanup;
+ * The legacy `character` level is initially a read-only draft. The first explicit character change
+ * persists the one-time migration marker before cleanup; navigation and hydration never write storage.
  * `skill:*` values remain independently remembered by reader-levels.ts. Pages clamp only their displayed
  * value; reading/mounting never edits a stored level. Capture a target before asynchronous work so an active
  * switch cannot redirect its result into another character. Status lives on `characters.persistence`.

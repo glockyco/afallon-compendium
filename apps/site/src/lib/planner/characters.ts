@@ -190,8 +190,21 @@ export function createCharacterStore(environment: CharacterEnvironment): Charact
     state.set({ ready: true, collection: clone(collection), persistence, preserved });
   }
   function readStored(): CharacterCollection {
-    const raw = environment.storage().getItem(CHARACTER_STORAGE_KEY);
-    return raw === null ? emptyCollection() : parseCharacterCollection(JSON.parse(raw));
+    const storage = environment.storage();
+    const raw = storage.getItem(CHARACTER_STORAGE_KEY);
+    const collection = raw === null ? emptyCollection() : parseCharacterCollection(JSON.parse(raw));
+    // Legacy comparison state is a read-only setup draft until an explicit character mutation.
+    // Use the same presentation during the locked reread so a captured draft revision still matches.
+    if (!collection.migratedCharacterLevel && !collection.characters.length && !collection.draft) {
+      let old: unknown;
+      try { old = JSON.parse(storage.getItem(LEGACY_LEVEL_STORAGE_KEY) ?? '{}'); } catch { old = null; }
+      const level = old && typeof old === 'object' && !Array.isArray(old) ? (old as Record<string, unknown>).character : undefined;
+      if (whole(level, 1)) {
+        const revision = collection.revision + 1;
+        return { ...collection, revision, draft: { level, revision } };
+      }
+    }
+    return collection;
   }
   function cleanupLegacy(): void {
     try {
@@ -209,41 +222,13 @@ export function createCharacterStore(environment: CharacterEnvironment): Charact
     if (initialized) return initialized;
     initialized = (async () => {
       try {
-        let collection = readStored();
+        const collection = readStored();
         persistent = !!environment.locks;
-        if (!persistent) {
-          // Read old comparison state for this tab without writing either key.
-          let old: unknown;
-          try { old = JSON.parse(environment.storage().getItem(LEGACY_LEVEL_STORAGE_KEY) ?? '{}'); } catch { old = null; }
-          const level = old && typeof old === 'object' && !Array.isArray(old) ? (old as Record<string, unknown>).character : undefined;
-          if (!collection.characters.length && !collection.draft && !collection.migratedCharacterLevel && whole(level, 1)) collection = { ...collection, revision: collection.revision + 1, draft: { level, revision: collection.revision + 1 } };
-          publish(collection, status('not-saved', 'Not saved in this browser: safe cross-tab storage is unavailable. Export to keep your characters.'));
-          return;
-        }
-        await environment.locks!.request(CHARACTER_LOCK, async () => {
-          collection = readStored();
-          if (!collection.migratedCharacterLevel && !collection.characters.length && !collection.draft) {
-            let old: unknown;
-            try { old = JSON.parse(environment.storage().getItem(LEGACY_LEVEL_STORAGE_KEY) ?? '{}'); } catch { old = null; }
-            const level = old && typeof old === 'object' && !Array.isArray(old) ? (old as Record<string, unknown>).character : undefined;
-            if (whole(level, 1)) {
-              const migrated: CharacterCollection = { ...collection, revision: collection.revision + 1, draft: { level, revision: collection.revision + 1 }, migratedCharacterLevel: true };
-              try {
-                environment.storage().setItem(CHARACTER_STORAGE_KEY, JSON.stringify(migrated));
-              } catch {
-                persistent = false;
-                publish(migrated, status('not-saved', 'Not saved in this browser. Export to keep your characters.'));
-                return;
-              }
-              collection = migrated;
-              cleanupLegacy();
-              publish(collection, status('saved', 'Saved in this browser', collection.revision));
-              return;
-            }
-          }
-          if (collection.migratedCharacterLevel) cleanupLegacy();
-          publish(collection, status('loaded', 'Loaded from this browser', collection.revision));
-        });
+        const pendingMigration = !collection.migratedCharacterLevel && !collection.characters.length && collection.draft !== null;
+        publish(collection, !persistent
+          ? status('not-saved', 'Not saved in this browser: safe cross-tab storage is unavailable. Export to keep your characters.')
+          : pendingMigration ? status('not-saved', 'Your previous comparison level is available in this tab. Make a character change to save the new setup.')
+          : status('loaded', 'Loaded from this browser', collection.revision));
       } catch {
         persistent = false;
         publish(get(state).collection, status('not-saved', 'Not saved in this browser: storage could not be read safely. Export to keep your characters.'));
@@ -300,6 +285,9 @@ export function createCharacterStore(environment: CharacterEnvironment): Charact
           }
           try { environment.storage().setItem(CHARACTER_STORAGE_KEY, JSON.stringify(merged)); }
           catch { persistent = false; return fallback(merged, latest); }
+          // Commit the envelope and migration marker before touching legacy data. A failed cleanup
+          // is retried only by another explicit mutation, never by hydration or preview navigation.
+          cleanupLegacy();
           if (remember) undoAction = { kind: 'restore', expected: merged.revision, previous: clone(latest), ...(action.kind === 'import' ? { preserved: clone(get(state).preserved) } : {}) };
           if (action.kind === 'level' && action.continuous) localLevels.set(action.target.id, { source: sourceRevision!, revision: merged.revision });
           publish(merged, status('saved', 'Saved in this browser', merged.revision), acceptedPreserved());
