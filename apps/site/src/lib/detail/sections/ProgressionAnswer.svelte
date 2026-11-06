@@ -2,7 +2,7 @@
   import type { CharacterProgression, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
-  import { CHARACTER_LEVEL } from '../../reader-levels';
+  import { CHARACTER_LEVEL } from '../../planner/character-level';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import LevelControl from '../LevelControl.svelte';

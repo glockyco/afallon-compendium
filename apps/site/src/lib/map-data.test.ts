@@ -40,14 +40,15 @@ function fixture() {
   const imagery = register({ schemaVersion: 'compendium.static-imagery.v2', ...identity, mapSpaceId: 'map', defaultLayerId: 'game', layers: [{ id: 'game', mapSpaceId: 'map', label: 'Map', kind: 'game-map', tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${'d'.repeat(64)}.webp`, sha256: 'd'.repeat(64), bytes: 1, width: 256, height: 256, state: 'captured', schemaId: 'image/webp' }] }] });
   const coverage = register({ schemaVersion: 'compendium.static-coverage.v4', ...identity, pages: [{ kind: 'items', count: 1 }], mapCount: 1, placementCount: 1, gaps: [] });
   const exclusions = register({ schemaVersion: 'compendium.static-exclusions.v1', ...identity, exclusions: [] });
+  const planner = register({ schemaVersion: 'compendium.static-planner.v1', ...identity, races: [], classes: [], trees: [], pointTypes: [], gaps: ['external-knowledge-schedule-not-recorded'] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v8', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v9', ...identity, mode: 'preview', complete: false,
     release: { version: '0.16.2.1', dataDate: '2026-09-28', patchNotes: { title: 'Afallon 0.16.2.1', url: 'https://store.steampowered.com/news/app/2597810/view/1844115010501029', date: '2026-09-21' } },
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, list: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [list] }, search: [search], coverage, exclusions,
+    lists: { items: [list] }, search: [search], coverage, exclusions, planner,
   };
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();
@@ -62,6 +63,30 @@ function fixture() {
   };
   return { loader: new MapDataLoader(fetcher, 'https://map.invalid/data/'), bodies, counts, overrides, documents, search, root, identity, register };
 }
+
+test('planner loading requests only root and its payload; public registry does not load planner', async () => {
+  const data = fixture();
+  await data.loader.loadRegistry();
+  expect([...data.counts.keys()]).toEqual(['publication.json']);
+  const planner = await data.loader.loadPlanner(data.identity);
+  expect(planner.gaps).toEqual(['external-knowledge-schedule-not-recorded']);
+  expect([...data.counts.keys()]).toEqual(['publication.json', data.root.planner.path]);
+  await data.loader.loadPlanner(data.identity);
+  expect(data.counts.get(data.root.planner.path)).toBe(1);
+});
+
+test('planner loader rejects mixed publication identity and stale page context without loading search', async () => {
+  const data = fixture();
+  await expect(data.loader.loadPlanner({ ...data.identity, catalogId: 'a'.repeat(64) })).rejects.toThrow('catalog mismatch');
+  expect([...data.counts.keys()]).toEqual(['publication.json']);
+  data.root.planner = data.register({ schemaVersion: 'compendium.static-planner.v1', ...data.identity, catalogId: 'b'.repeat(64), races: [], classes: [], trees: [], pointTypes: [], gaps: [] });
+  data.bodies.set('publication.json', JSON.stringify(data.root));
+  const fresh = new MapDataLoader(async (input) => {
+    const path = new URL(input instanceof Request ? input.url : input).pathname.replace(/^\/data\//, '');
+    return new Response(data.bodies.get(path));
+  }, 'https://map.invalid/data/');
+  await expect(fresh.loadPlanner()).rejects.toThrow('catalog mismatch');
+});
 
 function observe(loader: MapDataLoader) {
   let latest: MapSnapshot | null = null;

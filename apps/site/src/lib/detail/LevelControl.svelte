@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { clearReaderLevel, readerLevels, setReaderLevel } from '../reader-levels';
+  import { onDestroy, onMount } from 'svelte';
+  import { clearReaderLevel, initializeReaderLevels, readerLevels, setReaderLevel } from '../reader-levels';
+  import { CHARACTER_LEVEL, initializeCharacters, readerCharacterLevel, setCharacterLevel } from '../planner/character-level';
+  import { characters } from '../planner/characters-store';
 
   export let id: string;
   export let label: string;
@@ -28,24 +30,34 @@
     return Math.max(min, Math.min(max, allowFraction ? safe : Math.round(safe)));
   }
 
-  $: if (readerId) level = optional && $readerLevels[readerId] === undefined ? undefined : bounded($readerLevels[readerId] ?? fallback ?? min);
+  $: remembered = readerId === CHARACTER_LEVEL ? $readerCharacterLevel : readerId ? $readerLevels[readerId] : undefined;
+  $: if (readerId) level = optional && remembered === undefined ? undefined : bounded(remembered ?? fallback ?? min);
   $: shown = level === undefined ? undefined : bounded(level);
 
   function select(value: number | undefined): void {
     if (value === undefined && optional) {
+      if (readerId === CHARACTER_LEVEL && $characters.collection.activeId !== null) {
+        level = bounded($readerCharacterLevel ?? min);
+        return;
+      }
       level = undefined;
-      if (readerId) clearReaderLevel(readerId);
+      if (readerId === CHARACTER_LEVEL) {
+        void setCharacterLevel(undefined);
+      } else if (readerId) clearReaderLevel(readerId);
       onSelect?.(undefined);
       return;
     }
     const next = bounded(value ?? fallback ?? min);
     level = next;
-    if (readerId) setReaderLevel(readerId, next);
+    if (readerId === CHARACTER_LEVEL) void setCharacterLevel(next);
+    else if (readerId) setReaderLevel(readerId, next);
     onSelect?.(next);
   }
 
   function commitInput(): void {
     const text = numberInput.value.trim();
+    // A display-only page clamp, focus or unchanged blur must never normalize the remembered source.
+    if (text === String(shown ?? '')) return;
     select(text === '' && optional ? undefined : bounded(Number(text === '' ? NaN : text)));
     numberInput.value = String(level ?? '');
   }
@@ -98,6 +110,7 @@
   }
 
   $: buttonNoun = buttonSubject(label);
+  onMount(() => { initializeReaderLevels(); void initializeCharacters(); });
   onDestroy(stopRepeat);
 </script>
 

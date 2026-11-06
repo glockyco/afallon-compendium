@@ -1,0 +1,40 @@
+{
+  "format": "afallon-compendium.characters",
+  "version": 1,
+  "collection": {
+    "version": 1,
+    "revision": 2,
+    "characters": [{
+      "id": "brielle",
+      "name": "Brielle",
+      "revision": 2,
+      "build": {
+        "catalog": "d5b0b4b3e2161010e0de6fff10a2be305063990eb7c139080a9eb844edee0e15",
+        "class": "classes:7", "race": "races:1", "level": 30,
+        "points": [{ "type": "treePoints:2", "total": 345 }],
+        "talents": { "kind": "ordered", "purchases": [{ "tree": "talentTrees:29", "node": 1 }, { "tree": "talentTrees:30", "node": 2 }, { "tree": "talentTrees:29", "node": 1 }] },
+        "heroic": [{ "tree": "talentTrees:32", "node": 0, "rank": 2 }],
+        "gear": [{ "placement": "ring", "item": "items:301", "heroic": true, "corruption": 60, "rolls": [{ "index": 0, "value": 22.5 }], "gems": [{ "socket": 0, "item": "items:2" }], "enchantment": { "item": "items:3", "tier": 0 } }],
+        "party": { "role": "damage", "members": [{ "kind": "adventurer", "npc": "npcs:5", "level": null }] }
+      }
+    }],
+    "activeId": "brielle", "draft": null, "migratedCharacterLevel": true
+  },
+  "preserved": [{
+    "version": 1,
+    "revision": 3,
+    "characters": [{
+      "id": "brielle",
+      "name": "Brielle's Unsaved Draft",
+      "revision": 3,
+      "build": {
+        "catalog": "d5b0b4b3e2161010e0de6fff10a2be305063990eb7c139080a9eb844edee0e15",
+        "class": "classes:7", "race": "races:1", "level": 31,
+        "points": [],
+        "talents": { "kind": "unknown-order", "ranks": [{ "tree": "talentTrees:29", "node": 1, "rank": 2 }] },
+        "heroic": [], "gear": [], "party": { "role": null, "members": [] }
+      }
+    }],
+    "activeId": "brielle", "draft": null, "migratedCharacterLevel": true
+  }]
+}

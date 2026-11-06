@@ -4,6 +4,7 @@ import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
 import { EntityRefSchema, PublicKindEntrySchema, PublicPageKindSchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type EntityRef, type StaticCompendiumResource } from "./documents";
 import { calendarDate, count, hash, number, point, position, publicMarkerCategory, resourceReference, steamArticleUrl, text, url, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceIdentityFields, StaticResourceReferenceSchema, PUBLIC_MARKER_CATEGORY_LABELS, type StaticResourceReference } from "./primitives";
+import { StaticPlannerSchema, type StaticPlanner } from "./planner";
 export { PUBLIC_MARKER_CATEGORY_VALUES, PUBLIC_MARKER_CATEGORY_LABELS, onlyFriendlyRoles, publicMarkerCategory, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceReferenceSchema, resourceReference, type PublicAlternative, type PublicMarkerCategory, type PublicLevel, type PublicLevelRange, type StaticResourceReference } from "./primitives";
 
 export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
@@ -184,7 +185,7 @@ export const PublicReleaseSchema = Type.Object({
 export type PublicRelease = Static<typeof PublicReleaseSchema>;
 
 export const StaticRootManifestSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-root.v8"),
+  schemaVersion: Type.Literal("compendium.static-root.v9"),
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   complete: Type.Boolean(),
@@ -196,6 +197,7 @@ export const StaticRootManifestSchema = Type.Object({
   search: Type.Array(resourceReference("compendium.static-search.v6"), { minItems: 1 }),
   coverage: resourceReference("compendium.static-coverage.v4"),
   exclusions: resourceReference("compendium.static-exclusions.v1"),
+  planner: resourceReference("compendium.static-planner.v1"),
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
 
@@ -394,11 +396,13 @@ schemaRegistry.register("compendium.publication-presentation.v2", PublicationPre
 
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
-  "compendium.static-root.v8": typeof StaticRootManifestSchema; "compendium.static-map.v4": typeof StaticMapShardSchema;
+  "compendium.static-root.v9": typeof StaticRootManifestSchema; "compendium.static-map.v4": typeof StaticMapShardSchema;
+  "compendium.static-planner.v1": typeof StaticPlannerSchema;
   "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v4": typeof StaticCoverageSchema;
   "compendium.static-imagery.v2": typeof StaticImagerySchema; "compendium.static-exclusions.v1": typeof StaticExclusionsSchema;
 } = {
-  "compendium.static-root.v8": StaticRootManifestSchema,
+  "compendium.static-root.v9": StaticRootManifestSchema,
+  "compendium.static-planner.v1": StaticPlannerSchema,
   "compendium.static-map.v4": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v4": StaticCoverageSchema,
@@ -406,7 +410,7 @@ export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
   "compendium.static-exclusions.v1": StaticExclusionsSchema,
   ...STATIC_COMPENDIUM_SCHEMAS,
 };
-export type StaticResource = StaticRootManifest | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticExclusions | StaticCompendiumResource;
+export type StaticResource = StaticRootManifest | StaticPlanner | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticExclusions | StaticCompendiumResource;
 
 export function staticResourceSchema(schemaId: string): TSchema {
   if (!Object.hasOwn(STATIC_RESOURCE_SCHEMAS, schemaId)) throw new Error(`Unknown static resource schema: ${schemaId}.`);
@@ -415,7 +419,8 @@ export function staticResourceSchema(schemaId: string): TSchema {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v8": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage, value.exclusions];
+    case "compendium.static-root.v9": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage, value.exclusions, value.planner];
+    case "compendium.static-planner.v1": return artEdges(value).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }));
     case "compendium.static-search.v6": return value.entries.flatMap((entry) => [
       ...(entry.document ? [entry.document] : []),
       ...[entry.ref.icon, entry.ref.portrait].filter((art) => art !== undefined)

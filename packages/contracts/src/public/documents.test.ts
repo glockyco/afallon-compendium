@@ -282,7 +282,7 @@ test("a root reaches documents and artwork through graph edges and passes semant
   const map = { schemaVersion: "compendium.static-map.v4", ...identity, mapSpaceId: "map", part: 0, itemSets: [], placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], null, null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
   const root: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v8", ...identity, mode: "preview", complete: false,
+    schemaVersion: "compendium.static-root.v9", ...identity, mode: "preview", complete: false,
     release: { version: "0.16.2.1", dataDate: "2026-09-28", patchNotes: { title: "Afallon 0.16.2.1", url: "https://store.steampowered.com/news/app/2597810/view/1844115010501029", date: "2026-09-21" } },
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "map", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "map", label: "Map", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, parts: [ref("compendium.static-map.v4", "5".repeat(64)) as never], optionalGeometry: [], imagery: ref("compendium.static-imagery.v2", "6".repeat(64)) as never }],
@@ -296,12 +296,14 @@ test("a root reaches documents and artwork through graph edges and passes semant
     search: [ref("compendium.static-search.v6", "9".repeat(64)) as never],
     coverage: ref("compendium.static-coverage.v4", "e".repeat(64)) as never,
     exclusions: ref("compendium.static-exclusions.v1", "a".repeat(64)) as never,
+    planner: ref("compendium.static-planner.v1", "b".repeat(64)) as never,
   };
   Assert(StaticRootManifestSchema, root);
   Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
   const values = new Map<string, StaticResource>([
     [root.search[0]!.path, search], [root.lists.items![0]!.path, itemList], [root.lists.npcs![0]!.path, npcList], [root.coverage.path, coverage],
     [root.exclusions.path, { schemaVersion: "compendium.static-exclusions.v1", ...identity, exclusions: [{ key: "items:417", reason: "test-record" }] }],
+    [root.planner.path, { schemaVersion: "compendium.static-planner.v1", ...identity, races: [], classes: [], trees: [], pointTypes: [], gaps: [] }],
     [itemReference.path, itemDocument], [npcReference.path, npcDocument as never], [root.maps[0]!.parts[0]!.path, map as never], [root.maps[0]!.imagery.path, imagery as never],
   ]);
   const rootEdges = staticResourceEdges(root).map((edge) => edge.path);

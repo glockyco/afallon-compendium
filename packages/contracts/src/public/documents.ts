@@ -1339,7 +1339,7 @@ export function isEntityRef(ref: Ref): ref is EntityRef { return ref.key !== nul
 
 // Every artwork reference inside a document, wherever it sits, such as a reference's icon or a passive talent's icon. The
 // publication ships exactly these files, and the publication graph checks them, so no field of artwork can be left out.
-export function artEdges(document: PublicDocument): ArtRef[] {
+export function artEdges(document: unknown): ArtRef[] {
   const into: ArtRef[] = [];
   collectArt(document, into);
   return into;

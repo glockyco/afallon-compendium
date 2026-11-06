@@ -10,9 +10,9 @@ export function parseGearScore(value: string | null): number | null {
 
 export const readerGearScore = writable<number>(0);
 if (browser) {
-  readerGearScore.set(parseGearScore(localStorage.getItem(STORAGE_KEY)) ?? 0);
+  try { readerGearScore.set(parseGearScore(window.localStorage.getItem(STORAGE_KEY)) ?? 0); } catch { /* Denied reads keep the calculator usable in tab memory. */ }
   window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) readerGearScore.set(parseGearScore(event.newValue) ?? 0);
+    if (event.key === STORAGE_KEY || event.key === null) readerGearScore.set(parseGearScore(event.newValue) ?? 0);
   });
 }
 
@@ -21,6 +21,6 @@ export function setReaderGearScore(score: number): void {
   const bounded = Math.min(1250, Math.max(0, Math.trunc(score)));
   readerGearScore.set(bounded);
   if (browser) {
-    try { localStorage.setItem(STORAGE_KEY, String(bounded)); } catch { /* In-memory score still works. */ }
+    try { window.localStorage.setItem(STORAGE_KEY, String(bounded)); } catch { /* In-memory score still works. */ }
   }
 }

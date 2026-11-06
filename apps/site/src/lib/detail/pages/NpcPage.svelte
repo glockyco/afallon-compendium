@@ -19,7 +19,7 @@
   import { lootAtLevel, type LevelLoot } from '../level-loot';
   import LevelControl from '../LevelControl.svelte';
   import { npcStatAmount, npcStatDisplay, projectNpcStat } from '../npc-stats';
-  import { CHARACTER_LEVEL } from '../../reader-levels';
+  import { CHARACTER_LEVEL } from '../../planner/character-level';
   import NpcFlightsSection from '../sections/NpcFlightsSection.svelte';
   import NpcEffectsSection from '../sections/NpcEffectsSection.svelte';
   import RelationTable from '../RelationTable.svelte';

@@ -87,7 +87,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
 
 async function accept(options: AcceptUpdateOptions, store: ArtifactStore, report: UpdateReport, reportBytes: Uint8Array, lease: ActiveArtifactLease): Promise<AcceptedBuildDescriptor> {
   const publicationRun = await resolveArtifactRun(store, report.artifacts.publication.content, { buildId: report.current.buildId, operation: "publish" });
-  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v8");
+  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v9");
   if (!publicationOutput) throw new Error("Accepted update report does not reference a successful static publication run.");
   const rootValue: unknown = JSON.parse(await readFile(store.objectPath(publicationOutput.content.sha256), "utf8"));
   Assert(StaticRootManifestSchema, rootValue);
@@ -120,7 +120,7 @@ async function accept(options: AcceptUpdateOptions, store: ArtifactStore, report
   const candidateDirectory = join(publicationRoot, "publications", publicationOutput.content.sha256);
   const stat = await lstat(candidateDirectory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate publication directory is unavailable.");
-  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v8" as const }, directory: `publications/${publicationOutput.content.sha256}` };
+  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v9" as const }, directory: `publications/${publicationOutput.content.sha256}` };
   const selectionBytes = new TextEncoder().encode(`${canonicalJson(selection)}\n`), selectionIdentity = identity(selectionBytes);
   const stageBackup = `${stageRoot}.rollback-${randomUUID()}`;
   let backedUp = false, selectionChanged = false, descriptorChanged = false;

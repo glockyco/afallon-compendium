@@ -5,7 +5,7 @@
   import { clientMapLoader } from '../client-publication';
   import { formatNumber, nameOf, npcLevelText } from '../format';
   import { readerGearScore, setReaderGearScore } from '../reader-gear-score';
-  import { CHARACTER_LEVEL } from '../reader-levels';
+  import { CHARACTER_LEVEL } from '../planner/character-level';
   import { empoweredStrength } from './heroic-strength';
   import { calculateKillAward, creatureLevels, nearestCreatureLevel } from './kill-calculator';
   import { projectNpcStat } from './npc-stats';
