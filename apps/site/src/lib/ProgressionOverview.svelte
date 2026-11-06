@@ -2,6 +2,7 @@
   import type { PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import LevelControl from './detail/LevelControl.svelte';
+  import ActiveCharacterContext from './planner/ActiveCharacterContext.svelte';
   import { formatNumber } from './format';
   import { placeListName } from './place-list-name';
   import { readerLevels, setReaderLevel } from './reader-levels';
@@ -77,6 +78,7 @@
     <p>{description}{#if uncovered}{' '}No place covers level {formatNumber(selectedLevel ?? 0)}. Places go up to level {formatNumber(highestLevel)}.{/if}</p>
     <LevelControl id={`progression-${levelId.replace(/[^a-zA-Z0-9-]/g, '-')}`} label={levelLabel} min={1} max={Math.max(axisEnd, levelCap ?? 0)} level={selectedLevel} readerId={levelId} optional compact slider={false} />
   </div>
+  {#if levelId === CHARACTER_LEVEL}<ActiveCharacterContext />{/if}
   {#if groups.length}
     {#each groups as group, index (group.label)}
       <section class="group" aria-label={groupTitles[group.label] ?? group.label}>

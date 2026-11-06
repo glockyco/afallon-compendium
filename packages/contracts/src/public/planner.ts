@@ -1,10 +1,11 @@
 import { Type, type Static, type TSchema } from "typebox";
-import { ArtRefSchema } from "./documents";
+import { ArtRefSchema, EntityRefSchema } from "./documents";
 import { count, number, text, StaticResourceIdentityFields } from "./primitives";
 
 const nullable = <T extends TSchema>(schema: T) => Type.Union([schema, Type.Null()]);
 const gaps = Type.Array(text, { uniqueItems: true });
-const identity = Type.Object({ key: nullable(text), name: text, icon: Type.Optional(ArtRefSchema) }, { additionalProperties: false });
+// Reference metadata comes from the publication resolver, never from reader-generated slugs.
+const identity = Type.Object({ key: nullable(text), name: text, icon: Type.Optional(ArtRefSchema), ref: Type.Optional(EntityRefSchema) }, { additionalProperties: false });
 // Raw authored operands intentionally retain new fields and predicate forms. Presence is not verification.
 const rawObject = Type.Record(Type.String(), Type.Unknown());
 export const PlannerConditionSchema = Type.Object({

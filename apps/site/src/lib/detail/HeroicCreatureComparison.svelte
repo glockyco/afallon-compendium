@@ -108,8 +108,9 @@
           {#each spawnLevels as level}<option value={level}>{formatNumber(level)}</option>{/each}
         </select>
       </label>{/if}
-      <div class="score"><LevelControl id="heroic-gear-score" label="Equipped gear score" min={0} max={1250} level={score} onSelect={(value) => { if (value !== undefined) setReaderGearScore(value); }} /></div>
+      <div class="score"><LevelControl id="heroic-gear-score" label="Example gear score" min={0} max={1250} level={score} onSelect={(value) => { if (value !== undefined) setReaderGearScore(value); }} /></div>
     </div>
+    <p class="note">The example score is entered for this comparison; it is not calculated from your character’s equipment.</p>
     <p class="source"><EntityLink ref={chosen.entry.creature} {registry} /> in <EntityLink ref={chosen.place} {registry} /> at level&nbsp;{formatNumber(creatureLevel)}.</p>
     <div class="comparison-card" aria-live="polite" aria-atomic="true">
       <div class="c-table-scroll"><table class="c-table c-table--calculator" aria-label="Normal and Heroic creature comparison">

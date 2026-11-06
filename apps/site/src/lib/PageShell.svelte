@@ -13,6 +13,7 @@
   import { iconUrl, OTHER_COMPENDIUMS } from './compendiums';
   import { formatCalendarDate } from './format';
   import KofiGlyph from './KofiGlyph.svelte';
+  import CharacterMenu from './planner/CharacterMenu.svelte';
   import { kindGlyphSvg } from './kind-icon';
   import { GITHUB_URL, KOFI_URL, siteNavigation } from './site-navigation';
   import { DISCORD_URL, jsonLdScript, SITE_ORIGIN, STEAM_GUIDE_URL, STEAM_URL, UNOFFICIAL_NOTICE } from './seo';
@@ -24,6 +25,8 @@
   export let release: PublicRelease | undefined = undefined;
   /** False on a page that shows its own search, so the page has one search field. */
   export let search = true;
+  /** Workspaces need room for adjacent editing panels; articles retain their normal reading width. */
+  export let wide = false;
 
   $: navigationModel = siteNavigation(registry, base);
   // The footer repeats the bar's links, which a phone hides, with the pages about the Compendium itself.
@@ -93,6 +96,7 @@
         <details class="browse" bind:this={browse}>
           <summary class:current={navigationModel.sections.some((section) => section.links.some((link) => current(link.href))) && !navigationModel.primary.some((link) => current(link.href))}>Browse</summary>
           <div class="panel">
+            <div class="phone-character"><CharacterMenu phone /></div>
             <div class="columns">
               {#each navigationModel.sections as section (section.id)}
                 <section class="group" class:expanded={expanded === section.id} aria-labelledby={`nav-${section.id}`}>
@@ -113,6 +117,7 @@
       </nav>
       {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
       <div class="tools">
+        <div class="desktop-character"><CharacterMenu /></div>
         <span class="divider" aria-hidden="true"></span>
         <CompendiumSwitcher />
         <a class="kofi" href={KOFI_URL} rel="external" aria-label="Support on Ko-fi" title="Support on Ko-fi"><KofiGlyph /><span>Support</span></a>
@@ -123,7 +128,7 @@
   <main>
     <!-- A page can open with a full-width band above its centered content. -->
     <slot name="hero" />
-    <div class="c-page">
+    <div class="c-page" class:wide>
       {#if crumbs.length}
         <nav class="crumbs" aria-label="Breadcrumb">
           {#each crumbs as crumb, index}
@@ -169,9 +174,9 @@
   .frame { display: flex; flex-direction: column; min-height: 100vh; }
   /* The bar is one row of the brand, the site links, search, and support. Its links fill the bar's height, so the current
      link's gold rule sits on the bar's lower edge, under a faint gold line that closes the bar. */
-  .bar { position: relative; z-index: 20; border-bottom: 1px solid var(--c-line); background: var(--c-surface-1); }
+  .bar { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--c-line); background: var(--c-surface-1); }
   .bar::after { content: ''; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-accent-line) 45%, transparent) 50%, transparent); pointer-events: none; }
-  .bar-inner { position: relative; display: flex; align-items: stretch; gap: 1.5rem; width: min(72rem, 100%); margin: 0 auto; padding: 0 1.5rem; min-height: 4rem; }
+  .bar-inner { position: relative; display: flex; align-items: stretch; gap: .75rem; width: min(72rem, 100%); margin: 0 auto; padding: 0 1.5rem; min-height: 4rem; }
   .brand { display: inline-flex; align-self: center; align-items: center; gap: .65rem; color: var(--c-text); text-decoration: none; }
   .brand img { width: 40px; height: 40px; flex: none; object-fit: contain; }
   .brand-copy { display: grid; gap: .2rem; line-height: 1; }
@@ -231,7 +236,10 @@
   .bar-search + .tools { margin-left: -.4rem; }
   .divider { width: 1px; height: 1.5rem; margin-right: .3rem; background: var(--c-line); }
   /* The field keeps room for a query. Where the bar cannot give it that room, the field moves to a row of its own. */
-  .bar-search { align-self: center; flex: 1 1 14rem; min-width: 14rem; max-width: 20rem; margin-left: auto; }
+  .bar-search { align-self: center; flex: 1 1 16rem; min-width: 16rem; max-width: 20rem; margin-left: auto; }
+  .desktop-character { display: flex; align-items: center; }
+  .c-page.wide { width: min(100rem, 100%); }
+  .phone-character { display: none; }
 
   main, .c-page { display: flex; flex: 1 1 auto; flex-direction: column; }
   .page-content { flex: 1 0 auto; }
@@ -281,6 +289,8 @@
      destination. */
   @media (max-width: 50rem) {
     .primary { display: none; }
+    .desktop-character { display: none; }
+    .phone-character { display: block; }
   }
 
   @media (max-width: 640px) {

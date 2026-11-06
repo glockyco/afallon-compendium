@@ -51,14 +51,20 @@ FROM conditions ORDER BY condition_id;
 
 The schema is [public/planner.ts](src/public/planner.ts); projection is [publication/planner.ts](../publication/src/planner.ts). The payload contains:
 
-- Offered races, authored class offers, offered classes and individual class level bounds.
+- Offered races, authored class offers, offered classes and individual class level bounds. Identities that resolve to a public entity carry the existing `EntityRef` as `ref` (native key, kind, name, published slug/variant and artwork); bonus/tree/point identities without reference pages do not invent routes. The planner uses those refs for reference navigation without downloading class pages or the search index.
 - Every linked tree, point key, tier/slot dimensions and every node's stable index, authored tier/row position, kind, target name and available icon.
 - One-based public ranks, every authored cost and array limit, and explicit default rank (zero, one or unknown). `rawData.rank` retains the catalog's zero-based index. `rawData` retains intermediate stat, pet and effect data; `text` retains available ability tooltip lines, including authored blank lines, and bonus tooltip text.
 - `purchaseCondition` and separately labelled `useEffectCondition` on each rank. Condition IDs, source paths, selected inline/template semantics and raw groups preserve all authored predicate fields, optional thresholds and future operands. Their presence does **not** verify their behavior.
 - All captured point types, starting amounts, authored maxima and raw gain rules. Only the evidenced build-25653798 Talent Point record gets `baseLevelGrant`; other schedules remain null. Full earned totals remain unverified for every type.
 - Named `gaps` rather than invented costs, defaults, levels, point keys, empty known balances or supported predicate rules.
 
-`MapDataLoader.loadPlanner(expectedIdentity?)` requests only the validated root and its planner resource, using the existing cache and hash/size/schema/build/catalog checks. Supplying the mounted page's publication identity rejects stale page context. Registry/public-page loading does not request the planner resource; planner loading does not request search, class documents or map parts. The workspace route and header integration are later work; these loader tests do not constitute browser acceptance of an unimplemented route.
+`MapDataLoader.loadPlanner(expectedIdentity?)` requests only the validated root and its planner resource, using the existing cache and hash/size/schema/build/catalog checks. Supplying the mounted page's publication identity rejects stale page context. Registry/public-page loading does not request the planner resource; planner loading does not request search, class documents or map parts.
+
+## Public-Page Context
+
+The root site layout projects class names and weapon types from published class documents at prerender time. Only that small summary enters public-page hydration; the header reads the browser collection after mount and never resolves saved builds through the planner payload, evaluator, search, roster or item directory. Reference context uses the same active level as comparison controls. Item context appears only for a published weapon type or a positive level requirement; currencies and materials without those facts render none. Weapon cues match published class weapon types; armor is not class-restricted, and ability cues describe published learning relations without claiming that a character has learned an ability. Heroic context reports Gear Score Not Available; the guide’s manually entered example score is separate.
+
+Class-page “Plan a (Class)” links carry the published class key in `/planner/?class=classes%3A6` (Druid here). They open setup without selecting or replacing a character. The header’s New Character action uses `/planner/?new=1`; character creation remains an explicit setup submission. Reader-facing context links point to [Planner Help](https://afallon.compendiums.org/planner/#help), where character operations and browser-only lifetime are explained.
 
 ## Candidate Verification
 
@@ -66,11 +72,11 @@ The normal candidate publish command uses the accepted catalog without staging o
 
 ```sh
 bun run compendium publish --store artifacts \
-  --output local/planner-foundation-publication-20261011 \
+  --output local/planner-foundation-publication-20261011b \
   --plan local/update-0-16-3/publish-25653798-drops-by-roll-5.json --candidate
 ```
 
-The exercised candidate root is `21a1962673ee7de5b90a4832154d1728570cbf42e6989150ab332ee0aa6dc65a`; its planner object is `89f71d534173c9d167e8a9188ed16f19254cce62ebd6fb8c7f8201996480aa8b` (3,702,103 decoded bytes; 203,158 gzip bytes). It contains 3,491 complete ranks. Canonical comparison with the catalog found zero raw-rank, raw-condition or tier/row differences, with positive controls of 692 node conditions and 52 rank conditions. The spike inventory comparison also found zero differences across all 730 nodes. Thirty-eight nodes retain the explicit no-condition-record gap.
+The exercised candidate root is `84aa5abf3a8a0584f0c8b022a6093ac81d4b4f05bf502147299d9e031d6dcbad`; its planner object is `ae01cc429bc2f657129daac9e8d42699e11f06416e0354000dda4485a188ec6a` (3,756,784 decoded bytes; 207,265 gzip bytes). It contains 730 nodes, 3,491 complete ranks, all six class refs, all three race refs and 157 linked ability-node refs. Removing only the added reference metadata reproduces the facts-only resource's canonical checksum (`9e4ba55008784c405aa48a3fd1152202f38bad5dab131585df84ec964afb8e8a`); costs, ranks, conditions and positions are unchanged. Catalog comparison found zero raw-rank, raw-condition or tier/row differences, with positive controls of 692 node conditions and 52 rank conditions. Thirty-eight nodes retain the explicit no-condition-record gap.
 
 The actual candidate loaded through `MapDataLoader.loadPlanner` with exactly two requests: `publication.json` and the planner object; no search or class documents were loaded. Unit tests additionally cover registry-only loading, caching, hash/size/schema validation through the shared loader, stale page identity and mixed catalog rejection.
 
@@ -81,5 +87,5 @@ Candidate publication completed with no publication issues or typed integrity fa
 - An absent condition ID is `groups: null` with `condition-not-recorded`, not fabricated empty requirements. Catalog normalization can erase empty groups and unavailable templates into the same null link; consumers must establish a known-empty case from its evidence before claiming verified purchase legality. A missing referenced record instead names `condition-record-missing`.
 - Missing rank facts keep `rankLimit` and `defaultRank` null; a missing point key stays null. Unknown predicates/optional thresholds keep raw operands and named gaps. Fixtures exercise these distinctions.
 - Outside learning/spellbook schedules, active modifiers, full activity-earned balances and future predicate/node kinds remain unverified. Rank use/effect conditions are not purchase gates. Layout tier/row is not a level gate.
-- No capture change is required to publish these existing catalog facts. Task 2.3 remains conditional and unchecked; this work neither stages nor accepts a catalog/publication update. Official acceptance still needs its JSON provenance, verification, risks and rollback audit.
-- Browser route loading, hydration, resource timing, direct navigation and evaluator legality/replay are not exercised by these schema/projection/loader tests; they remain the owning later tasks' acceptance gates.
+- No capture change is required to publish these existing catalog facts. Task 2.3 remains conditional and unchecked. The candidate is staged for local browser verification, not accepted as official data; official acceptance still needs its JSON provenance, verification, risks and rollback audit.
+- Schema/projection/loader tests do not establish complete browser acceptance. The workspace's Chromium tests cover setup, reversible web/list editing at 1440/1100/390 pixels, preview isolation/adoption and export/import confirmation. Browser denial, concurrency, direct static-host transport, measured resource boundaries and official acceptance remain tracked separately in the change's tasks.

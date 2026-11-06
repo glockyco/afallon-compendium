@@ -2,6 +2,7 @@
   import { base } from '$app/paths';
   import type { PublicAbility, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
+  import ActiveCharacterContext from '../../planner/ActiveCharacterContext.svelte';
   import NativeText from '../../NativeText.svelte';
   import Requirements from '../../Requirements.svelte';
   import { isNamedAppliedEffect } from '../effect-outcome';
@@ -31,7 +32,7 @@
 
 <article class="detail-page">
   <DetailFrame side={main.useRequirements.length > 0}>
-    <div slot="head"><TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
+    <div slot="head"><TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /><ActiveCharacterContext ability={document} /></div>
     <div slot="answer"><AnswerCard title="What it does">
       {#if document.versions.length > 1}<p class="version">Version {document.versions.indexOf(main) + 1} of {document.versions.length}</p>{/if}
       {#if firstRank}

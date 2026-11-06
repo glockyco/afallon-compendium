@@ -18,7 +18,7 @@ function fixture() {
     { id: "purchase", semantics: "requirements-template", sourceFieldPath: "node.template", payload: { groups: [{ checkCount: true, requiredCount: 2, requirements: [{ requirementType: "Bonus", conditionRule: "Optional", bonusID: 0, amount1: 3, boolBalue1: true, value: { value: 2, name: "EqualOrAbove" }, futureOperand: 17 }] }] } },
     { id: "use", semantics: "inline-requirements", sourceFieldPath: "rank.requirements", payload: { groups: [{ checkCount: false, requiredCount: 0, requirements: [{ requirementType: "Effect", effectID: 1 }] }] } },
   ];
-  const input = { facts: { progression, abilities: [] }, artByEntity: new Map() };
+  const input = { facts: { progression, abilities: [] }, artByEntity: new Map(), resolve: (endpoint: { entityKey: string | null; label: string }) => endpoint.entityKey?.startsWith("classes:") ? { key: endpoint.entityKey, kind: "classes" as const, name: "Offered Class", slug: "offered-class" } : { key: null, label: endpoint.label } };
   const identity = { buildId: "25653798", catalogId: "a".repeat(64) };
   return { input, identity, conditions, project: () => projectPlanner(identity, input, conditions) };
 }
@@ -37,6 +37,9 @@ test("publishes every authored cost, limit, default and raw optional threshold s
   expect(value.pointTypes[0]?.baseLevelGrant).toEqual({ start: 1, perLevel: 3, positiveCap: 180, rule: "build-25653798-base-talent-points" });
   expect(value.pointTypes[1]?.authoredMaxPoints).toBe(0);
   expect(value.pointTypes[1]?.baseLevelGrant).toBeNull();
+  expect(value.classes[0]?.ref).toEqual({ key: "classes:0", kind: "classes", name: "Offered Class", slug: "offered-class" });
+  expect(value.races[0]?.offeredClasses[0]?.ref).toEqual(value.classes[0]?.ref);
+  expect(node.target.ref).toBeUndefined();
 });
 
 test("preserves missing ranks, conditions, thresholds, point keys and unsupported predicates as named gaps", () => {

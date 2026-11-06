@@ -3,6 +3,7 @@
   import { categoryLabel, type PublicItem, type PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import ItemTooltip from '../../ItemTooltip.svelte';
+  import ActiveCharacterContext from '../../planner/ActiveCharacterContext.svelte';
   import ObjectiveText from '../../ObjectiveText.svelte';
   import Price from '../../Price.svelte';
   import { CLOTH_CHANCE_HINT, formatNumber, intervalText, nameOf, percentText, rarityTone } from '../../format';
@@ -118,7 +119,7 @@
 
 <article class="detail-page" data-rarity={tone}>
   <DetailFrame>
-    <svelte:fragment slot="head"><TitleBlock name={document.ref.name} rarity={tone} imageUrl={document.art.icon || document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {typeLine} mapHref={onMap ? itemOnMap(document.ref.key) : undefined} {registry} /></svelte:fragment>
+    <svelte:fragment slot="head"><TitleBlock name={document.ref.name} rarity={tone} imageUrl={document.art.icon || document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {typeLine} mapHref={onMap ? itemOnMap(document.ref.key) : undefined} {registry} />{#if (facts.itemType === 'WEAPON' && facts.weaponType) || (facts.levelRequirement !== undefined && facts.levelRequirement > 0)}<ActiveCharacterContext item={facts} />{/if}</svelte:fragment>
 
     <svelte:fragment slot="answer">
       {#if hasSources}

@@ -3,6 +3,7 @@
   import { categoryLabel } from '@afallon/contracts/public';
   import { base } from '$app/paths';
   import EntityLink from '../../EntityLink.svelte';
+  import ActiveCharacterContext from '../../planner/ActiveCharacterContext.svelte';
   import { formatNumber, levelText, listText } from '../../format';
   import { placeOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
@@ -42,7 +43,7 @@
 
 <!-- On phones the playable contents follow the artwork; desktop keeps the description before the contents. -->
 <DetailFrame side={hasSide} answer={Boolean(artwork || document.description || summary.length || document.variantOf || !document.space)}>
-  <svelte:fragment slot="head"><TitleBlock name={document.ref.name} typeLine={categoryLabel(facts.placeType)} facts={identity} mapHref={document.space ? placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined) : undefined} {registry} /></svelte:fragment>
+  <svelte:fragment slot="head"><TitleBlock name={document.ref.name} typeLine={categoryLabel(facts.placeType)} facts={identity} mapHref={document.space ? placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined) : undefined} {registry} /><ActiveCharacterContext /></svelte:fragment>
   <svelte:fragment slot="answer">
     {#if artwork || document.description || summary.length || document.variantOf}
       <AnswerCard title="Explore this place">

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CharacterProgression, PublicKindEntry, TalentPoints } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
+  import ActiveCharacterContext from '../../planner/ActiveCharacterContext.svelte';
   import { formatNumber, npcLevelText, signedAmount } from '../../format';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -52,6 +53,7 @@
         <svelte:fragment slot="top">
           {#if section.id === 'level-curve'}
             <ProgressionAnswer guide={document} {registry} fallback={fallbackLevel} bind:level={characterLevel} />
+            <ActiveCharacterContext />
           {:else if section.id === 'kill-experience'}
             <p class="counts">{formatNumber(sources.scalingCreatures.count)} creatures that give experience match your level within the level range of their zone. Another {formatNumber(sources.fixedCreatures.count)} have a fixed level between {formatNumber(sources.fixedCreatures.minLevel)} and {formatNumber(sources.fixedCreatures.maxLevel)}.</p>
             {#if sources.scalingCreatures.aboveFixed.length}

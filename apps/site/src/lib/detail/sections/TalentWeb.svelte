@@ -1,9 +1,15 @@
+<script lang="ts" context="module">
+  import type { TalentTree } from '@afallon/contracts/public';
+  /** The web consumes tree identity and rows, not a tree-wide point-cost total. */
+  export type TalentWebTree = Pick<TalentTree, 'anchor' | 'name' | 'rows'>;
+</script>
+
 <script lang="ts">
   import { pushState } from '$app/navigation';
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import { readable } from 'svelte/store';
-  import type { ArtRef, PublicKindEntry, Ref, TalentRow, TalentTree, TalentWeb } from '@afallon/contracts/public';
+  import type { ArtRef, PublicKindEntry, Ref, TalentRow, TalentWeb } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Requirements from '../../Requirements.svelte';
   import TalentEffect from '../../TalentEffect.svelte';
@@ -14,9 +20,15 @@
 
   /** A class's talents as the game's talent screen lays them out, with the trees whose rows the nodes show. */
   export let web: TalentWeb;
-  export let trees: TalentTree[];
+  export let trees: TalentWebTree[];
   export let registry: PublicKindEntry[];
 
+  /** A workspace owns selection without rewriting its build fragment or moving the view. */
+  export let selectedAnchor: string | undefined = undefined;
+  export let onSelect: ((anchor: string) => void) | undefined = undefined;
+  export let rankLabels: ReadonlyMap<string, string> | undefined = undefined;
+  export let highlighted: ReadonlySet<string> | undefined = undefined;
+  export let showDetail = true;
   // The game's node size and the radius of its first ring, in game units (TalentWebPanel nodeSize and ringStart).
   const NODE = 100;
   const RING_START = 300;
@@ -27,7 +39,7 @@
     ...rank.stats.map((stat) => stat.stat),
     ...rank.petStats.flatMap((group) => [...(group.pets.kind === 'npc' ? [group.pets.npc] : []), ...group.stats.map((stat) => stat.stat)]),
   ] : [];
-  function linkedTalents(trees: TalentTree[]): Array<{ tree: string; ref: Ref }> {
+  function linkedTalents(trees: TalentWebTree[]): Array<{ tree: string; ref: Ref }> {
     const result: Array<{ tree: string; ref: Ref }> = [], seen = new Set<string>();
     for (const tree of trees) for (const row of tree.rows) {
       for (const ref of [...(row.ability ? [row.ability] : []), ...rankRefs(row.first), ...rankRefs(row.last)]) {
@@ -45,14 +57,14 @@
   $: outer = Math.max(RING_START, ...web.nodes.map((node) => Math.hypot(node.x, node.y))) + NODE;
 
   // The address selects: a talent's anchor selects the talent, and a tree's anchor marks the tree.
-  $: anchor = $location ? fragmentId($location.hash) : '';
+  $: anchor = selectedAnchor ?? ($location ? fragmentId($location.hash) : '');
   $: selected = talents.get(anchor);
   $: markedTree = treesByAnchor.get(anchor)?.anchor ?? selected?.tree.anchor;
   // A selected talent lights up every talent that it needs, back to its tree's first tier, and the talents that it unlocks.
   $: chain = selected ? requirementChain(web.edges, anchor) : new Set<string>();
   $: unlocks = web.edges.filter((edge) => edge.from === anchor).flatMap((edge) => talents.get(edge.to) ?? []);
-  $: related = new Set([...chain, ...unlocks.map((entry) => entry.row.anchor)]);
-  $: lit = (edge: { from: string; to: string }) => chain.has(edge.to) && chain.has(edge.from) || edge.from === anchor;
+  $: related = highlighted ?? new Set([...chain, ...unlocks.map((entry) => entry.row.anchor)]);
+  $: lit = (edge: { from: string; to: string }) => related.has(edge.to) && related.has(edge.from);
   // The list view of this page with the same talent, keeping the reader's other choices in the address.
   const listAddress = (url: URL, talent: string) => { const next = withTab(url, 'view', 'list', false); next.hash = talent; return `${next.search}${next.hash}`; };
   const iconOf = (row: TalentRow): ArtRef | undefined => (row.ability && 'icon' in row.ability ? row.ability.icon : undefined) ?? row.icon;
@@ -163,6 +175,12 @@
   function followLink(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target : null;
     if (dragged && target && svg?.contains(target)) { event.preventDefault(); event.stopPropagation(); dragged = false; return; }
+    if (onSelect && target && root.contains(target)) {
+      const link = target.closest('a[href]');
+      const href = link instanceof SVGAElement ? link.href.baseVal : link instanceof HTMLAnchorElement ? link.getAttribute('href') : null;
+      const id = href?.startsWith('#') ? href.slice(1) : '';
+      if (talents.has(id)) { event.preventDefault(); event.stopPropagation(); onSelect(id); return; }
+    }
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !navigation) return;
     const link = target?.closest('a[href]');
     const href = link instanceof HTMLAnchorElement ? link.href : link instanceof SVGAElement ? new URL(link.href.baseVal, window.location.href).href : null;
@@ -233,8 +251,8 @@
               <g id={node.talent} transform={`translate(${x} ${y})`}>
                 <title>{entry.row.name}</title>
                 {#if ability}<rect class="shape" x={-NODE / 2} y={-NODE / 2} width={NODE} height={NODE} rx="16" />{:else}<circle class="shape" r={NODE / 2} />{/if}
-                {#if icon}<image href={`${base}/data/${icon.url}`} x={-(NODE / 2 - 9)} y={-(NODE / 2 - 9)} width={NODE - 18} height={NODE - 18} clip-path={`url(#talent-web-${ability ? 'square' : 'circle'})`} preserveAspectRatio="xMidYMid slice" />{/if}
-                {#if entry.row.ranks > 1}<text class="ranks" x={NODE / 2 - 4} y={NODE / 2 - 4}>{entry.row.ranks}</text>{/if}
+                {#if icon}<image href={`${base}/data/${icon.url}`} x={-(NODE / 2 - 9)} y={-(NODE / 2 - 9)} width={NODE - 18} height={NODE - 18} clip-path={`url(#talent-web-${ability ? 'square' : 'circle'})`} preserveAspectRatio="xMidYMid meet" />{/if}
+                {#if rankLabels?.has(node.talent) || entry.row.ranks > 1}<text class="ranks" x={NODE / 2 - 4} y={NODE / 2 - 4}>{rankLabels?.get(node.talent) ?? entry.row.ranks}</text>{/if}
               </g>
             </a>
           {/if}
@@ -249,6 +267,7 @@
     <p>Drag to move the web. Zoom with the buttons, a pinch, or Ctrl and the scroll wheel.</p>
   </div>
 
+  {#if showDetail}
   <div class="detail" aria-live="polite">
     {#if selected}
       {@const icon = iconOf(selected.row)}
@@ -268,6 +287,7 @@
         {#each staticLinks as entry}<li><EntityLink ref={entry.ref} {registry} /><span>{entry.tree}</span></li>{/each}
       </ul>
     </StaticMore>
+  {/if}
   {/if}
 </div>
 

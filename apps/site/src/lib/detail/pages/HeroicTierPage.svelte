@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { HeroicTier, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
+  import ActiveCharacterContext from '../../planner/ActiveCharacterContext.svelte';
   import { formatNumber } from '../../format';
   import { spotOnMap } from '../../map-links';
   import HeroicCreatureComparison from '../HeroicCreatureComparison.svelte';
@@ -82,6 +83,7 @@
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
+  <ActiveCharacterContext heroic />
   <GuideStart overview={document.overview}>
 
     {#if rewards.length}

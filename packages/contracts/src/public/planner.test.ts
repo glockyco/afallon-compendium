@@ -30,3 +30,10 @@ test("rejects invalid versions and invented contract fields while retaining raw 
   partial.trees[0]!.nodes[0]!.purchaseCondition.groups![0]!.requirements[0]!.futureOperand = "unverified";
   Assert(StaticPlannerSchema, partial);
 });
+
+test("validates published reference metadata without inventing routes for non-page identities", () => {
+  const linked = structuredClone(value);
+  linked.races = [{ key: "races:0", name: "Human", ref: { key: "races:0", kind: "races", name: "Human", slug: "human" }, offeredClasses: [], gaps: [] }];
+  Assert(StaticPlannerSchema, linked);
+  expect(() => Assert(StaticPlannerSchema, { ...linked, races: [{ ...linked.races[0], ref: { key: "races:0", kind: "races", name: "Human", slug: "../human" } }] })).toThrow();
+});

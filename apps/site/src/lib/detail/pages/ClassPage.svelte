@@ -49,6 +49,7 @@
     <div slot="answer"><AnswerCard title="Playstyle">
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.autoAttack}<p>Auto attack: <EntityLink ref={facts.autoAttack} {registry} /></p>{/if}
+      <p><a class="c-action" href={`${base}/planner/?class=${encodeURIComponent(document.ref.key)}`}>Plan a {document.ref.name}</a></p>
       {#if document.trees.length}
         <nav class="mobile-trees" aria-label="Talent trees"><strong>Talent trees</strong>
           {#each document.trees as tree}<a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a>{/each}

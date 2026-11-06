@@ -15,7 +15,7 @@ export function plannerConditionRows(db: Database): PlannerConditionRow[] {
 }
 
 export function projectPlanner(identity: { buildId: string; catalogId: string },
-  input: { facts: Pick<DocumentProjectionInput["facts"], "progression" | "abilities">; artByEntity: DocumentProjectionInput["artByEntity"] },
+  input: { facts: Pick<DocumentProjectionInput["facts"], "progression" | "abilities">; artByEntity: DocumentProjectionInput["artByEntity"]; resolve: DocumentProjectionInput["resolve"] },
   conditionRows: readonly PlannerConditionRow[]): StaticPlanner {
   const progression = input.facts.progression;
   const facts = new Map(progression.facts.map((fact) => [fact.entityKey, fact]));
@@ -23,7 +23,8 @@ export function projectPlanner(identity: { buildId: string; catalogId: string },
   const ref = (endpoint: CatalogEndpoint | null) => {
     const key = endpoint?.entityKey ?? null;
     const icon = key ? input.artByEntity.get(key)?.icon : undefined;
-    return { key, name: displayName(endpoint?.label ?? "Unknown"), ...(icon ? { icon } : {}) };
+    const published = endpoint ? input.resolve(endpoint) : null;
+    return { key, name: displayName(endpoint?.label ?? "Unknown"), ...(icon ? { icon } : {}), ...(published?.key ? { ref: published } : {}) };
   };
   const named = (key: string) => ref({ entityKey: key, label: facts.get(key)?.name ?? key });
   const condition = (id: string | null, purchase: boolean): PlannerCondition => {

@@ -20,7 +20,7 @@ export const GET: RequestHandler = async () => {
       if (page.kind === 'effects' && page.document.type === 'Teleport') teleportSlugs.add(effects[start + index]!.slug);
     }
   }
-  const paths = ['/', '/map/', '/coverage/', '/about/', ...lists.map(({ kind }) => `/${kind}/`),
+  const paths = ['/', '/map/', '/planner/', '/coverage/', '/about/', ...lists.map(({ kind }) => `/${kind}/`),
     ...entities.filter(({ kind, slug }) => kind !== 'effects' || !teleportSlugs.has(slug)).map(({ kind, slug }) => `/${kind}/${slug}/`)];
   const urls = paths.map((path) => `  <url><loc>${escapeXml(`${ORIGIN}${base}${path}`)}</loc></url>`).join('\n');
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, {
